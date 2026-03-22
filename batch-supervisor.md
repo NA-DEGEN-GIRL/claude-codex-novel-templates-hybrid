@@ -19,8 +19,8 @@ Claude Code periodically checks a tmux session and automatically supervises a Co
 
 - **Supervisor**: Open Claude Code at `/root/novel/` (parent folder) and input this prompt.
   - Reads the parent folder's CLAUDE.md (project guide), giving it full context for config.json management etc.
-- **Writer**: Inside a tmux session, navigate to the novel folder (`no-title-XXX/`) and run `claude`.
-  - Reads the novel folder's CLAUDE.md (writing constitution), so it follows that novel's specific rules.
+- **Writer**: Inside a tmux session, navigate to the novel folder (`no-title-XXX/`) and run `codex --dangerously-bypass-approvals-and-sandbox`.
+  - Codex가 소설 폴더의 설정 파일을 직접 읽고 본문을 생성한다. 리뷰/summary/commit은 supervisor가 처리.
 
 ---
 
@@ -36,15 +36,15 @@ Modify these values for your novel before inputting the prompt.
 | `START_EP` | Starting episode | `1` |
 | `END_EP` | Ending episode | `70` |
 | `CHUNK_SIZE` | /clear interval (in episodes). **`-1` = never /clear** (use auto-compact instead) | `10` or `-1` |
-| `WRITER_CMD` | Writer launch command | `codex --full-auto` (hybrid default) |
+| `WRITER_CMD` | Writer launch command | `codex --dangerously-bypass-approvals-and-sandbox` |
 | `ARC_MAP` | Arc-to-episode mapping | See below |
 
 ### WRITER_CMD Examples
 
 | Value | Description |
 |-------|-------------|
-| `codex --dangerously-bypass-approvals-and-sandbox` | Hybrid default: GPT 5.4 writer, 전체 승인 우회 |
-| `claude` | Lean fallback: Claude Code (전체 파이프라인 수행) |
+| `codex --dangerously-bypass-approvals-and-sandbox` | **Hybrid default**: GPT 5.4 writer, 승인 프롬프트 없이 파일 읽기/쓰기 |
+| `claude` | Lean fallback: Claude Code 전체 파이프라인 (hybrid에서는 비권장) |
 | `claude --model claude-sonnet-4-6` | Specify a particular model |
 
 ### ARC_MAP Example
