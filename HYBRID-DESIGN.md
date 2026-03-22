@@ -1,133 +1,152 @@
-# Claude × GPT Hybrid Pipeline Design
+# Claude × Codex Hybrid Pipeline Design
 
 ## Architecture
 
 ```
-Claude Code (Orchestrator)          GPT 5.4 (Prose Engine)
-─────────────────────────          ─────────────────────────
-Step 1: compile_brief
-Step 2: Read previous ep
-Step 3: Check feedback
-Step 4: Planning gate
-Step 5: Reader objection
+Claude Code (Supervisor + Reviewer)     Codex / GPT 5.4 (Writer)
+────────────────────────────────────     ────────────────────────
+runs at /root/novel/                     runs in tmux session
+                                         at /root/novel/no-title-XXX/
 
-       ─── writer_packet.md ──→
-                                   Step 6: Write prose draft
-       ←── chapter-{NN}.md ───
-
-Step 7: Self-review (Claude)
-Step 8-9: Summary update
-Step 10: Unified review + external
-Step 11: EPISODE_META
-Step 12: Git commit
-
-  ─── rewrite request (optional) ──→
-                                   Step 6b: Partial rewrite
-  ←── revised segment ────────
+  compile_brief → 결과 확인
+  plot/settings 상태 확인
+  review_floor 결정
+  집필 프롬프트 생성
+       │
+       └──── tmux send-keys ────→  프롬프트 수신
+                                    파일 직접 읽기 (settings, plot, prev ep)
+                                    본문 생성 + 파일 저장
+                                    (codex가 자체적으로 파일 read/write)
+       ←──── tmux capture-pane ──  완료 확인
+       │
+  unified-reviewer (Claude)
+  external AI review (MCP)
+  narrative-fixer (Claude)
+  summary update (Claude)
+  checkers (Claude)
+  git commit (Claude or codex)
 ```
 
-## Key Principles
+## Key Insight: tmux Interactive > CLI One-shot
 
-1. **Claude = stateful orchestrator** — 파이프라인 제어, 연속성 관리, 검증
-2. **GPT = prose engine** — 본문 생성만. 프로젝트 상태를 직접 읽지 않음
-3. **writer_packet이 유일한 인터페이스** — Claude가 압축한 패킷만 GPT에 전달
+- **연속성**: Codex가 대화 내에서 이전 화 컨텍스트 유지
+- **파일 접근**: Codex가 소설 폴더에서 직접 파일 읽기/쓰기 가능
+- **기존 패턴 재사용**: Claude→Claude tmux supervision과 동일한 구조
+- **새 MCP 도구 불필요**: batch-supervisor.md 프롬프트만 변경
 
-## writer_packet.md 구조
+## 변경 범위 (lean 대비)
 
-```markdown
-# Writer Packet — {N}화
+### 변경 필요
+1. **batch-supervisor.md** — `claude` → `codex` 세션 관리, 프롬프트 템플릿 조정
+2. **writer.md** → **GPT_WRITER.md** — Codex용 집필 지침 (settings 직접 읽기 방식)
+3. **.claude/agents/writer.md** — Claude의 역할을 "집필 지시+검증"으로 축소
 
-## 소설 정보
-- 제목: {title}
-- 장르: {genre}
-- Voice Profile: {§0 전문}
-- 대표 문단: {§0.3 전문}
+### 변경 불필요 (그대로 유지)
+- compile_brief.py
+- unified-reviewer.md, narrative-fixer.md
+- all checkers (oag, why, pov-era, scene-logic, repetition)
+- korean-naturalness.md
+- CLAUDE.md (소설 헌법)
+- settings/, summaries/, plot/
 
-## 이번 화 목표
-- 서사 목표: {1-2문장}
-- 엔딩 훅 타입: {cliffhanger/reveal/decision/emotion/calm/question}
-- 주제 연결: {thematic function}
+## 세션 구조
 
-## 장면 비트 (5-8개)
-1. {장면 1 설명}
-2. {장면 2 설명}
-...
-
-## 등장인물 (이번 화)
-{character 슬라이스 — 이름, 성격/말투, 대표 대사}
-
-## 직전 화 끝 (2-3문단)
-{previous episode last paragraphs}
-
-## 불변 조건 (반드시 준수)
-{Continuity Invariants table}
-
-## 금지 패턴
-- 외래어 금지 (비현대): 에너지→기운, 시스템→체계, ...
-- 아라비아 숫자 금지 (비현대)
-- 메타 표현 금지: "N화에서", "독자 여러분"
-- 전생 비교문 2회 이하
-- {소설별 추가 금지}
-
-## 출력 규격
-- 한국어만 출력
-- 본문만 출력 (EPISODE_META, 요약 등 불필요)
-- 분량: {min}~{max}자
-- 장면 구분: ***
-- 파일 저장: {output_path}
-```
-
-## write_episode MCP 도구
-
-```python
-write_episode(
-    novel_dir: str,          # 소설 폴더 경로
-    episode_number: int,     # 화 번호
-    writer_packet_path: str, # writer_packet.md 경로
-    output_path: str,        # 출력 파일 경로
-    mode: str = "draft",     # "draft" | "rewrite_segment"
-    target_range: str = None, # rewrite 시 수정 범위 (줄 번호)
-    model: str = "gpt-5.4",
-) -> {
-    status: str,
-    output_path: str,
-    char_count: int,
-    token_usage: dict,
-    latency_ms: int,
-}
-```
-
-내부 구현: codex CLI 호출
+### Supervisor (Claude Code)
 ```bash
-codex exec - --full-auto -m gpt-5.4 \
-  -c model_reasoning_effort="high" \
-  -C {novel_dir} \
-  < writer_packet.md
+# /root/novel/ 에서 실행
+claude
 ```
 
-## 검증/수정 루프
+### Writer (Codex)
+```bash
+# tmux 세션에서 소설 폴더로 이동 후 실행
+tmux new-session -d -s write-001 -x 220 -y 50 -c /root/novel/no-title-001
+tmux send-keys -t write-001 'codex' Enter
+```
 
-1. GPT 초안 → Claude unified-review
-2. 발견된 이슈 분류:
-   - **연속성/설정 위반**: Claude narrative-fixer가 직접 수정
-   - **prose 품질 (전투, 대사, 감정)**: GPT에 부분 재작성 요청 (1회 한정)
-3. GPT 재시도 1회 + Claude 최종 patch → 완료
-4. 무한 루프 금지: 최대 GPT 2회 호출 (draft + rewrite_segment 1회)
+## 프롬프트 설계
 
-## 비용 추정 (화당)
+### Chunk Start (첫 화 또는 /clear 후)
 
-| 항목 | 토큰 | 비용 (gpt-5.4 기준) |
-|------|------|---------------------|
-| writer_packet 입력 | ~10K | ~$0.025 |
-| 본문 출력 | ~12K | ~$0.18 |
-| rewrite (50% 확률) | ~8K | ~$0.12 |
-| **화당 평균** | | **~$0.25** |
+```
+{N}화를 집필해줘.
+
+[지침]
+- 이 소설의 집필 헌법: CLAUDE.md를 먼저 읽어라.
+- settings/ 폴더의 01-style-guide.md (특히 §0 Voice Profile), 03-characters.md, 04-worldbuilding.md, 05-continuity.md (특히 Continuity Invariants 표)를 읽어라.
+- plot/{arc}.md를 확인하여 이번 화의 아크 역할을 파악하라.
+- 직전 화(chapters/{arc}/chapter-{NN-1}.md) 마지막 2~3문단을 확인하여 오프닝 연결.
+- 본문만 한국어로 출력. EPISODE_META, 요약, 리뷰는 생성하지 마라 — 감독자가 처리.
+- 파일명: chapters/{arc}/chapter-{NN}.md
+
+[분량]
+- 목표: 4,000~6,000자 (한글, 공백 포함)
+- 허용: 3,000~7,000자
+
+[핵심 규칙]
+- 시점: 3인칭 제한 시점 ({POV 인물명} 고정)
+- 비현대 배경: 외래어/아라비아 숫자 금지 (한자어/한글 수사 사용)
+- 전생 비교문: 화당 2회 이하
+- 메타 표현 금지: "N화에서", "독자 여러분"
+- settings/05-continuity.md의 불변 조건 표를 반드시 대조하라
+
+[자율 실행]
+- 질문하지 말고 자율 완료하라.
+- 완료 후 대기.
+```
+
+### Continuation (이전 화 컨텍스트 유지 중)
+
+```
+이어서 {N}화를 집필해줘.
+- 직전 화 컨텍스트를 유지하되, plot/{arc}.md를 다시 확인하라.
+- 직전 화 마지막 2~3문단에서 오프닝 연결.
+- 파일명: chapters/{arc}/chapter-{NN}.md
+- 본문만 출력. EPISODE_META 불필요.
+- 완료 후 대기.
+```
+
+## Supervisor 워크플로우
+
+```
+for each episode N:
+  1. Claude: compile_brief 실행 → 결과 확인
+  2. Claude: review_floor 결정 (§2.5)
+  3. Claude: tmux로 codex에 집필 프롬프트 전송
+  4. Claude: 주기적으로 tmux capture-pane으로 완료 확인
+  5. (완료 후)
+     a. Claude: chapter 파일 읽기 → unified-reviewer 실행
+     b. Claude: external AI review (MCP)
+     c. Claude: 문제 발견 시
+        - 연속성/설정 위반 → Claude narrative-fixer가 직접 수정
+        - prose 품질 문제 → codex에 부분 재작성 요청 (tmux)
+     d. Claude: summary update (직접)
+     e. Claude: EPISODE_META 삽입 (직접)
+     f. Claude: git commit
+  6. 다음 화로
+```
+
+## 장점
+
+1. **GPT의 prose 품질** — 전투, 대화, 감정 디테일에서 Claude보다 우수
+2. **Claude의 오케스트레이션** — 연속성 관리, 다중 에이전트 검증에서 우수
+3. **컨텍스트 연속성** — Codex가 대화 내에서 이전 화 기억
+4. **구현 단순성** — 기존 supervisor 패턴 그대로, 새 도구 불필요
+5. **비용 효율** — 검증/수정은 Claude (Max 무제한), 집필만 GPT
+
+## 주의점
+
+1. **Codex 상태 감지** — Codex의 프롬프트/완료 패턴이 Claude Code와 다를 수 있음
+2. **파일 권한** — Codex가 파일을 직접 쓰려면 auto-approve 설정 필요
+3. **EPISODE_META** — Codex가 생성하면 형식이 다를 수 있음 → Claude가 별도 삽입
+4. **summary 관리** — Codex가 아닌 Claude가 전담 (compile_brief 정합성)
+5. **git** — Claude가 전담 (커밋 메시지 일관성)
 
 ## TODO
 
-- [ ] mcp-novel-editor에 write_episode 도구 구현
-- [ ] writer.md step 6을 GPT 위임으로 수정
-- [ ] writer_packet 생성 함수 구현 (compile_brief.py 확장 또는 별도)
-- [ ] GPT_WRITER.md — GPT 전용 집필 지침 (writer_packet에 내장)
-- [ ] batch-supervisor.md 프롬프트 템플릿 수정
-- [ ] 001-hybrid 소설로 테스트
+- [ ] Codex CLI 설치/설정 확인
+- [ ] Codex의 tmux 상호작용 패턴 테스트 (프롬프트/완료 감지)
+- [ ] GPT_WRITER.md — Codex 전용 집필 프롬프트 작성
+- [ ] batch-supervisor.md 수정 — codex 세션 관리
+- [ ] writer.md 수정 — Claude의 역할을 "지시+검증"으로
+- [ ] 001-hybrid 테스트 소설로 프롤로그 테스트
