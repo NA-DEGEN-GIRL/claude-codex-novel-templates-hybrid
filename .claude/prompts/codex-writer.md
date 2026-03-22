@@ -26,6 +26,7 @@
 - scripts/compile-brief {{NOVEL_DIR}} {N} — 압축 맥락 확인
 
 [작성 규칙]
+- **Voice Profile 우선**: 더 표준적이거나 더 매끈한 문장으로 수렴시키지 않는다. settings/01-style-guide.md §0의 보이스를 우선한다.
 - 한국어 본문만 작성. 마크다운 제목(# {N}화 - {제목})으로 시작.
 - 장면 구분: ***
 - 분량: {MIN}~{MAX}자 (scripts/novel-calc char_count로 확인)
