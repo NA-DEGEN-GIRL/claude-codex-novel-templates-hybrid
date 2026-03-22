@@ -156,13 +156,33 @@ naturalness 검사도 변경:
 - Claude korean-naturalness만 실행 (GPT 이중 검사 제거)
 - Claude가 GPT 글을 읽으므로 오히려 자연성 검출력이 높아질 수 있음
 
+## MCP → scripts 매핑
+
+Codex는 MCP에 접근할 수 없다. 대신 `scripts/` 폴더의 CLI wrapper로 동일 기능을 사용한다.
+소설 프로젝트 초기화 시 `scripts/` 폴더를 소설 폴더에 복사한다.
+
+| MCP 도구 | scripts wrapper | Codex에서 사용법 |
+|---------|----------------|-----------------|
+| `compile_brief` | `scripts/compile-brief` | `scripts/compile-brief /root/novel/no-title-XXX {N}` |
+| `novel-calc` (char_count 등) | `scripts/novel-calc` | `scripts/novel-calc char_count file_path='"path"'` |
+| `novel-hanja` | `scripts/novel-hanja` | `scripts/novel-hanja hanja_lookup text='"天外"'` |
+| `review_episode` | N/A | Claude supervisor가 담당 |
+
+Codex writer 프롬프트에 포함:
+```
+- 분량 확인: scripts/novel-calc char_count file_path='"chapters/..."' 로 확인
+- 한자 검증: scripts/novel-hanja hanja_lookup text='"한자"' 로 확인
+- compile_brief: scripts/compile-brief로 맥락 확인 가능 (supervisor가 미리 호출하는 것이 기본)
+```
+
 ## 주의점
 
-1. **Codex 상태 감지** — Codex의 프롬프트/완료 패턴이 Claude Code와 다를 수 있음
-2. **파일 권한** — Codex가 파일을 직접 쓰려면 auto-approve 설정 필요
-3. **EPISODE_META** — Codex가 생성하면 형식이 다를 수 있음 → Claude가 별도 삽입
+1. **Codex 상태 감지** — 완료 시 `›` 프롬프트 + `gpt-5.4` 표시. 작업 중 `• Working (Ns)` 표시.
+2. **파일 권한** — `--full-auto` 또는 `--dangerously-bypass-approvals-and-sandbox` 사용
+3. **EPISODE_META** — Codex가 생성하지 않음 → Claude가 별도 삽입
 4. **summary 관리** — Codex가 아닌 Claude가 전담 (compile_brief 정합성)
 5. **git** — Claude가 전담 (커밋 메시지 일관성)
+6. **Enter 전송** — tmux send-keys 후 1초 대기 후 Enter 별도 전송 필요
 
 ## TODO
 

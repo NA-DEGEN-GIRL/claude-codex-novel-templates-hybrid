@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
+
+def main() -> int:
+    if len(sys.argv) < 3:
+        print(
+            "Usage: scripts/compile-brief <novel_dir> <episode_number> "
+            "[character1,character2,...]",
+            file=sys.stderr,
+        )
+        return 1
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(script_dir)
+    cmd = [sys.executable, os.path.join(root_dir, "compile_brief.py"), *sys.argv[1:]]
+    return subprocess.call(cmd)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
