@@ -56,7 +56,8 @@ Any of the following qualifies as "parallel writing":
 | P7 | External AI batch review | Call `mcp__novel_editor__batch_review` for episodes since last check. If `batch_review` is unavailable, call `review_episode` individually for each episode. Only target active sources per CLAUDE.md §1 feedback flags (gemini/gpt/nim/ollama). Prioritize episodes with `❌ 실패` records in `editor-feedback-log.md` |
 | P8 | Korean quality check | Only for episodes where P7 produced text modifications — re-check via `unified-reviewer` continuity mode (includes Korean proofreading) |
 | P9 | Meta-reference prohibition | Full scan for in-prose references like "X화에서", "프롤로그에서", "1부에서" (episode number/structure name references) |
-| P10 | Thematic progress | Review EPISODE_META `thematic_function` entries for the last 5 episodes. Is the novel's thematic statement (CLAUDE.md §1.2) being advanced? If 3+ consecutive episodes have no thematic connection, flag for review. |
+| P10 | Thematic progress | Review EPISODE_META `thematic_function` entries for the last 5 episodes. **선언 vs 실제 대조**: 집필자가 선언한 `thematic_function`이 실제 에피소드 내용과 부합하는지 확인. "주제 심화"라고 선언했지만 주제와 무관한 화는 ⚠️. 3+ consecutive episodes with no thematic connection → flag. **Soft warning only** — 과도하게 강제하면 주제를 매 화 노골적으로 말하게 됨. |
+| P11 | Term onboarding check | `summaries/term-onboarding.md`에서 "미설명 + 기한 초과" 용어 확인. 위험도 높음인 미설명 용어가 있으면 ⚠️. |
 
 ### Post-Check Actions
 

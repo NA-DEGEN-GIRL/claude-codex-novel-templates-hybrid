@@ -179,6 +179,29 @@ If an answer is ANSWERED but appears in a later episode than the event it explai
 
 ---
 
+### Phase 2.7: Causality Chain Verification (인과 체인 무결성)
+
+> 아크 단위에서 주요 사건들의 인과 체인이 끊기지 않는지 검증한다.
+> why(설명 갭)와 oag(행동 갭)의 중간 지대: "A가 B를 일으켰다고 했는데, B에서 A의 결과가 반영되지 않는" 유형.
+
+**절차**:
+1. 아크 내 주요 사건(세계 상태를 바꾼 사건)을 시간순 나열 (episode-log 기반, 화당 최대 3개)
+2. 각 사건에 대해 `원인 → 행동 → 직접 결과 → 후폭풍` 체인을 추출
+3. 체인의 각 고리가 본문에 존재하는지 확인:
+   - 직접 결과: 같은 화 또는 다음 화에 존재해야 함
+   - 후폭풍: 3화 이내에 존재하거나, 명시적 blocker가 있어야 함
+4. 고리가 빠진 경우 `CAUSALITY BREAK` 로 보고
+
+**보고 형식**:
+```
+[CB-001] 원인: {사건A, N화} → 결과: {기대 결과} → 상태: BREAK (M~P화에서 부재)
+```
+
+> 이 단계는 Phase 2.5(Consequence Audit)와 유사하지만, 단일 사건의 후속이 아니라 **사건 간 연쇄**를 본다.
+> Phase 2.5가 "A 다음에 뭐가 와야 하는가"라면, Phase 2.7은 "A→B→C 체인이 끊기지 않는가"이다.
+
+---
+
 ### Phase 3: Priority Scoring
 
 For each MISSING and INFERABLE item, calculate a priority score.
