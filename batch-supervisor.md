@@ -178,8 +178,8 @@ else                                  → review_floor = continuity
 6h. 수정 후 수정 화수 + 인접 2화 재검사 → `summaries/repetition-watchlist.md` 갱신 + `summaries/action-log.md`에 결과 append
 
 **E. 한국어 자연스러움 교정**
-7. `/naturalness` 실행 — Claude(한 문장씩 정밀 검사) + GPT(codex CLI effort high) 이중 검사 → `summaries/naturalness-report.md`
-8. `/naturalness-fix` 실행 — Claude + GPT 결과 모두 처리. 채택된 어휘 치환은 `summaries/style-lexicon.md`에 기록
+7. `/naturalness` 실행 — Claude(한 문장씩 정밀 검사, hybrid에서 GPT 제외) → `summaries/naturalness-report.md`
+8. `/naturalness-fix` 실행 — Claude 결과 처리. 채택된 어휘 치환은 `summaries/style-lexicon.md`에 기록
 8a. **(역방향 확인)** E에서 수정한 화수가 D.7에서 해결한 반복 패턴을 새로 만들지 않았는지 확인. 의심되면 해당 화만 `/repetition-check {N}-{M}`으로 경량 재검사.
 8b. `summaries/action-log.md`에 자연스러움 교정 결과 append.
 

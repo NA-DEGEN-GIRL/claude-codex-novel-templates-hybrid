@@ -1,7 +1,7 @@
 # Continuity Management
 
 > Continuity verification is performed by `.claude/agents/unified-reviewer.md` in continuity mode.
-> Summary file updates are performed inline by the writer immediately after writing (`.claude/agents/writer.md` step D).
+> Summary file updates are performed by the **Claude supervisor** after Codex completes writing (see CLAUDE.md §3.4).
 > This file defines EPISODE_META writing rules and per-novel continuity settings.
 
 **Language Contract: All narrative output, summaries, and review text MUST be in Korean.**
@@ -31,7 +31,7 @@ Write metadata at the end of each episode using the YAML template from CLAUDE.md
 
 > 설정 여러 개를 조합해야 도출되는 "당연히 맞아야 하는" 사실을 명시적으로 기록한다.
 > AI가 매번 추론하지 않도록, **한 번 도출한 뒤 여기에 승격**한다.
-> writer와 reviewer는 이 표의 값을 본문 수치와 직접 대조한다.
+> Codex writer와 Claude reviewer는 이 표의 값을 본문 수치와 직접 대조한다.
 > compile_brief에 자동 포함된다.
 
 | # | 불변 조건 | 값 | 도출 근거 | 위반 시 영향 |
