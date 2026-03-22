@@ -128,7 +128,7 @@ Format:
 
 ## Report Format
 
-> **이 보고서는 감지와 진단만 한다.** 수정 방법은 writer 또는 /narrative-fix가 본문 맥락을 보고 결정한다. oag-checker는 "뭐가 빠졌는지"와 "왜 독자가 느끼는지"만 보고한다.
+> **이 보고서는 감지와 진단만 한다.** 수정은 supervisor가 fix-spec을 생성하고 Codex가 수행한다. oag-checker는 "뭐가 빠졌는지"와 "왜 독자가 느끼는지"만 보고한다.
 
 ```markdown
 # OAG 검사 보고서
