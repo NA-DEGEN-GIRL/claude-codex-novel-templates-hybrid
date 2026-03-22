@@ -68,7 +68,7 @@ Step 7-12: Claude Supervisor (검증 + 후처리)
   │  7.  unified-reviewer 실행 (연속성 14항목 + 서사 + 한글)
   │  8.  external AI review: Gemini + NIM (MCP)
   │  9.  문제 발견 시 fix routing:
-  │      ├─ micro/local/rewrite → Claude가 fix-spec 생성 → Codex fixer 수정 (문체 일관)
+  │      ├─ micro/local/rewrite → Claude가 fix-spec 생성 → 같은 Codex 세션에서 수정
   │      └─ hold (구조 변경) → 다음 사이클 이관
   │  10. Codex 수정 시: FIX_DONE 확인 → Claude 재검증 (1회 한정)
   │  11. summary 갱신 + fact-check
@@ -112,7 +112,7 @@ F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 | 완료 감지 | `❯` 프롬프트 | **`WRITER_DONE` sentinel** |
 | summary/META/commit | writer가 수행 | **supervisor가 수행** |
 | 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM** (GPT 제거) |
-| tmux 세션 | 1개 (Claude writer) | **2~3개** (Codex writer + Codex fixer + Claude supervisor) |
+| tmux 세션 | 1개 (Claude writer) | **1개** Codex (writer+fixer 통합) + Claude supervisor |
 
 ---
 

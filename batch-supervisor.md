@@ -83,12 +83,10 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - **If session exists**: Capture the screen to assess current state and continue
 - **Session size**: Must be 220x50 or larger to prevent capture-pane truncation
 
-**Fixer 세션** (수정 전용 — prose 수정 필요 시에만):
-- tmux session name: `{{SESSION}}-fix` (예: `write-001-fix`)
-- **Writer 세션과 분리**: 집필 컨텍스트 오염 방지
-- **필요 시에만 생성**: 3b-post step 4에서 `local`/`rewrite` 항목 발견 시 생성
-- 생성: `tmux new-session -d -s {{SESSION}}-fix -x 220 -y 50 -c {{NOVEL_DIR}}` → `{{WRITER_CMD}}` 실행
-- 수정 완료 후 세션 유지 (다음 화 수정에 재활용) 또는 아크 전환 시 종료
+**Writer = Fixer** (같은 세션):
+- 집필과 수정을 같은 Codex 세션에서 수행한다.
+- Codex가 방금 쓴 글의 맥락을 이미 갖고 있으므로, fix-spec 기반 수정이 더 정확하다.
+- supervisor가 fix-spec 파일 경로를 같은 세션에 전달하면 된다.
 
 ### 2. Episode-to-Arc Mapping
 
@@ -284,7 +282,7 @@ WRITER_DONE chapter-{NN}.md
       - `rewrite`: 장면 수준 재작성 → **Codex fixer**
       - `hold`: 구조 변경 필요 → 다음 사이클 이관
    b. `micro`/`local`/`rewrite` 항목을 에피소드 단위로 번들: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성
-   c. Codex fixer 세션에 전송:
+   c. Codex writer 세션에 전송 (writer = fixer, 같은 세션):
       ```
       tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.

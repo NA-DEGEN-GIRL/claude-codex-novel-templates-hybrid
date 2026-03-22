@@ -119,7 +119,7 @@ scripts/novel-calc char_count file_path='"chapters/{arc}/chapter-{NN}.md"'
    - micro + local + rewrite를 하나의 fix-spec 파일에 통합
    - hold만 제외 (다음 사이클 이관)
 
-3. Codex fixer 세션에 전달
+3. 같은 Codex 세션(writer=fixer)에 전달
    - fix-spec 기반으로 해당 구간 수정
    - 앞뒤 문맥 유지, 기존 문체/리듬 보존
    - FIX_DONE sentinel 출력
