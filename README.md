@@ -250,10 +250,20 @@ claude-codex-novel-templates-hybrid/
 
 ---
 
+## MCP 서버
+
+| MCP | 역할 | 사용 시점 |
+|-----|------|----------|
+| [mcp-novel-editor](https://github.com/NA-DEGEN-GIRL/mcp-novel-editor) | 외부 AI 리뷰 (Gemini/GPT/NIM), compile_brief | 매 화 리뷰 + 아크 통독 |
+| [mcp-novel-calc](https://github.com/NA-DEGEN-GIRL/mcp-novel-calc) | 날짜/거리/경제 계산, 분량 측정 | 집필 중 수치 검증 |
+| [mcp-novel-hanja](https://github.com/NA-DEGEN-GIRL/mcp-novel-hanja) | 한자 조회/검증/검색 | 무협/사극 한자 병기 |
+| [mcp-novel-naming](https://github.com/NA-DEGEN-GIRL/mcp-novel-naming) | 고유명사 표기 변이 탐지 | 아크 경계 + periodic check |
+| [mcp-novelai-image](https://github.com/NA-DEGEN-GIRL/mcp-novelai-image) | 삽화/커버 이미지 생성 | 커버 + 에피소드 삽화 (선택) |
+
+> Codex writer는 MCP에 직접 접근할 수 없다. `scripts/` CLI wrapper를 통해 동일 기능을 사용한다.
+
+---
+
 ## 관련 레포
 
 - [claude-novel-templates-lean](https://github.com/NA-DEGEN-GIRL/claude-novel-templates-lean) — Claude 전용 lean 버전
-- [mcp-novel-calc](https://github.com/NA-DEGEN-GIRL/mcp-novel-calc) — 수치 검증 MCP
-- [mcp-novel-hanja](https://github.com/NA-DEGEN-GIRL/mcp-novel-hanja) — 한자 검증 MCP
-- [mcp-novel-editor](https://github.com/NA-DEGEN-GIRL/mcp-novel-editor) — 외부 AI 리뷰 MCP
-- [mcp-novelai-image](https://github.com/NA-DEGEN-GIRL/mcp-novelai-image) — 삽화/커버 생성 MCP
