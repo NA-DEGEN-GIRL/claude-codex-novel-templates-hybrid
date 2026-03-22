@@ -190,6 +190,26 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 
 ---
 
+## Checker → fix-spec 변환 (Supervisor 책임)
+
+각 checker의 출력 형식이 다르므로, supervisor가 fix-spec 공통 스키마로 변환한다.
+
+| Checker 출력 | patch_class 기본값 | 비고 |
+|-------------|-------------------|------|
+| unified-reviewer ❌ | `micro` (사실관계) 또는 `local` (prose) | 항목 유형으로 판단 |
+| oag-checker `patch-feasible` | `local` (A1~A3 전략) | 1-3문장이면 `micro` |
+| why-checker `MISSING` | `local` (E1~E4 전략) | |
+| why-checker `CGAP/BREAK` | `hold` | 구조 변경 필요 |
+| arc-readthrough | `local` (R1~R4) | |
+| pov-era-checker ❌ | `micro` (단어 치환) | |
+| scene-logic-checker ❌ | `micro` (동작 1문장 추가) | ⚠️면 `local` |
+| repetition-checker HIGH | `local` (분산 변주) | |
+| korean-naturalness | `local` (표현 교체) | |
+
+> `micro`/`local` 경계: **"정답이 하나"면 micro, "표현 선택이 중요"하면 local.**
+
+---
+
 ## 구현 상태
 
 - [x] HYBRID-DESIGN.md 설계
@@ -198,5 +218,9 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 - [x] `scripts/` MCP wrapper 복사
 - [x] README.md hybrid용 작성
 - [x] Codex tmux 상호작용 테스트 (1화 집필 성공)
+- [x] fix-spec 공통 스키마 정의
+- [x] Codex fixer 프롬프트 템플릿 (`.claude/prompts/codex-fixer.md`)
+- [x] Supervisor fix routing 로직 (batch-supervisor 3b-post)
+- [x] Checker→fix-spec 변환 매핑 테이블
 - [ ] 001-hybrid 전체 프롤로그 테스트 (supervisor 자동)
 - [ ] 아크 전환 A→F 테스트

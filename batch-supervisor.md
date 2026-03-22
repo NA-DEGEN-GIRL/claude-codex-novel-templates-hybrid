@@ -270,16 +270,20 @@ WRITER_DONE chapter-{NN}.md
 2. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto")
 3. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영.
 4. **문제 발견 시 — fix routing**:
-   - **사실관계 micro-patch** (이름/시점/설정 1-3문장) → Claude `narrative-fixer`로 직접 수정
-   - **prose 수정** (감정선/리듬/묘사/대화톤, 문단+ 규모) → Claude가 fix-spec 작성 후 **Codex에 partial rewrite 요청** (tmux, 1회 한정):
-     ```
-     chapters/{arc}/chapter-{NN}.md의 {시작줄}~{끝줄} 구간을 재작성해줘.
-     문제: {fix-spec}
-     방향: {수정 목표}
-     유지: {기존 톤/리듬/캐릭터}
-     나머지는 건드리지 마라.
-     완료 후: REWRITE_DONE chapter-{NN}.md {시작줄}-{끝줄}
-     ```
+   a. 모든 발견 항목을 **patch_class**로 분류:
+      - `micro`: 사실관계 1-3문장 (이름/시점/설정) → **Claude 직접 수정**
+      - `local`: 문단 내 수정, 톤 영향 → **Codex fixer**
+      - `rewrite`: 장면 수준 재작성 → **Codex fixer**
+      - `hold`: 구조 변경 필요 → 다음 사이클 이관
+   b. `micro` 항목: Claude `narrative-fixer`로 즉시 수정
+   c. `local`/`rewrite` 항목: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성 (`.claude/prompts/codex-fixer.md` 형식)
+   d. Codex fixer 세션에 전송:
+      ```
+      tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
+      fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
+      완료 후: FIX_DONE chapter-{NN}
+      ```
+   e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (연속성 re-check)
 5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
 6. **summary fact-check**: 본문 ↔ 요약 대조
 7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
