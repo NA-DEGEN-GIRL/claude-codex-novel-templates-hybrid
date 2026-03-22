@@ -66,13 +66,15 @@ Step 6: Codex Writer (집필)
   ▼
 Step 7-12: Claude Supervisor (검증 + 후처리)
   │  7.  unified-reviewer 실행 (연속성 14항목 + 서사 + 한글)
-  │  8.  external AI review: Gemini + NIM (MCP) — GPT 제외 (집필 모델과 동일)
-  │  9.  문제 발견 시:
-  │      ├─ 연속성/설정 위반 → Claude narrative-fixer 직접 수정
-  │      └─ prose 품질 → Codex에 부분 재작성 요청 (1회 한정)
-  │  10. summary 갱신 + fact-check
-  │  11. EPISODE_META 삽입
-  │  12. action-log + git commit
+  │  8.  external AI review: Gemini + NIM (MCP)
+  │  9.  문제 발견 시 fix routing:
+  │      ├─ micro (사실관계 1-3문장) → Claude narrative-fixer 직접 수정
+  │      ├─ local/rewrite (prose 품질) → Claude가 fix-spec 생성 → Codex fixer 세션에서 수정
+  │      └─ hold (구조 변경) → 다음 사이클 이관
+  │  10. Codex 수정 시: FIX_DONE 확인 → Claude 재검증 (1회 한정)
+  │  11. summary 갱신 + fact-check
+  │  12. EPISODE_META 삽입
+  │  13. action-log + git commit
   │
   ▼
 다음 화로 반복
