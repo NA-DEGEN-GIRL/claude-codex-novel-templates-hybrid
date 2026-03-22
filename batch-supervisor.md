@@ -75,18 +75,28 @@ Input the following prompt into Claude Code:
 
 Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 
-### 1. Session Management (Hybrid: 1 Codex 세션)
+### 1. Session Management (Hybrid: 3 세션)
 
-**Writer 세션** (집필 전용):
+**Supervisor** (메인 터미널):
+- `/root/novel/`에서 실행. tmux 관리 + 상태 판단 + 프롬프트 조립만 담당.
+- 리뷰/검증/수정은 직접 수행하지 않고, Review 세션의 Claude에게 지시한다.
+
+**Writer 세션** (Codex — 집필 + 수정):
 - tmux session name: `{{SESSION}}` (예: `write-001`)
 - **If session doesn't exist**: Create with `tmux new-session -d -s {{SESSION}} -x 220 -y 50 -c {{NOVEL_DIR}}`, then launch `{{WRITER_CMD}}`
 - **If session exists**: Capture the screen to assess current state and continue
-- **Session size**: Must be 220x50 or larger to prevent capture-pane truncation
+- Codex가 집필과 fix-spec 수정을 모두 같은 세션에서 수행 (writer = fixer).
 
-**Writer = Fixer** (같은 세션):
-- 집필과 수정을 같은 Codex 세션에서 수행한다.
-- Codex가 방금 쓴 글의 맥락을 이미 갖고 있으므로, fix-spec 기반 수정이 더 정확하다.
-- supervisor가 fix-spec 파일 경로를 같은 세션에 전달하면 된다.
+**Review 세션** (Claude Code — 리뷰/검증/후처리):
+- tmux session name: `{{SESSION}}-review` (예: `write-001-review`)
+- `tmux new-session -d -s {{SESSION}}-review -x 220 -y 50 -c {{NOVEL_DIR}}` → `unset CLAUDECODE && claude` 실행
+- unified-reviewer, external AI review(MCP), summary 갱신, EPISODE_META 삽입, git commit 수행.
+- supervisor가 review 세션에 post-write 지시를 전송한다.
+- **Session size**: Must be 220x50 or larger
+
+> **2세션 vs 3세션**: Review 세션은 선택적이다.
+> - **2세션** (기본): supervisor가 직접 리뷰/MCP/summary/commit 수행. 단순하지만 supervisor context가 빨리 참.
+> - **3세션** (장편 권장): review를 별도 Claude에 위임. context 분리로 장편에서 안정적. 50화+ 연재 시 권장.
 
 ### 2. Episode-to-Arc Mapping
 
