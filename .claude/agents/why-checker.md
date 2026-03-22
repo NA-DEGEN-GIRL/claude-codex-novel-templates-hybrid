@@ -249,6 +249,12 @@ Write to `summaries/why-check-report.md`.
 | S — 결과/의미 | {N} | {N} |
 | **합계** | **{N}** | **{N}** |
 
+| 후속 결과 검증 | 건수 |
+|--------------|------|
+| CONSEQUENCE GAP (Phase 2.5) | {N} |
+| CAUSAL CHAIN BREAK (Phase 2.5) | {N} |
+| CAUSALITY BREAK (Phase 2.7) | {N} |
+
 ---
 
 ## MISSING 설명 (독자가 멈추는 지점)
@@ -316,6 +322,19 @@ Write to `summaries/why-check-report.md`.
 - **Reader question**: {독자가 품을 질문}
 - **충돌 지점**: {이후 텍스트와 모순되는 부분 — BREAK일 때만}
 - **우선순위**: {Phase 3과 동일 기준 — BREAK는 Impact 최저 2}
+
+---
+
+## 인과 체인 단절 (Phase 2.7)
+
+사건 간 인과 연쇄에서 고리가 빠진 항목. A→B→C 체인에서 B가 A의 결과를 반영하지 않는 경우.
+
+### [CB-001] {짧은 제목}
+
+- **체인**: EP{N} {사건A} → EP{M} {기대 결과B}
+- **상태**: CAUSALITY BREAK (M~P화에서 결과B 부재)
+- **Reader question**: {독자가 품을 질문}
+- **우선순위**: {Phase 3과 동일 기준}
 
 ---
 

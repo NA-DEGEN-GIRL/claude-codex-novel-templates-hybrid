@@ -43,7 +43,7 @@ Any of the following qualifies as "parallel writing":
 
 ### Check Items
 
-> Core 항목(P1, P3, P6, P9, P10)은 매 점검 시 필수. Optional 항목(P2, P4, P5, P7, P8)은 해당 소설에 관련이 있을 때만 수행.
+> Core 항목(P1, P3, P6, P9, P10)은 매 점검 시 필수. Optional 항목(P2, P4, P5, P7, P8, P11)은 해당 소설에 관련이 있을 때만 수행. P11(용어 온보딩)은 세계관이 강한 작품(무협/판타지/SF)에서는 core로 승격 권장.
 
 | # | Item | Method |
 |---|------|--------|

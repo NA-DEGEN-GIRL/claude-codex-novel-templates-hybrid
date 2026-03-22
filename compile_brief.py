@@ -1234,6 +1234,20 @@ def _compile_brief(
                 + "\n".join(watch_lines[:15])  # 최대 15행
             )
 
+    # 14. 용어 온보딩 경고 (미설명 + 기한 임박/초과만)
+    term_onboarding = _safe_read(summaries / "term-onboarding.md")
+    if term_onboarding:
+        overdue_lines = []
+        for line in term_onboarding.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("|") and "미설명" in stripped:
+                overdue_lines.append(stripped)
+        if overdue_lines:
+            sections.append(
+                "## 용어 온보딩 경고\n\n"
+                + "\n".join(overdue_lines[:10])
+            )
+
     brief = "\n\n".join(sections)
 
     # 최종 크기 체크 (정보성)
