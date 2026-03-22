@@ -1,6 +1,6 @@
-naturalness 보고서(Claude)의 지적 사항을 **소설의 맥락을 이해한 상태에서** 선별 수정한다.
+naturalness 보고서(Claude + GPT)의 지적 사항을 **소설의 맥락을 이해한 상태에서** 선별 수정한다.
 
-> **Hybrid**: GPT naturalness는 비활성. Claude korean-naturalness 단독 보고서 기반.
+> **Hybrid**: GPT naturalness는 MCP 별도 세션 호출이므로 유지. `EDITOR_FEEDBACK_gpt_naturalness_chapter-{NN}.md`도 참조.
 
 ## 주의
 

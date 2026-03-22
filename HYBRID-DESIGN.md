@@ -31,14 +31,14 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 | Gemini (MCP) | continuity/worldbuilding | **유지** | 세 번째 모델의 시각 |
 | NIM (MCP) | spelling/grammar | **유지** | 맞춤법 전담 |
 | GPT prose review | 유지 | **제거** | 같은 모델이 쓰고 리뷰 = 맹점 공유 |
-| GPT naturalness | 유지 | **제거** | 동일 모델 |
+| GPT naturalness | 유지 | **유지** | MCP 별도 세션 호출 = Codex writer와 독립. 결합 자연성 검출에 강점 |
 
-> **hybrid 3자 리뷰 체계**: GPT(집필) → Claude(검증) + Gemini(보조) + NIM(교정)
+> **hybrid 리뷰 체계**: GPT(집필) → Claude(검증) + Gemini(보조) + NIM(교정) + GPT naturalness(MCP 별도 세션)
 >
 > CLAUDE.md 변경:
 > ```
-> gpt_feedback: false
-> gpt_naturalness: N/A (제거)
+> gpt_feedback: false (prose review만 비활성)
+> gpt_naturalness: 유지 (MCP 별도 세션)
 > ```
 
 ---

@@ -99,6 +99,22 @@ F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 
 ---
 
+## 설계 철학: "같은 모델" vs "같은 세션"
+
+이 파이프라인에서 **GPT가 집필하므로 GPT 리뷰를 제거**한 항목과 **유지**한 항목이 있다. 구분 기준은 "같은 모델인가"가 아니라 **"같은 세션/컨텍스트를 공유하는가"**이다.
+
+| 항목 | Codex writer와 컨텍스트 공유? | 판정 |
+|------|---------------------------|------|
+| GPT prose review (`gpt_feedback`) | 아니오 (MCP 별도 호출) | **제거** — prose 리뷰는 Claude가 더 효과적 (교차 모델) |
+| GPT naturalness (`gpt_naturalness`) | 아니오 (MCP 별도 호출, 백지 상태) | **유지** — 결합 자연성 검출에 GPT가 Claude보다 강점. 완전 독립 세션이므로 자기 글 자기 리뷰가 아님 |
+| Codex writer 세션 내 자기점검 | 예 (같은 세션) | **축약만 유지** — 즉흥설정/POV/hook/불변조건 정도 |
+
+> GPT prose review를 제거한 이유: Claude unified-reviewer가 GPT의 글을 리뷰하면 **교차 모델 검증**이 되어 더 효과적. 같은 GPT가 prose를 리뷰하면 같은 맹점을 공유할 가능성.
+>
+> GPT naturalness를 유지한 이유: 결합 자연성(collocational naturalness)은 GPT가 Claude보다 잘 잡는 영역. MCP로 호출하므로 Codex writer와 **컨텍스트를 전혀 공유하지 않는** 독립 판정.
+
+---
+
 ## lean과의 차이
 
 | 항목 | lean | hybrid |
@@ -111,7 +127,7 @@ F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 | WRITER_CMD | `claude` | `codex --dangerously-bypass-approvals-and-sandbox` |
 | 완료 감지 | `❯` 프롬프트 | **`WRITER_DONE` sentinel** |
 | summary/META/commit | writer가 수행 | **supervisor가 수행** |
-| 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM** (GPT 제거) |
+| 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM + GPT naturalness** (GPT prose만 제거) |
 | tmux 세션 | 1개 (Claude writer) | **1개** Codex (writer+fixer 통합) + Claude supervisor |
 
 ---
