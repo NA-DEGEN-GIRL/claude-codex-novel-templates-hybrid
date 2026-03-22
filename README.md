@@ -280,18 +280,6 @@ claude-codex-novel-templates-hybrid/
 | **korean-naturalness** | 한국어 자연스러움 감사 |
 | **plot-surgeon** | 플롯 수선 (plot-change-needed 시) |
 
----
-
-## 비용
-
-| 항목 | 비용 |
-|------|------|
-| Claude Code (supervisor/review) | Claude Max 무제한 |
-| Codex (집필) | GPT 5.4 API: ~$0.20-0.25/화 |
-| 외부 AI 리뷰 (MCP) | Gemini + NIM 소량 |
-
----
-
 ## MCP 서버
 
 | MCP | 역할 | 사용 시점 |
