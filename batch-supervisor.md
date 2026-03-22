@@ -75,7 +75,7 @@ Input the following prompt into Claude Code:
 
 Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 
-### 1. Session Management (Hybrid: 3 세션)
+### 1. Session Management (Hybrid: 3세션 필수)
 
 **Supervisor** (메인 터미널):
 - `/root/novel/`에서 실행. tmux 관리 + 상태 판단 + 프롬프트 조립만 담당.
@@ -94,9 +94,7 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - supervisor가 review 세션에 post-write 지시를 전송한다.
 - **Session size**: Must be 220x50 or larger
 
-> **2세션 vs 3세션**: Review 세션은 선택적이다.
-> - **2세션** (기본): supervisor가 직접 리뷰/MCP/summary/commit 수행. 단순하지만 supervisor context가 빨리 참.
-> - **3세션** (장편 권장): review를 별도 Claude에 위임. context 분리로 장편에서 안정적. 50화+ 연재 시 권장.
+> **3세션 필수**: supervisor는 tmux 관리에 집중하고, 리뷰/후처리는 반드시 Review 세션에서 수행한다. context 분리로 안정적 운영을 보장.
 
 ### 2. Episode-to-Arc Mapping
 

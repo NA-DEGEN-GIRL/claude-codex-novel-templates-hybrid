@@ -128,7 +128,7 @@ F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 | 완료 감지 | `❯` 프롬프트 | **`WRITER_DONE` sentinel** |
 | summary/META/commit | writer가 수행 | **supervisor가 수행** |
 | 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM + GPT naturalness** (GPT prose만 제거) |
-| tmux 세션 | 1개 (Claude writer) | **2~3개**: Codex writer + Claude supervisor (+ 선택: Claude review 세션) |
+| tmux 세션 | 1개 (Claude writer) | **3개**: supervisor(메인) + Codex writer(tmux) + Claude review(tmux) |
 
 ---
 
