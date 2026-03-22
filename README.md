@@ -170,15 +170,22 @@ claude
 #  SESSION=write-XXX, START_EP=1, END_EP=50"
 ```
 
-### 5. Codex Writer 세션 (supervisor가 자동 생성)
+### 5. Writer/Review 세션 (supervisor가 자동 생성)
 
 ```bash
-# supervisor가 tmux 세션 생성:
+# Writer tmux 세션 생성:
 tmux new-session -d -s write-XXX -x 220 -y 50 -c /root/novel/no-title-XXX
 sleep 1
 tmux send-keys -t write-XXX 'codex --dangerously-bypass-approvals-and-sandbox'
 sleep 3    # Codex: 3초 대기 후 Enter
 tmux send-keys -t write-XXX Enter
+
+# Review tmux 세션 생성:
+tmux new-session -d -s write-XXX-review -x 220 -y 50 -c /root/novel/no-title-XXX
+sleep 1
+tmux send-keys -t write-XXX-review 'unset CLAUDECODE && claude'
+sleep 3
+tmux send-keys -t write-XXX-review Enter
 ```
 
 ---
