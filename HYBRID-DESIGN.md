@@ -134,6 +134,28 @@ for each episode N:
 4. **구현 단순성** — 기존 supervisor 패턴 그대로, 새 도구 불필요
 5. **비용 효율** — 검증/수정은 Claude (Max 무제한), 집필만 GPT
 
+## 외부 AI 리뷰 변경
+
+GPT가 직접 집필하므로 GPT 피드백은 제거. Claude가 검증 주체로 격상.
+
+| 소스 | lean | hybrid | 이유 |
+|------|------|--------|------|
+| Claude (unified-reviewer) | 자기 글 자기 리뷰 (약점) | **핵심 검증자** | 다른 모델이 쓴 글 → 교차 검증 효과 |
+| Gemini | continuity/worldbuilding | **유지** | 세 번째 시각 |
+| NIM | spelling/grammar | **유지** | 맞춤법 전담 |
+| GPT (prose/dialogue) | ✅ | **제거** | 자기 글 자기 리뷰 무의미 |
+| GPT naturalness | ✅ | **제거** | 동일 모델 |
+
+CLAUDE.md 변경:
+```
+- gpt_feedback: false    ← hybrid에서는 비활성
+- gpt_naturalness: N/A   ← 제거
+```
+
+naturalness 검사도 변경:
+- Claude korean-naturalness만 실행 (GPT 이중 검사 제거)
+- Claude가 GPT 글을 읽으므로 오히려 자연성 검출력이 높아질 수 있음
+
 ## 주의점
 
 1. **Codex 상태 감지** — Codex의 프롬프트/완료 패턴이 Claude Code와 다를 수 있음
