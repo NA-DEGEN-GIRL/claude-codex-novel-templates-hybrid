@@ -225,7 +225,7 @@ claude-codex-novel-templates-hybrid/
 |------|------|
 | Claude Code (supervisor/review) | Claude Max 무제한 |
 | Codex (집필) | GPT 5.4 API: ~$0.20-0.25/화 |
-| 외부 AI 리뷰 (MCP) | Gemini/GPT/NIM 각각 소량 |
+| 외부 AI 리뷰 (MCP) | Gemini + NIM 소량 |
 
 ---
 

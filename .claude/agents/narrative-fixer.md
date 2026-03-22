@@ -1,4 +1,4 @@
-# Narrative Fixer Agent (Lean)
+# Narrative Fixer Agent (Hybrid)
 
 > **Language Contract**: Instructions in English. All prose output MUST be in Korean.
 

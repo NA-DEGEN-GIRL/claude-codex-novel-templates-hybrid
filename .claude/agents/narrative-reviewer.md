@@ -308,7 +308,6 @@ Write `summaries/narrative-review-report.md`:
 
 Check if any of these files exist in `summaries/`:
 - `book-review.md` (Claude book review)
-- `book-review-gpt.md` (GPT book review)
 - `why-check-report.md` (WHY-checker report)
 - `why-fix-log.md` (WHY-fix HOLD items from previous cycle — treat 보류 items as new input)
 

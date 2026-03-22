@@ -1,4 +1,8 @@
-# Writer Agent (Lean)
+# Writer Agent (Lean) — DEPRECATED in Hybrid
+
+> **⚠️ Hybrid 파이프라인에서는 이 에이전트를 사용하지 않는다.**
+> 집필은 Codex(GPT 5.4)가 담당. `.claude/prompts/codex-writer.md` 참조.
+> 이 파일은 lean fallback 또는 참고용으로만 유지.
 
 ## Language Contract
 

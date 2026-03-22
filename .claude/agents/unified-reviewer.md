@@ -156,7 +156,7 @@ Evaluate when `EDITOR_FEEDBACK_*.md` files exist.
 
 **Domain expertise by source**:
 - **Gemini**: Continuity/worldbuilding/logic → Actively adopt [Continuity], [Setting] items
-- **GPT**: Prose/dialogue/emotional arc → Actively adopt [Prose], [Dialogue], [Emotion] items
+- **GPT**: ~~(hybrid에서 비활성 — 집필 모델과 동일)~~
 - **NIM/Ollama**: Spelling/grammar only → Selectively adopt only genuine errors that Gemini missed
 
 **Special rule**: Meta-reference flagging (in-text mention of "X화") → Treat as Critical Error, immediately ✅ adopt.

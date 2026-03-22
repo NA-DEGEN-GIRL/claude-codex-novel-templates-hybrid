@@ -27,7 +27,7 @@
 - **nim_feedback_model**: "openai/gpt-oss-120b"
 - **ollama_feedback**: false  <!-- set true to enable Ollama proofreading -->
 - **ollama_feedback_model**: "gpt-oss:120b"
-- **gpt_feedback**: true  <!-- set false to disable GPT review -->
+- **gpt_feedback**: false  <!-- hybrid: GPT가 집필하므로 GPT 리뷰 비활성 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
 
 ### 1.1 Core Promises
@@ -144,20 +144,22 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 
 **External feedback sources** (per CLAUDE.md flags):
 1. **Gemini** (`gemini_feedback: true`): continuity/worldbuilding → `EDITOR_FEEDBACK_gemini.md`
-2. **GPT** (`gpt_feedback: true`): prose/dialogue/emotion → `EDITOR_FEEDBACK_gpt.md`
+2. **GPT** (`gpt_feedback: false`): ~~prose/dialogue/emotion~~ — hybrid에서 비활성 (집필 모델과 동일)
 3. **NIM** (`nim_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_nim.md`
 4. **Ollama** (`ollama_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_ollama.md`
 
 > All sources false → skip external review. Individual source failure → skip that source only, log it.
 
-### 3.4 Post-Processing
+### 3.4 Post-Processing (Hybrid: Supervisor가 수행)
 
-1. **Inline summary update**: Writer updates directly in context after writing (no separate agent needed).
+> **Hybrid 파이프라인**: Codex writer는 본문 생성만 담당. 아래 후처리는 **Claude supervisor가 직접 수행**한다.
+
+1. **Summary update**: Supervisor가 chapter 파일을 읽고 직접 갱신.
    - Required (every ep): `running-context.md`, `episode-log.md`, `character-tracker.md`
    - Conditional (only if relevant change): `promise-tracker.md`, `knowledge-map.md`, `relationship-log.md`, `foreshadowing.md`, `decision-log.md`
-2. **Insert EPISODE_META**: Append metadata block at episode end. Set `date` to today `"YYYY-MM-DD"`.
+2. **Insert EPISODE_META**: Supervisor가 chapter 파일 끝에 append. Set `date` to today `"YYYY-MM-DD"`.
 3. **Update feedback log**: Record 3.3 results in `editor-feedback-log.md`.
-4. **Git commit**: After episode completion (manuscript + summaries). Batch 2-3 eps OK. Message: `{소설명} {N}~{M}화 집필`. Push only on user request.
+4. **Git commit**: After episode completion (manuscript + summaries). Message: `{소설명} {N}~{M}화 집필`. Push only on user request.
 5. **Action log**: 주요 작업 완료 시 `summaries/action-log.md`에 한 줄 append. 형식: `| {시각} | {에이전트} | {행동} | {대상} | {상태} | {비고} |`. 운영 로그이므로 compile_brief에 포함하지 않는다.
 6. **Style lexicon**: 어휘 치환이 채택되면 `summaries/style-lexicon.md`에 즉시 기록. compile_brief에 자동 포함.
 

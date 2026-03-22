@@ -52,7 +52,7 @@ scripts/run-codex-writer
 `/root/novel`에서 supervisor Codex를 전체 승인/샌드박스 우회 모드로 실행한다.
 
 ```bash
-/root/novel/codex-novel-templates-lean/scripts/run-codex-supervisor
+/root/novel/claude-codex-novel-templates-hybrid/scripts/run-codex-supervisor
 ```
 
 ### `scripts/run-codex-auditor`

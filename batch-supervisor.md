@@ -1,6 +1,6 @@
-# Batch Writing Supervisor Prompt (Lean)
+# Batch Writing Supervisor Prompt (Hybrid)
 
-Claude Code periodically checks a tmux session and automatically supervises another Claude Code instance's novel writing.
+Claude Code periodically checks a tmux session and automatically supervises a Codex (GPT 5.4) instance's novel writing. Hybrid mode: Codex writes, Claude reviews/fixes/manages.
 
 > **Why Claude Code instead of a script?**
 > A bash script (file-existence/timeout-based) cannot judge the AI's actual state.
@@ -75,12 +75,20 @@ Input the following prompt into Claude Code:
 
 Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 
-### 1. Session Management
+### 1. Session Management (Hybrid: 2 Codex 세션)
 
-- tmux session name: `{{SESSION}}`
-- **If session doesn't exist**: Create with `tmux new-session -d -s {{SESSION}} -x 220 -y 50`, then launch the writer using the command send protocol in 3d
+**Writer 세션** (집필 전용):
+- tmux session name: `{{SESSION}}` (예: `write-001`)
+- **If session doesn't exist**: Create with `tmux new-session -d -s {{SESSION}} -x 220 -y 50 -c {{NOVEL_DIR}}`, then launch `{{WRITER_CMD}}`
 - **If session exists**: Capture the screen to assess current state and continue
 - **Session size**: Must be 220x50 or larger to prevent capture-pane truncation
+
+**Fixer 세션** (수정 전용 — prose 수정 필요 시에만):
+- tmux session name: `{{SESSION}}-fix` (예: `write-001-fix`)
+- **Writer 세션과 분리**: 집필 컨텍스트 오염 방지
+- **필요 시에만 생성**: 3b-post step 4에서 `local`/`rewrite` 항목 발견 시 생성
+- 생성: `tmux new-session -d -s {{SESSION}}-fix -x 220 -y 50 -c {{NOVEL_DIR}}` → `{{WRITER_CMD}}` 실행
+- 수정 완료 후 세션 유지 (다음 화 수정에 재활용) 또는 아크 전환 시 종료
 
 ### 2. Episode-to-Arc Mapping
 
@@ -283,7 +291,8 @@ WRITER_DONE chapter-{NN}.md
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
       완료 후: FIX_DONE chapter-{NN}
       ```
-   e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (연속성 re-check)
+   e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
+   f. **재수정 상한**: Codex fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 Claude micro-patch로 마무리하거나 다음 정기 점검으로 이관. 무한 ping-pong 금지.
 5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
 6. **summary fact-check**: 본문 ↔ 요약 대조
 7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
@@ -566,10 +575,10 @@ The supervisor outputs progress in this format:
 
   **Phase A: 독립 분석 (병렬 가능)**
   1. `/why-check full` — entire novel, long-range gap detection
-  2. `/book-review` + `/book-review-gpt` — independent reader evaluations (parallel)
+  2. `/book-review` — independent reader evaluation
 
   **Phase B: 통합 진단**
-  3. `/narrative-review` — full narrative quality analysis. Phase 4 automatically references why-check-report, book-review, and book-review-gpt if they exist.
+  3. `/narrative-review` — full narrative quality analysis. Phase 4 automatically references why-check-report, book-review if they exist.
 
   **Phase C: 서사 수정**
   4. `/narrative-fix` — apply fix guide items from narrative-review (S1~S6)
