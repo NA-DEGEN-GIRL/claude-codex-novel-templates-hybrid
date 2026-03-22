@@ -189,7 +189,7 @@ else                                  → review_floor = continuity
 9. Arc summary + character state reset (settings/05-continuity.md)
 10. Unresolved thread triage (carry-forward vs discard)
 
-Insert the determined `review_floor` into the writing prompt's [리뷰] section. The writer can escalate above the floor (e.g., continuity → standard if a new character appears), but CANNOT go below it.
+**Hybrid**: `review_floor`은 Codex writer 프롬프트에 넣지 않는다. supervisor가 3b-post에서 직접 해당 모드로 unified-reviewer를 실행한다.
 
 **Arc boundary detection**: Check ARC_MAP:
 - **First episode** of any arc → `full` (보이스/설정/톤 진입 제어)
@@ -426,35 +426,33 @@ Wait 3 seconds, then send full prompt (3a).
 > **When to use CHUNK_SIZE = -1 (recommended)**: Claude Opus or any model with auto-compact. Auto-compact preserves important context while managing window size.
 > **When to use CHUNK_SIZE > 0**: Models without auto-compact (NIM proxy models, open-source models), or when context window is small (< 200K).
 
-#### 5b. Arc Transition
+#### 5b. Arc Transition (Hybrid: Supervisor 직접 실행)
+
+> **Hybrid 핵심**: 아크 전환 A~F는 **Claude supervisor가 직접 실행**한다. Codex writer 세션에 보내지 않는다.
+> `/oag-check`, `/why-check`, `/narrative-fix` 등은 Claude 커맨드이므로 Codex에서 동작하지 않는다.
+> 수정이 필요하면: micro → Claude 직접, prose → Codex fixer 세션 (3b-post fix routing 적용).
+
+**arc_size 기반 단계 조정**:
+
+| arc_size | 실행 단계 | 이유 |
+|----------|----------|------|
+| ≤10화 | A(OAG) + B(패치) + D(통독) + F(마감) | 소규모: C/D.5/D.7/E는 ROI 낮음 |
+| 11~30화 | A + B + C(why) + D + D.5 + E(naturalness) + F | 중규모: D.7(반복)은 선택 |
+| 31화+ | A + B + C + D + D.5 + D.7 + E + F 전체 | 대규모: 전체 실행 |
 
 When the episode number enters a new arc range:
 
 1. Confirm completion of the last episode of the previous arc
-2. **Run `/oag-check` on the completed arc**: Send the following prompt to the writer session:
-   ```
-   방금 완료한 {prev_arc}({start}~{end}화)에 대해 /oag-check를 실행해줘.
-   - .claude/agents/oag-checker.md의 Text Mode 절차를 따른다.
-   - 대상: {start}화 ~ {end}화
-   - 산출물: summaries/oag-report.md
-   - summaries/action-log.md에 결과를 한 줄 append할 것.
-   - 완료 후 대기.
-   ```
-   Wait for completion. Check the report:
-   - `plot-change-needed` items → Run `/plot-repair`. After Step 3.5 evaluation completes, supervisor reviews the proposal and applies the supervisor approval protocol (see below). After plot fix, re-run `/oag-check plan {prev_arc}` to verify.
-   - `patch-feasible` items → send `/narrative-fix --source oag` to apply patches (CRITICAL→HIGH order). **action-log에 결과 append 지시 포함.**
-3. **Run `/why-check text` on the completed arc**: Send the following prompt to the writer session:
-   ```
-   방금 완료한 {prev_arc}({start}~{end}화)에 대해 /why-check text를 실행해줘.
-   - .claude/agents/why-checker.md의 Text Mode 절차를 따른다.
-   - 대상: {start}화 ~ {end}화
-   - 산출물: summaries/why-check-report.md
-   - summaries/action-log.md에 결과를 한 줄 append할 것.
-   - 완료 후 대기.
-   ```
-   Wait for completion. If MISSING items with priority 6+ are found:
-   - Items fixable in 1-3 sentences → send `/narrative-fix --source why-check --scope priority-6+` to apply quick patches before proceeding
-   - Items requiring structural changes → log as HOLD in `summaries/why-check-report.md` (add `[HOLD]` tag to the item), defer to next `/narrative-review` cycle.
+2. **A. OAG 탐지** — supervisor가 직접 `/oag-check` 실행:
+   - `.claude/agents/oag-checker.md` Text Mode
+   - 대상: {start}~{end}화
+   - 산출물: `summaries/oag-report.md`
+   - `plot-change-needed` → `/plot-repair` (supervisor 판단)
+   - `patch-feasible` → micro는 Claude `/narrative-fix`, prose는 Codex fixer
+3. **B. 본문 패치** — fix routing 적용 (3b-post 동일)
+4. **C. 설명 갭** (11화+ 아크만) — supervisor가 직접 `/why-check text` 실행
+   - MISSING 우선순위 6+ → fix routing 적용
+   - HOLD → 다음 사이클 이관
 4. **Run external arc readthrough on the completed arc**:
    - Build a `Context Bundle` instead of sending the full arc by default:
      - `summaries/running-context.md`
@@ -486,46 +484,36 @@ When the episode number enters a new arc range:
    - Save the normalized result to `summaries/arc-readthrough-report.md`.
    - If the external AI requests source text for a specific item, send only that episode (or small chunk), not the whole arc.
    - Triaging rule:
-     - `patch-feasible: yes` and local to 1-2 episodes → send `/narrative-fix --source arc-read`
-     - wider structural issue → add `[HOLD]` and defer to `/narrative-review` or `/plot-repair`
-5. Check if `plot/{arc}.md` exists for the new arc
-   - If missing, send plot generation prompt (3c) first
-6. **Run `/oag-check plan` on the new arc's plot file**: After plot/{arc}.md is created (or confirmed to exist), send:
-   ```
-   plot/{arc}.md에 대해 /oag-check plan을 실행해줘.
-   - .claude/agents/oag-checker.md의 Planning Mode 절차를 따른다.
-   - PLANNING GAP/MOTIVATION GAP이 발견되면 plot/{arc}.md를 즉시 수정한다.
-   - 산출물: summaries/oag-check-plan-{arc}.md
-   - summaries/action-log.md에 결과를 한 줄 append할 것.
-   - 완료 후 대기.
-   ```
-7. **Run `/why-check plan` on the new arc's plot file**: Send:
-   ```
-   plot/{arc}.md에 대해 /why-check plan을 실행해줘.
-   - .claude/agents/why-checker.md의 Planning Mode 절차를 따른다.
-   - PLANNING GAP이 발견되면 plot/{arc}.md를 즉시 수정한다.
-   - 산출물: summaries/why-check-plan-{arc}.md
-   - summaries/action-log.md에 결과를 한 줄 append할 것.
-   - 완료 후 대기.
-   ```
-   Wait for completion. Fixing a gap in the outline costs one sentence; fixing it in finished prose costs a scene rewrite.
-5. Arc transitions are periodic check triggers, so add to the first episode prompt after transition:
+     - `patch-feasible: yes` → fix routing (micro→Claude, prose→Codex fixer)
+     - wider structural issue → `[HOLD]` + defer
+5. **D.5. 전문 감사** (11화+ 아크만) — supervisor 직접:
+   - `/pov-era-check` + `/scene-logic-check` 병렬
+   - 수정: fix routing 적용
+6. **D.7. 반복 감사** (31화+ 아크만) — supervisor 직접:
+   - `/repetition-check` → HIGH 항목 fix routing
+7. **E. 자연스러움** (11화+ 아크만) — supervisor 직접:
+   - `/naturalness` (Claude only) → `/naturalness-fix`
+8. **F. 아크 마감** — supervisor 직접:
+   - Arc summary + character state reset
+   - Unresolved thread triage
+9. **새 아크 준비** — supervisor 직접:
+   - `plot/{arc}.md` 존재 확인 → 없으면 3c로 생성
+   - `/oag-check plan` + `/why-check plan` → supervisor 직접 실행
+   - 정기 점검 트리거: 첫 화 프롬프트에 `※ 아크 전환 시점` 포함
 
-```
-※ 아크 전환 시점이므로 settings/07-periodic.md의 정기 점검(P1~P9)을 먼저 수행한 후 집필을 시작한다.
-```
+#### 5c. Periodic Check (Hybrid: Supervisor 직접)
 
-#### 5c. Periodic Check
+> **Hybrid**: 정기 점검은 **supervisor가 직접 수행**. Codex writer 세션에 보내지 않는다.
+> P1~P9, batch_review MCP, pov-era-checker는 모두 Claude 커맨드/MCP이므로 supervisor 관할.
 
-Trigger: 5화 단위를 기본으로 하되, settings/07-periodic.md에 따라 앞당기거나 늦출 수 있다 (최대 8화). When triggered, add to the next episode prompt:
+Trigger: 5화 단위 기본 (settings/07-periodic.md에 따라 조정).
 
-```
-※ 정기 점검 시점이다. settings/07-periodic.md의 P1~P9를 수행한 후 집필을 시작한다.
-※ P7(외부 AI 일괄 리뷰)은 CLAUDE.md의 피드백 플래그(gemini_feedback, gpt_feedback 등)가 true인 소스만 대상으로 mcp__novel_editor__batch_review를 호출한다.
-※ 정기 점검과 별도로, OAG 탐지(행동 갭)는 /oag-check 명령으로 수동 실행한다. 자동 집필 중에는 아크 전환 시점의 /oag-check + /why-check만 수행.
-```
+Supervisor가 수행:
+1. P1~P9 (settings/07-periodic.md 참조) — supervisor 직접
+2. 외부 AI 일괄 리뷰 (batch_review MCP) — supervisor가 MCP 호출
+3. pov-era-checker — supervisor 직접 (최근 5화)
 
-After the periodic check episode completes, supervisor also runs the **pov-era-checker** on the last 5 episodes (or since the last check):
+After the periodic check, supervisor continues with next episode prompt to Codex writer.
 
 ```bash
 # Writer에게 전담 감사 지시
