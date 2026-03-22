@@ -93,7 +93,8 @@ D. 아크 통독       → Gemini 외부 AI 통독 (MCP) + fix
 D.5 전문 감사      → /pov-era-check + /scene-logic-check (Claude)
 D.7 반복 감사      → /repetition-check + fix (Claude)
 E. 자연스러움      → /naturalness (Claude only) + fix
-F. 아크 마감       → summary reset + thread triage
+E.5 개발편집       → /narrative-review (서사 품질 거시 진단)
+F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 ```
 
 ---
@@ -111,7 +112,7 @@ F. 아크 마감       → summary reset + thread triage
 | 완료 감지 | `❯` 프롬프트 | **`WRITER_DONE` sentinel** |
 | summary/META/commit | writer가 수행 | **supervisor가 수행** |
 | 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM** (GPT 제거) |
-| tmux 세션 | 1개 (Claude writer) | **2개** (Codex writer + Claude reviewer) |
+| tmux 세션 | 1개 (Claude writer) | **2~3개** (Codex writer + Codex fixer + Claude supervisor) |
 
 ---
 
@@ -158,7 +159,10 @@ claude
 ```bash
 # supervisor가 tmux 세션 생성:
 tmux new-session -d -s write-XXX -x 220 -y 50 -c /root/novel/no-title-XXX
-tmux send-keys -t write-XXX 'codex --dangerously-bypass-approvals-and-sandbox' Enter
+sleep 1
+tmux send-keys -t write-XXX 'codex --dangerously-bypass-approvals-and-sandbox'
+sleep 3    # Codex: 3초 대기 후 Enter
+tmux send-keys -t write-XXX Enter
 ```
 
 ---

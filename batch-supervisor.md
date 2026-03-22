@@ -485,13 +485,19 @@ When the episode number enters a new arc range:
    - `/repetition-check` → HIGH 항목 fix routing
 7. **E. 자연스러움** — supervisor 직접:
    - `/naturalness` (Claude only) → `/naturalness-fix`
-8. **F. 아크 마감** — supervisor 직접:
+8. **E.5. 개발편집** — supervisor 직접:
+   - `/narrative-review` 실행 → 서사 품질 거시 진단 (10기둥 분석)
+   - "이 아크가 좋은 소설로 작동하는가" 판정: 주인공 수동화, 스케일 인플레이션, 주제 표류 감지
+   - HIGH 이상 항목 → fix routing (Codex fixer)
+   - 사용자 판단이 필요한 구조적 제안 → 사용자에게 보고
+9. **F. 아크 마감** — supervisor 직접:
    - Arc summary + character state reset
    - Unresolved thread triage
-9. **새 아크 준비** — supervisor 직접:
-   - `plot/{arc}.md` 존재 확인 → 없으면 3c로 생성
-   - `/oag-check plan` + `/why-check plan` → supervisor 직접 실행
-   - 정기 점검 트리거: 첫 화 프롬프트에 `※ 아크 전환 시점` 포함
+10. **새 아크 준비** — supervisor 직접:
+    - `plot/{arc}.md` 존재 확인 → 없으면 3c로 생성
+    - `/oag-check plan` + `/why-check plan` → supervisor 직접 실행
+    - 새 아크 컨셉이 장기 연재에서 지속 가능한지 검토 (story-consultant 참조 가능)
+    - 정기 점검 트리거: 첫 화 프롬프트에 `※ 아크 전환 시점` 포함
 
 #### 5c. Periodic Check (Hybrid: Supervisor 직접)
 
