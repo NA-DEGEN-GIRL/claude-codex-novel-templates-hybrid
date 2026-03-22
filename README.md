@@ -92,7 +92,7 @@ C. 설명 갭         → /why-check + fix (Claude)
 D. 아크 통독       → Gemini 외부 AI 통독 (MCP) + fix
 D.5 전문 감사      → /pov-era-check + /scene-logic-check (Claude)
 D.7 반복 감사      → /repetition-check + fix (Claude)
-E. 자연스러움      → /naturalness (Claude only) + fix
+E. 자연스러움      → /naturalness (Claude + GPT MCP) + fix
 E.5 개발편집       → /narrative-review (서사 품질 거시 진단)
 F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 ```

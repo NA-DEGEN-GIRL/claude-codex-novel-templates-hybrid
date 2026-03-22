@@ -482,7 +482,7 @@ When the episode number enters a new arc range:
 6. **D.7. 반복 감사** — supervisor 직접:
    - `/repetition-check` → HIGH 항목 fix routing
 7. **E. 자연스러움** — supervisor 직접:
-   - `/naturalness` (Claude only) → `/naturalness-fix`
+   - `/naturalness` (Claude + GPT MCP) → `/naturalness-fix`
 8. **E.5. 개발편집** — supervisor 직접:
    - `/narrative-review` 실행 → 서사 품질 거시 진단 (10기둥 분석)
    - "이 아크가 좋은 소설로 작동하는가" 판정: 주인공 수동화, 스케일 인플레이션, 주제 표류 감지
