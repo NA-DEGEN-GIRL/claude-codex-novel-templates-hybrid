@@ -153,14 +153,14 @@ Format:
 
 ## 요약
 
-| 심각도 | Fixability | 건수 | 수정자 행동 |
-|--------|-----------|------|-----------|
-| CRITICAL | patch-feasible | {N} | fixer 수정 |
-| CRITICAL | plot-change-needed | {N} | 플롯 수정 필요 |
-| HIGH | patch-feasible | {N} | fixer 수정 |
-| HIGH | plot-change-needed | {N} | 플롯 수정 필요 |
-| MODERATE | patch-feasible | {N} | fixer 수정 |
-| MODERATE | plot-change-needed | {N} | 플롯 수정 필요 |
+| 심각도 | Fixability | 건수 | 수정 경로 |
+|--------|-----------|------|----------|
+| CRITICAL | patch-feasible | {N} | fix-spec → Codex 수정 |
+| CRITICAL | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
+| HIGH | patch-feasible | {N} | fix-spec → Codex 수정 |
+| HIGH | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
+| MODERATE | patch-feasible | {N} | fix-spec → Codex 수정 |
+| MODERATE | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
 ```
 
 ---

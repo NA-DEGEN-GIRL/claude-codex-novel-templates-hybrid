@@ -56,14 +56,14 @@ Apply the threshold — generate questions for an element only if it meets at le
 1. A character makes a decision that changes the plot direction
 2. A character demonstrates an ability, knowledge, or resource not shown before
 3. A situation has persisted for more than one story-day without explanation
-4. A character fails to take an action that would obviously solve their problem
+4. ~~A character fails to take an obvious action~~ → **OAG checker 영역. WHY에서 제외.**
 5. Two passages state contradictory facts about the same situation
 6. A new character is introduced and affects the plot within their introduction episode
 7. A secret is revealed — the explanation of how it was kept is automatically required
 8. A backstory fact is stated (e.g., "37 years ago...", "she had been hiding since...")
 9. **A character's state (injury, exhaustion, curse, equipment) changed in a prior scene but is not reflected in the current scene** — state discontinuity
 10. **An ability, rule, or constraint works differently than it did before** — rule discontinuity
-11. **A character already possesses information (witnessed, told, or logically deducible) but fails to act on it or ask the obvious question** — knowledge obligation
+11. ~~knowledge obligation (정보 보유 + 미행동)~~ → **OAG checker 영역. WHY에서 제외.**
 12. **A major event occurred but no aftermath is shown** — missing consequences (emotional reaction, relationship change, physical traces, cost)
 13. **A character or object moved between scenes without a plausible path** — spatial discontinuity
 

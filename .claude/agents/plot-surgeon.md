@@ -9,7 +9,7 @@ OAG checker가 `plot-change-needed`로 판정한 항목을 받아, 기존 제약
 **When to run**: oag-report에 `plot-change-needed` 항목이 있을 때.
 
 **Input**: `summaries/oag-report.md` (plot-change-needed 항목) + plot files + settings
-**Output**: `summaries/plot-repair-proposal.md` (수정안 제안) → 사용자 승인 → plot 파일 수정 → `summaries/plot-repair-log.md` (수정 기록)
+**Output**: `summaries/plot-repair-proposal.md` (수정안 제안) → 승인(supervisor auto-approve 또는 사용자) → plot 파일 수정 → `summaries/plot-repair-log.md`
 
 ---
 
@@ -373,7 +373,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 #### 수정안 B: {요약}
 ...
 
-## 사용자 선택 대기
+## 승인 대기 (supervisor auto-approve 체크리스트 통과 시 자동 진행, 불충족 시 사용자 선택)
 ```
 
 ---
