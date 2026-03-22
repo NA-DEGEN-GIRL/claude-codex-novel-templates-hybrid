@@ -151,7 +151,7 @@ GPT에게 재구축된 설정 전체를 보여주고 최종 검토.
 #### 4-4. 재검증 (조건부)
 4단계 교차 검증에서 plot 파일이 수정되었다면, `/oag-check plan` + `/why-check plan`을 해당 파일에 대해 1회 재실행한다.
 
-> ✅ 완료 기준: oag-check plan PASS + why-check plan PASS + 교차 검증 0건 + GPT 승인
+> ✅ 완료 기준: oag-check plan PASS + why-check plan PASS + 교차 검증 0건. GPT 검토 결과는 참고 기록.
 
 ### 승인 게이트 (Phase 3~4 결과)
 설정 재구성 + 사전 검증 결과를 사용자에게 보고한다.

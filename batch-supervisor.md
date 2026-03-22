@@ -521,6 +521,7 @@ When the episode number enters a new arc range:
    ```
    ### HOLD-{NNN}
    - hold_route: forward-fix
+   - scope: {current-arc | next-arc}
    - 출처: {checker} / {화수}
    - 문제: {진단}
    - 보상 계획: {어떤 사건으로 해소할지}
