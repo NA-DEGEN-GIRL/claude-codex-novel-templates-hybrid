@@ -36,14 +36,15 @@ Modify these values for your novel before inputting the prompt.
 | `START_EP` | Starting episode | `1` |
 | `END_EP` | Ending episode | `70` |
 | `CHUNK_SIZE` | /clear interval (in episodes). **`-1` = never /clear** (use auto-compact instead) | `10` or `-1` |
-| `WRITER_CMD` | Writer launch command | `claude` (default) |
+| `WRITER_CMD` | Writer launch command | `codex --full-auto` (hybrid default) |
 | `ARC_MAP` | Arc-to-episode mapping | See below |
 
 ### WRITER_CMD Examples
 
 | Value | Description |
 |-------|-------------|
-| `claude` | Default Claude Code (auto-loads novel folder's CLAUDE.md) |
+| `codex --dangerously-bypass-approvals-and-sandbox` | Hybrid default: GPT 5.4 writer, 전체 승인 우회 |
+| `claude` | Lean fallback: Claude Code (전체 파이프라인 수행) |
 | `claude --model claude-sonnet-4-6` | Specify a particular model |
 
 ### ARC_MAP Example
@@ -216,46 +217,67 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 
 ### 3. Writing Prompts
 
-#### 3a. Chunk Start Prompt (first episode or after /clear every CHUNK_SIZE)
+#### 3a. Chunk Start Prompt — Codex Writer (first episode or new session)
+
+> `.claude/prompts/codex-writer.md`의 Chunk Start 템플릿을 사용한다.
+> supervisor가 {{변수}}를 채워 tmux로 전송.
 
 ```
-{N}화를 집필해줘.
-[지침]
-- .claude/agents/writer.md의 steps 1-12를 순서대로 수행한다.
-- 집필 시작 시 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) MCP 도구를 먼저 호출하여 현재 맥락을 확인한다.
-- compile_brief 실패 시에만 writer.md step 1의 폴백 순서를 따른다.
-- plot/{arc}.md를 확인하여 이번 화의 아크 역할과 다음 2~3화 런웨이를 맞춘다.
-- 직전 화 마지막 2~3문단을 확인하여 오프닝 연결과 엔딩 훅 중복을 방지한다.
-- planning flags(flashback_present, new_danger, new_setting_claim, calc_used)를 step 4에서 먼저 결정하고, step 7 자가 리뷰는 해당 플래그에 따라 조건부 항목까지 수행한다.
-- 파일명: chapters/{arc}/chapter-{NN}.md
-[리뷰]
-- 외부 AI 리뷰: 매 화 반드시 호출. mcp__novel_editor__review_episode(episode_file="{{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md", novel_dir="{{NOVEL_DIR}}", sources="auto"). 실패 시 로그만 남기고 계속.
-- 이번 화의 리뷰 최소 모드(review_floor): {supervisor가 §2.5 규칙으로 결정하여 삽입}
-- review_floor 이하로 강등하지 마라. 올릴 수만 있다.
-1. unified-reviewer를 최종 결정 모드로 실행한다. EDITOR_FEEDBACK 파일이 있으면 전체 항목을 참조하여 처리한다.
-2. 수정 발생 시 summary 파일을 재갱신하고 검증한다.
-[후처리]
-- writer.md steps 8-9에 따라 요약 파일 인라인 갱신 및 summary fact-check를 수행한다.
-- step 11에서 EPISODE_META를 삽입하고, 리뷰를 처리한 경우 editor-feedback-log까지 갱신한다.
-- config.json은 건드리지 않는다 (감독자가 처리).
-- git commit은 현재 소설 폴더 파일만. push 안 함.
-[자율 실행]
-- 무인 배치이다. 질문하지 말고 모든 단계를 자율 완료한다.
-- 정기 점검/리스크 승격 조건을 만나면 해당 모드와 후속 단계를 즉시 수행한다.
+너는 Codex full-auto writer다.
+목표: {N}화를 작성해 chapters/{arc}/chapter-{NN}.md에 저장한다.
+
+[읽기 — 반드시]
+1. CLAUDE.md — 금지사항(§5), 호칭 매트릭스(§8)
+2. settings/01-style-guide.md — §0 Voice Profile
+3. settings/03-characters.md — 등장인물
+4. settings/05-continuity.md — Continuity Invariants
+5. plot/{arc}.md — 이번 화 역할
+6. 직전 화 마지막 2~3문단
+
+[작성 규칙]
+- 한국어 본문만. # {N}화 - {제목} 으로 시작.
+- 분량: {MIN}~{MAX}자. scripts/novel-calc char_count로 확인.
+- 비현대: 외래어/아라비아 숫자 금지. 한자 첫 등장 시 병기.
+- 전생 비교문 2회 이하. 메타 표현 금지.
+
+[초안 후 자기점검]
+- 즉흥 설정? POV 지식 경계? hook 중복? 불변 조건 대조? 서수/외래어?
+
+[금지]
+summaries 수정, EPISODE_META 삽입, git commit, config.json 수정, 질문
+
+[완료]
+WRITER_DONE chapter-{NN}.md
 ```
 
-#### 3b. Continuation Prompt Within Chunk (previous episode context still loaded)
+#### 3b. Continuation Prompt — Codex Writer (previous episode context loaded)
 
 ```
 이어서 {N}화를 집필해줘.
-- .claude/agents/writer.md의 steps 1-12를 동일하게 수행한다.
-- compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})로 현재 상태를 먼저 확인한다.
-- compile_brief를 우선 사용하되, writer.md step 2-3에 필요한 범위의 plot/{arc}.md와 직전 화 마지막 2~3문단은 직접 확인한다.
-- step 4에서 planning flags를 먼저 결정하고, step 7 자가 리뷰는 해당 플래그 기반 조건부 항목까지 수행한다.
-- 외부 AI 리뷰: 매 화 반드시 review_episode MCP 호출 (실패 시 로그만 남기고 계속).
-- 리뷰 최소 모드(review_floor): {supervisor가 삽입}. 이 모드 이하로 강등 불가. 올릴 수만 있다.
+- 직전 화 컨텍스트 유지. plot/{arc}.md 재확인.
+- 직전 화 마지막 2~3문단에서 오프닝 연결.
 - 파일명: chapters/{arc}/chapter-{NN}.md
+- 한국어 본문만. EPISODE_META/summary 불필요.
+- 자기점검: 즉흥 설정, POV 경계, hook 중복, 불변 조건, 서수/외래어.
+- 완료 후: WRITER_DONE chapter-{NN}.md
 ```
+
+#### 3b-post. Supervisor Post-Write Pipeline (Codex 완료 후 Claude가 수행)
+
+> Codex가 `WRITER_DONE`을 출력하면, supervisor(Claude Code)가 아래를 순서대로 수행한다.
+
+1. **chapter 파일 확인**: `ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`
+2. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto")
+3. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영.
+4. **문제 발견 시**:
+   - 연속성/설정 위반 → Claude `narrative-fixer`로 직접 수정
+   - prose 품질 문제 → Codex에 부분 재작성 요청 (3b-rewrite, 1회 한정)
+5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
+6. **summary fact-check**: 본문 ↔ 요약 대조
+7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
+8. **action-log 갱신**
+9. **git commit**: chapter + summaries + EDITOR_FEEDBACK
+10. **config.json 업데이트** (supervisor 직접)
 
 #### 3c. Plot Generation Prompt (when the arc's plot file doesn't exist)
 
@@ -320,15 +342,13 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 | State | Detection Pattern | Action |
 |-------|-------------------|--------|
-| **Working** | No `> ` prompt visible, text being output. Or last line shows `Working`, `Thinking`, `Simmering` etc. | Re-check after 2 minutes |
-| **Auto-compact triggered** | `Auto-compact` or `Compacting conversation` message | Normal operation. Re-check after 2 minutes |
-| **Stuck asking question** | Line ending with `?` followed by `> ` prompt. Or `(y/n)`, `[Y/n]` etc. input wait | Send appropriate answer using the command send protocol in 3d |
-| **Permission request** | `Allow`, `Deny`, `permission` etc. with input wait | Send `y` using the command send protocol in 3d |
-| **Error occurred** | `Error`, `error`, `FATAL`, `Traceback`, `Permission denied`, `No such file` etc. | Analyze error cause, send recovery command |
-| **MCP connection failure** | `MCP`, `connection`, `timeout`, `ECONNREFUSED` etc. | Try reconnecting with `/mcp`. If repeated failure, restart session |
-| **Infinite loop** | Same operation repeated 3+ times, or no progress on same episode for 10+ minutes | `/clear` then restart with full prompt |
-| **Completed** | `> ` prompt appears, preceding output contains completion-related messages (commit done, batch-progress.log recorded, etc.) | Send next episode prompt |
-| **Abnormal exit** | No `claude` process, only bash prompt (`$`) visible | Restart with `unset CLAUDECODE && {{WRITER_CMD}}` |
+| **Working** | `• Working (Ns)` 표시, 또는 `• Explored`, `• Edited`, `• Ran` 등 진행 표시 | Re-check after 2 minutes |
+| **Completed (WRITER_DONE)** | `WRITER_DONE chapter-{NN}.md` 출력 + `›` 프롬프트 대기 | **Post-write pipeline (3b-post) 시작** |
+| **Completed (prompt ready)** | `›` 프롬프트 + `gpt-5.4` 표시 (WRITER_DONE 없이) | Chapter 파일 존재 확인 후 post-write pipeline |
+| **Trust prompt** | `Do you trust the contents` + `Press enter to continue` | Enter 전송 |
+| **Error occurred** | `Error`, `FATAL`, `Permission denied` etc. | 분석 후 복구 |
+| **Infinite loop** | 같은 파일 반복 편집, 10분+ 진전 없음 | Esc로 중단 후 재지시 |
+| **Abnormal exit** | codex 종료, bash `$` 프롬프트만 표시 | `{{WRITER_CMD}}` 재시작 |
 
 #### 4c. Completion Verification
 
