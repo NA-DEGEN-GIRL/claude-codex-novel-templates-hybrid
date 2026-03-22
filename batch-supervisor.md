@@ -75,7 +75,7 @@ Input the following prompt into Claude Code:
 
 Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 
-### 1. Session Management (Hybrid: 2 Codex 세션)
+### 1. Session Management (Hybrid: 1 Codex 세션)
 
 **Writer 세션** (집필 전용):
 - tmux session name: `{{SESSION}}` (예: `write-001`)
@@ -289,7 +289,7 @@ WRITER_DONE chapter-{NN}.md
       완료 후: FIX_DONE chapter-{NN}
       ```
    e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
-   f. **재수정 상한**: Codex fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 Claude micro-patch로 마무리하거나 다음 정기 점검으로 이관. 무한 ping-pong 금지.
+   f. **재수정 상한**: Codex fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
 5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
 6. **summary fact-check**: 본문 ↔ 요약 대조
 7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
@@ -428,7 +428,7 @@ Wait 5 seconds, then send full prompt (3a).
 
 > **Hybrid 핵심**: 아크 전환 A~F는 **Claude supervisor가 직접 실행**한다. Codex writer 세션에 보내지 않는다.
 > `/oag-check`, `/why-check`, `/narrative-fix` 등은 Claude 커맨드이므로 Codex에서 동작하지 않는다.
-> 수정이 필요하면: micro → Claude 직접, prose → Codex fixer 세션 (3b-post fix routing 적용).
+> 수정이 필요하면: 모든 텍스트 수정은 Codex writer 세션에서 수행 (fix routing 적용).
 
 When the episode number enters a new arc range:
 
@@ -474,7 +474,7 @@ When the episode number enters a new arc range:
    - Save the normalized result to `summaries/arc-readthrough-report.md`.
    - If the external AI requests source text for a specific item, send only that episode (or small chunk), not the whole arc.
    - Triaging rule:
-     - `patch-feasible: yes` → fix routing (micro→Claude, prose→Codex fixer)
+     - `patch-feasible: yes` → fix routing → Codex writer 세션에서 수정
      - wider structural issue → `[HOLD]` + defer
 5. **D.5. 전문 감사** — supervisor 직접:
    - `/pov-era-check` + `/scene-logic-check` 병렬

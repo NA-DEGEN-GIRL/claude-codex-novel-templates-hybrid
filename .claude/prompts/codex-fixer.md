@@ -45,7 +45,7 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - **출처**: {checker 이름} (why-check / oag / naturalness / pov-era / scene-logic / repetition / arc-read)
 - **심각도**: {HIGH / MEDIUM}
 - **위치**: {line_start}~{line_end}행
-- **patch_class**: {local / rewrite}
+- **patch_class**: {micro / local / rewrite}
 - **문제**: {진단 요약 1-2문장}
 - **수정 목표**: {어떻게 바꿔야 하는지 1-2문장}
 - **유지 사항**:
