@@ -1,5 +1,0 @@
-- `summary-generator` →  **writer** (compile_brief 기반, 인라인 요약)인라인 갱신
-|  **writer** (compile_brief 기반, 인라인 요약)| **writer** (compile_brief 기반, 인라인 요약) |
-| summary-generator |  **writer** (compile_brief 기반, 인라인 요약)인라인 갱신 (steps 8-9) |
-|  **writer** (compile_brief 기반, 인라인 요약)partial-rewrite mode | plot-surgeon의 rewrite-brief 기반 기존 에피소드 부분 재작성 |
-|  **writer** (compile_brief 기반, 인라인 요약)planning flags | flashback/danger/setting/calc 플래그 기반 조건부 리뷰 |
