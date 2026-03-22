@@ -99,7 +99,7 @@ GPT 5.4에게도 진단을 맡긴다 (`mcp__external-ai__ask_gpt`):
 GPT 5.4에게 story-consultant 평가 결과를 공유하고 추가 자문:
 "이 재구축 계획이 원래 컨셉의 강점을 살리면서 약점을 해결하는가?"
 
-> ✅ 완료 기준: story-consultant GO 판정 + GPT 동의
+> ✅ 완료 기준: story-consultant GO 판정. GPT 피드백은 참고 자료로 기록.
 
 ### Phase 3: 설정 재정립
 
@@ -197,21 +197,16 @@ git commit -m "{소설명} 재구축 완료 — 설정 재정립, 기존 원고 
 
 > ✅ 완료 기준: 커밋 완료, chapters-archive/ 보존 확인
 
-### Phase 8: 집필 시작
+### Phase 8: 집필 시작 (Hybrid)
 
-재구축이 완료되면 집필은 두 가지 방법:
+재구축이 완료되면 **Claude supervisor + Codex writer** 구조로 집필:
 
-#### 직접 집필
-```bash
-cd no-title-{XXX} && claude
-# → "1화 작성해줘"
-```
-
-#### 감독자 배치 집필
 ```bash
 cd /root/novel && claude
 # → "no-title-{XXX}/batch-supervisor.md 대로 수행"
 ```
+
+Claude supervisor가 tmux에서 Codex를 실행하고 자동 관리한다.
 
 ---
 

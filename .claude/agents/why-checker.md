@@ -115,7 +115,7 @@ For each major element, generate questions from all applicable categories:
 As you read, maintain a working list in this format:
 
 ```
-[Q-001] W: 왜 [캐릭터]는 [X]를 [기간] 동안 하지 못했는가? (발생: {N}화)
+[Q-001] W: 왜 [사건]이 [기간] 동안 설명 없이 지속되었는가? (발생: {N}화)
 [Q-002] H: [캐릭터]는 [정보]를 어떻게 알게 되었는가? (발생: {N}화)
 [Q-003] W2: {N}화는 "[인용]"이라고 했고 {M}화는 "[인용]"이라고 했다. 모순인가? (발생: {N}화/{M}화)
 ...

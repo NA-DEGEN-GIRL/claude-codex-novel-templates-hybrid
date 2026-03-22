@@ -317,7 +317,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 | 3. 승인 | {승인 유형} | ✅ |
 | 4. Plot 파일 수정 | plot/{files} | ✅ / ⏳ |
 | 5. Rewrite Brief | summaries/rewrite-brief.md | ✅ / ⏳ |
-| 6. Writer Partial-Rewrite | chapters/{files} | ✅ / ⏳ |
+| 6. Codex Rewrite (fix-spec/brief) | chapters/{files} | ✅ / ⏳ |
 | 7. Rewrite Log | summaries/rewrite-log.md | ✅ / ⏳ |
 | 8. 재검증 (oag plan) | summaries/oag-check-plan-{arc}.md | ✅ / ⏳ |
 | 9. 재검증 (why plan) | summaries/why-check-plan-{arc}.md | ✅ / ⏳ |
