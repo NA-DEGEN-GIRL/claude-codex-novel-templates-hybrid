@@ -43,16 +43,21 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 
 ---
 
-## MCP → scripts 매핑
+## MCP 도구 담당 분리
 
-Codex는 MCP에 접근 불가. `scripts/` CLI wrapper로 대체.
+> Codex는 MCP에 접근 불가. **MCP 의존 작업은 전부 Claude review 세션이 담당.**
+> Codex는 prose 생성에만 집중하고, 한자/분량/명칭/외부리뷰는 review가 처리.
 
-| MCP 도구 | scripts wrapper | 용법 |
-|---------|----------------|------|
-| `compile_brief` | `scripts/compile-brief` | `scripts/compile-brief {novel_dir} {N}` |
-| `novel-calc` | `scripts/novel-calc` | `scripts/novel-calc char_count file_path='"..."'` |
-| `novel-hanja` | `scripts/novel-hanja` | `scripts/novel-hanja hanja_lookup text='"..."'` |
-| `review_episode` | N/A | Claude supervisor가 MCP로 직접 호출 |
+| MCP 도구 | 담당 | 시점 |
+|---------|------|------|
+| `novel-hanja` | **Claude review** | post-write: 한자 병기 삽입/검증 |
+| `novel-calc` | **Claude review** | post-write: 분량 검증 |
+| `novel-naming` | **Claude review** | periodic/아크 경계: 명칭 변이 검사 |
+| `novel-editor` (review_episode) | **Claude review** | post-write: 외부 AI 리뷰 |
+| `compile_brief` | **Claude review** 또는 Codex (`scripts/compile-brief`) | 집필 전 맥락 확인 |
+
+> `scripts/` wrapper는 Codex가 **선택적으로** 사용할 수 있으나, 사용을 강제하지 않는다.
+> 핵심 MCP 작업은 review 세션이 보장한다.
 
 ---
 
