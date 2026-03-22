@@ -7,8 +7,9 @@
 
 ---
 
-> **이 파일에는 `patch_class: local` 또는 `rewrite`만 온다.**
-> `micro` (사실관계 1-3문장)는 Claude가 직접 수정하므로 Codex fixer에 전달되지 않는다.
+> **이 파일에는 `patch_class: micro`, `local`, `rewrite`가 모두 온다.**
+> 문체 일관성을 위해 사실관계 micro-patch 포함 모든 텍스트 수정은 Codex가 수행한다.
+> `hold`만 제외 (다음 사이클 이관).
 
 ## Fix Prompt (에피소드 단위 배치)
 

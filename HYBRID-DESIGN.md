@@ -103,36 +103,31 @@ scripts/novel-calc char_count file_path='"chapters/{arc}/chapter-{NN}.md"'
 
 ## 수정 라우팅 (Fix Routing)
 
-> **원칙: Claude는 무엇을 고칠지 결정하고, Codex는 어떻게 고칠지 쓴다.**
+> **원칙: Claude는 무엇을 고칠지 결정하고, Codex는 모든 수정을 수행한다.**
+> 문체 일관성을 위해 micro-patch 포함 모든 텍스트 수정은 Codex가 담당한다.
 
-### 라우팅 기준
-
-| 수정 유형 | 수행자 | 이유 |
-|----------|--------|------|
-| 사실관계 micro-patch (이름/시점/설정 1-3문장) | **Claude 직접** | 톤 영향 없음 |
-| 연속성/논리 위반 (사실만 교정) | **Claude 직접** | "오른손"→"왼손" 수준 |
-| 감정선/리듬/묘사 밀도 변경 | **Codex 재작성** | 문체 일관성 필수 |
-| 대화 톤/캐릭터 보이스 수정 | **Codex 재작성** | 원 작성 모델이 유지 |
-| 장면 구조 변경 (순서/삭제/추가) | **Codex 재작성** | 장면 호흡 영향 |
-
-### 2단계 수정 프로세스
+### 수정 프로세스
 
 ```
 1. Claude fix-spec generator
    - 문제 유형, 위치, 원인
-   - 수정 목표
+   - 수정 목표 + patch_class (micro/local/rewrite)
    - 반드시 유지할 요소 (톤/리듬/캐릭터)
-   - 출력: 인라인 또는 임시 fix-spec
+   - 출력: tmp/fix-specs/chapter-{NN}.md
 
-2. 라우팅 판단:
-   - micro-patch (사실관계 1-3문장) → Claude 직접 수정
-   - prose 수정 (문단+ 또는 톤 영향) → Codex에 partial rewrite 요청
+2. 모든 fix-spec을 에피소드 단위로 번들
+   - micro + local + rewrite를 하나의 fix-spec 파일에 통합
+   - hold만 제외 (다음 사이클 이관)
 
-3. Codex style-preserving rewrite
-   - fix-spec 기반으로 해당 구간만 재작성
+3. Codex fixer 세션에 전달
+   - fix-spec 기반으로 해당 구간 수정
    - 앞뒤 문맥 유지, 기존 문체/리듬 보존
-   - REWRITE_DONE sentinel 출력
+   - FIX_DONE sentinel 출력
+
+4. Claude 재검증 (unified-reviewer continuity, 1회)
 ```
+
+> **Claude가 직접 수정하는 유일한 영역**: summaries/, EPISODE_META, action-log — 즉 메타데이터만.
 
 ### fix-spec 공통 스키마
 
@@ -158,11 +153,13 @@ must_avoid:
 ### 라우팅
 
 ```
-patch_class = micro  → Claude 직접 수정 (1-3문장 사실관계)
-patch_class = local  → Codex fixer (문단 내 수정, 톤 영향)
+patch_class = micro   → Codex fixer (1-3문장 사실관계)
+patch_class = local   → Codex fixer (문단 내 수정)
 patch_class = rewrite → Codex fixer (장면 수준 재작성)
-patch_class = hold   → 다음 사이클로 이관
+patch_class = hold    → 다음 사이클로 이관 (Codex에 전달하지 않음)
 ```
+
+> **모든 텍스트 수정은 Codex가 수행.** Claude는 메타데이터(summaries/META/log)만 직접 수정.
 
 ### 운영 방식
 

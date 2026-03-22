@@ -279,13 +279,12 @@ WRITER_DONE chapter-{NN}.md
 3. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영.
 4. **문제 발견 시 — fix routing**:
    a. 모든 발견 항목을 **patch_class**로 분류:
-      - `micro`: 사실관계 1-3문장 (이름/시점/설정) → **Claude 직접 수정**
-      - `local`: 문단 내 수정, 톤 영향 → **Codex fixer**
+      - `micro`: 사실관계 1-3문장 → **Codex fixer**
+      - `local`: 문단 내 수정 → **Codex fixer**
       - `rewrite`: 장면 수준 재작성 → **Codex fixer**
       - `hold`: 구조 변경 필요 → 다음 사이클 이관
-   b. `micro` 항목: Claude `narrative-fixer`로 즉시 수정
-   c. `local`/`rewrite` 항목: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성 (`.claude/prompts/codex-fixer.md` 형식)
-   d. Codex fixer 세션에 전송:
+   b. `micro`/`local`/`rewrite` 항목을 에피소드 단위로 번들: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성
+   c. Codex fixer 세션에 전송:
       ```
       tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
@@ -441,7 +440,7 @@ When the episode number enters a new arc range:
    - 대상: {start}~{end}화
    - 산출물: `summaries/oag-report.md`
    - `plot-change-needed` → `/plot-repair` (supervisor 판단)
-   - `patch-feasible` → micro는 Claude `/narrative-fix`, prose는 Codex fixer
+   - `patch-feasible` → Claude가 fix-spec 생성 → Codex fixer 수정
 3. **B. 본문 패치** — fix routing 적용 (3b-post 동일)
 4. **C. 설명 갭** — supervisor가 직접 `/why-check text` 실행
    - MISSING 우선순위 6+ → fix routing 적용

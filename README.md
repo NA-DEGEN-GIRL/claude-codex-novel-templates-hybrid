@@ -68,8 +68,7 @@ Step 7-12: Claude Supervisor (검증 + 후처리)
   │  7.  unified-reviewer 실행 (연속성 14항목 + 서사 + 한글)
   │  8.  external AI review: Gemini + NIM (MCP)
   │  9.  문제 발견 시 fix routing:
-  │      ├─ micro (사실관계 1-3문장) → Claude narrative-fixer 직접 수정
-  │      ├─ local/rewrite (prose 품질) → Claude가 fix-spec 생성 → Codex fixer 세션에서 수정
+  │      ├─ micro/local/rewrite → Claude가 fix-spec 생성 → Codex fixer 수정 (문체 일관)
   │      └─ hold (구조 변경) → 다음 사이클 이관
   │  10. Codex 수정 시: FIX_DONE 확인 → Claude 재검증 (1회 한정)
   │  11. summary 갱신 + fact-check
