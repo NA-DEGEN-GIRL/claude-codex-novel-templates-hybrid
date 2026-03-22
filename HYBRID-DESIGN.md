@@ -27,14 +27,19 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 
 | 소스 | lean (Claude 집필) | hybrid (Codex 집필) | 이유 |
 |------|-------------------|---------------------|------|
-| Claude unified-reviewer | 자기 글 자기 리뷰 (약점) | **핵심 검증자** | 교차 검증 효과 |
-| Gemini | 유지 | **유지** | 세 번째 시각 |
-| NIM | 유지 | **유지** | 맞춤법 전담 |
-| GPT prose review | 유지 | **유지** | MCP 별도 세션이므로 교차 검증 유효 |
-| GPT naturalness | 유지 | **유지** | 별도 프롬프트+세션, 결합 자연성 특화 |
+| Claude unified-reviewer | 자기 글 자기 리뷰 (약점) | **핵심 검증자** | GPT가 쓴 글을 Claude가 검증 = 교차 검증 |
+| Gemini (MCP) | continuity/worldbuilding | **유지** | 세 번째 모델의 시각 |
+| NIM (MCP) | spelling/grammar | **유지** | 맞춤법 전담 |
+| GPT prose review | 유지 | **제거** | 같은 모델이 쓰고 리뷰 = 맹점 공유 |
+| GPT naturalness | 유지 | **제거** | 동일 모델 |
 
-> GPT 리뷰를 유지하는 이유: 집필 Codex와 리뷰 GPT는 완전히 분리된 세션.
-> Claude가 오케스트레이션하며 MCP로 호출하므로, 사실상 독립적인 제3자 리뷰와 동일.
+> **hybrid 3자 리뷰 체계**: GPT(집필) → Claude(검증) + Gemini(보조) + NIM(교정)
+>
+> CLAUDE.md 변경:
+> ```
+> gpt_feedback: false
+> gpt_naturalness: N/A (제거)
+> ```
 
 ---
 

@@ -37,8 +37,8 @@ Claude Code (Supervisor)                 Codex / GPT 5.4 (Writer)
                                   WRITER_DONE 출력
   ←──── tmux capture-pane ────
   │
-  ├─ unified-reviewer (Claude)
-  ├─ external AI review (MCP)
+  ├─ unified-reviewer (Claude) ← 핵심 검증
+  ├─ external AI review: Gemini + NIM (MCP)
   ├─ narrative-fixer (Claude)
   ├─ summary update (Claude)
   ├─ EPISODE_META 삽입 (Claude)
@@ -66,7 +66,7 @@ Step 6: Codex Writer (집필)
   ▼
 Step 7-12: Claude Supervisor (검증 + 후처리)
   │  7.  unified-reviewer 실행 (연속성 14항목 + 서사 + 한글)
-  │  8.  external AI review: Gemini + GPT + NIM (MCP)
+  │  8.  external AI review: Gemini + NIM (MCP) — GPT 제외 (집필 모델과 동일)
   │  9.  문제 발견 시:
   │      ├─ 연속성/설정 위반 → Claude narrative-fixer 직접 수정
   │      └─ prose 품질 → Codex에 부분 재작성 요청 (1회 한정)
@@ -88,10 +88,10 @@ Step 7-12: Claude Supervisor (검증 + 후처리)
 A. OAG 탐지        → /oag-check (Claude)
 B. OAG 패치        → /narrative-fix --source oag (Claude)
 C. 설명 갭         → /why-check + fix (Claude)
-D. 아크 통독       → GPT/Gemini 외부 AI 통독 (MCP) + fix
+D. 아크 통독       → Gemini 외부 AI 통독 (MCP) + fix
 D.5 전문 감사      → /pov-era-check + /scene-logic-check (Claude)
 D.7 반복 감사      → /repetition-check + fix (Claude)
-E. 자연스러움      → /naturalness (Claude + GPT) + fix
+E. 자연스러움      → /naturalness (Claude only) + fix
 F. 아크 마감       → summary reset + thread triage
 ```
 
@@ -109,7 +109,8 @@ F. 아크 마감       → summary reset + thread triage
 | WRITER_CMD | `claude` | `codex --dangerously-bypass-approvals-and-sandbox` |
 | 완료 감지 | `❯` 프롬프트 | **`WRITER_DONE` sentinel** |
 | summary/META/commit | writer가 수행 | **supervisor가 수행** |
-| GPT 피드백 | 별도 외부 리뷰 | 외부 리뷰 유지 (세션 분리) |
+| 외부 리뷰 | Claude + Gemini + GPT + NIM | **Claude + Gemini + NIM** (GPT 제거) |
+| tmux 세션 | 1개 (Claude writer) | **2개** (Codex writer + Claude reviewer) |
 
 ---
 
