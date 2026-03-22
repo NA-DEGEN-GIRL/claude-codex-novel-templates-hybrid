@@ -475,7 +475,7 @@ When the episode number enters a new arc range:
    - If the external AI requests source text for a specific item, send only that episode (or small chunk), not the whole arc.
    - Triaging rule:
      - `patch-feasible: yes` → fix routing → Codex writer 세션에서 수정
-     - wider structural issue → `[HOLD]` + defer
+     - wider structural issue → `[HOLD]` + **§5g HOLD Transfer Routing** 수행
 5. **D.5. 전문 감사** — supervisor 직접:
    - `/pov-era-check` + `/scene-logic-check` 병렬
    - 수정: fix routing 적용
@@ -532,14 +532,25 @@ When the episode number enters a new arc range:
 3. **`plot/arc-{NN}.md`** (삽입): 해당 화수에 `[FORWARD-FIX: HOLD-{NNN}]` 마커 삽입
 
 **만기 관리:**
+- `latest-safe-resolution` 설정 상한: **현재 화수 + 10화** 또는 **현재 아크 종료 전** (짧은 쪽 적용)
 - 매 화 집필 전, supervisor가 `review-log.md`의 open HOLD를 확인
 - `latest-safe-resolution` 화수를 넘기면 자동 승격:
   - `forward-fix` → `plot-repair` 또는 `user-escalation`
 - `blocker=yes`인 HOLD가 있으면 해당 아크 집필을 중단
+- blocker 기준: `retro-fix`/`plot-repair` = blocker:yes, `forward-fix` = blocker:no, `user-escalation` = blocker:yes
 
 **완료 게이트:**
-- HOLD가 해소되면 `status: resolved` + 해소 화수/방법 기록
-- 아크 마감(F단계) 시 open HOLD가 남아있으면 F를 완료할 수 없음
+- HOLD가 해소되면 `status: resolved` + 아래 3곳 동기화:
+  1. `review-log.md`: status → resolved, 해소 화수/방법 기록
+  2. `running-context.md`: HOLD 경고 행 제거
+  3. `plot/arc-{NN}.md`: 마커에 `[RESOLVED: {N}화]` 태그 추가 (삭제가 아니라 이력 보존)
+- 아크 마감(F단계) 게이트:
+  - `scope: current-arc`인 open HOLD → **F 완료 불가** (해결 필수)
+  - `scope: next-arc`인 open HOLD → **이관 확인(carry-forward) 후 F 통과 가능** (다음 아크에서 해결)
+
+**forward-fix scope:**
+- forward-fix 기록 시 `scope: current-arc | next-arc` 필드 필수
+- `scope: next-arc`는 F단계에서 carry-forward로 처리 — 다음 아크 A단계에서 재확인
 
 ---
 
