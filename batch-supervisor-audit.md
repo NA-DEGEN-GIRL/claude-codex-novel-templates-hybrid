@@ -1,4 +1,4 @@
-# Batch Audit Supervisor Prompt (Lean)
+# Batch Audit Supervisor Prompt (Hybrid)
 
 Claude Code periodically checks a tmux session and automatically supervises another AI instance's full novel audit.
 
