@@ -267,7 +267,7 @@ claude-codex-novel-templates-hybrid/
 | [mcp-novel-naming](https://github.com/NA-DEGEN-GIRL/mcp-novel-naming) | 고유명사 표기 변이 탐지 | 아크 경계 + periodic check |
 | [mcp-novelai-image](https://github.com/NA-DEGEN-GIRL/mcp-novelai-image) | 삽화/커버 이미지 생성 | 커버 + 에피소드 삽화 (선택) |
 
-> Codex writer는 MCP에 직접 접근할 수 없다. `scripts/` CLI wrapper로 일부 보조 기능(compile-brief, char_count, hanja)을 사용할 수 있으나, 핵심 MCP 작업(외부 리뷰, 명칭 검사, naturalness)은 **Claude review 세션이 전담**한다.
+> **Codex도 MCP를 네이티브로 지원한다.** `codex mcp add`로 서버를 등록하면 Claude Code와 동일하게 MCP 도구를 사용한다. `scripts/`는 MCP 미설정 시 fallback. Writer가 MCP를 못 쓰더라도 Claude review 세션이 동일 검증을 수행한다 (이중 안전망).
 
 ---
 

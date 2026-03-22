@@ -21,8 +21,8 @@
 5. plot/{arc}.md — 이번 화의 아크 역할과 다음 2~3화 런웨이.
 6. 직전 화(chapters/{arc}/chapter-{NN-1}.md) 마지막 2~3문단 — 오프닝 연결.
 
-[읽기 — 필수 도구]
-- `scripts/compile-brief {{NOVEL_DIR}} {N}` 을 실행하여 압축 맥락을 먼저 확인한다.
+[MCP 도구 — 집필 전 필수]
+- `compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})` 호출하여 압축 맥락 확인.
 
 [읽기 — 필요시]
 - settings/04-worldbuilding.md — 세계관/시대 용어 확인 (비현대 배경)
@@ -31,11 +31,11 @@
 - **Voice Profile 우선**: 더 표준적이거나 더 매끈한 문장으로 수렴시키지 않는다. settings/01-style-guide.md §0의 보이스를 우선한다.
 - 한국어 본문만 작성. 마크다운 제목(# {N}화 - {제목})으로 시작.
 - 장면 구분: ***
-- 분량: {MIN}~{MAX}자. 초안 완성 후 `scripts/novel-calc char_count file_path='"chapters/{arc}/chapter-{NN}.md"'` 로 확인.
+- 분량: {MIN}~{MAX}자. 초안 완성 후 `char_count(file_path="chapters/{arc}/chapter-{NN}.md")` MCP로 확인.
 - 비현대 배경: 외래어/아라비아 숫자 금지. 한자어/한글 수사 사용.
 - 전생 비교문: 화당 2회 이하
 - 메타 표현 금지: "N화에서", "독자 여러분", "프롤로그에서"
-- 한자 병기: 첫 등장 시 음+한자 병기 (예: 내공(內功)). 이후 한국어만. 확신이 없으면 `scripts/novel-hanja hanja_lookup text='"용어"'`로 확인. 그래도 모르면 한글만 쓰고 넘어가라 — review 세션이 보정.
+- 한자 병기: 첫 등장 시 음+한자 병기 (예: 내공(內功)). 이후 한국어만. `hanja_lookup(text="용어")` MCP로 검증. 모르면 한글만 쓰고 넘어가라 — review가 보정.
 
 [초안 후 자기점검 — 짧게]
 - 즉흥 설정 추가하지 않았는가? (settings에 없는 인물/능력/장소)

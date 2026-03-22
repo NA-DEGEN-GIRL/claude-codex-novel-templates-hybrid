@@ -43,29 +43,38 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 
 ---
 
-## MCP 도구 담당 분리
+## MCP 도구 구조
 
-> Codex는 MCP에 접근 불가. **MCP 의존 작업은 전부 Claude review 세션이 담당.**
-> Codex는 prose 생성에만 집중하고, 한자/분량/명칭/외부리뷰는 review가 처리.
+> **Codex도 MCP를 네이티브로 지원한다.** `codex mcp add`로 서버를 등록하면 Claude Code와 동일하게 MCP 도구를 사용할 수 있다.
+> `scripts/` wrapper는 MCP 미설정 시 fallback으로만 유지.
 
-| MCP 도구 | 담당 | 시점 |
-|---------|------|------|
-| `novel-hanja` | **Claude review** | post-write: 한자 병기 삽입/검증 |
-| `novel-calc` | **Claude review** | post-write: 분량 검증 |
-| `novel-naming` | **Claude review** | periodic/아크 경계: 명칭 변이 검사 |
-| `novel-editor` (review_episode) | **Claude review** | post-write: 외부 AI 리뷰 |
-| `compile_brief` | **Claude review** 또는 Codex (`scripts/compile-brief`) | 집필 전 맥락 확인 |
+### Codex MCP 설정
 
-### Writer/Review 책임 분리
+```bash
+# 글로벌 등록 (한 번만)
+codex mcp add novel-calc -- python3 /root/novel/mcp-novel-calc/calc_server.py
+codex mcp add novel-hanja -- python3 /root/novel/mcp-novel-hanja/hanja_server.py
+codex mcp add novel-naming -- python3 /root/novel/mcp-novel-naming/naming_server.py
+codex mcp add novel-editor -- python3 /root/novel/mcp-novel-editor/editor_server.py
 
-| 구분 | 담당 | 도구 |
-|------|------|------|
-| **Writer 필수** | compile-brief (집필 전), char_count (초안 후) | `scripts/compile-brief`, `scripts/novel-calc` |
-| **Writer 선택** | 한자 검증 (비현대) | `scripts/novel-hanja` |
-| **Review 전담** | 외부 AI 리뷰, 한자 보정, 명칭 검사, naturalness, summaries, META, git | MCP 직접 |
+# 확인
+codex mcp list
+```
 
-> Writer가 scripts를 실행하지 않더라도 review 세션이 MCP로 동일 검증을 수행한다 (이중 안전망).
-> scripts는 "쓰면 좋고 안 써도 review가 잡는다" 구조.
+설정 파일: `~/.codex/config.toml`에 저장됨.
+
+### Writer/Review MCP 분담
+
+| MCP 도구 | Writer (Codex) | Review (Claude) | 비고 |
+|---------|----------------|-----------------|------|
+| `compile_brief` | ✅ 집필 전 필수 | ✅ 검증용 | 양쪽 다 사용 |
+| `char_count` | ✅ 초안 후 필수 | ✅ 재확인 | 이중 안전망 |
+| `hanja_lookup` | ✅ 병기 시 | ✅ 보정 | Writer가 못 쓰면 Review 보정 |
+| `review_episode` | ❌ | ✅ 전담 | 외부 AI 리뷰는 Review만 |
+| `naming_check` | ❌ | ✅ 전담 | periodic/아크 경계 |
+| summaries/META/git | ❌ | ✅ 전담 | 메타데이터는 Review만 |
+
+> **이중 안전망**: Writer가 MCP를 쓰면 좋고, 안 써도 Review가 동일 검증을 수행한다.
 
 ---
 
@@ -188,14 +197,31 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 
 ---
 
+## Codex MCP 전환 체크리스트
+
+새 환경에서 hybrid를 처음 설정할 때:
+
+- [ ] `codex mcp add novel-calc -- python3 /root/novel/mcp-novel-calc/calc_server.py`
+- [ ] `codex mcp add novel-hanja -- python3 /root/novel/mcp-novel-hanja/hanja_server.py`
+- [ ] `codex mcp add novel-naming -- python3 /root/novel/mcp-novel-naming/naming_server.py`
+- [ ] `codex mcp add novel-editor -- python3 /root/novel/mcp-novel-editor/editor_server.py`
+- [ ] `codex mcp list`로 4개 enabled 확인
+- [ ] 설정 파일 위치: `~/.codex/config.toml`
+
+> MCP 등록은 글로벌이므로 한 번만 하면 모든 소설 프로젝트에서 사용 가능.
+> `scripts/`는 MCP 미등록 시 fallback으로 유지.
+
+---
+
 ## 핵심 파일
 
 | 파일 | 역할 | 변경 여부 |
 |------|------|----------|
 | `.claude/prompts/codex-writer.md` | Codex 집필 프롬프트 템플릿 | **신규** |
+| `.claude/prompts/codex-fixer.md` | Codex 수정 프롬프트 템플릿 | **신규** |
 | `batch-supervisor.md` | Supervisor 규칙 (hybrid용) | **수정** |
-| `scripts/*` | MCP CLI wrapper | **복사** (codex-lean에서) |
-| `.claude/agents/writer.md` | Claude writer (lean 전용) | deprecated (hybrid 미사용) |
+| `scripts/*` | MCP CLI wrapper (fallback) | 유지 |
+| `.claude/agents/writer.md` | Claude writer (lean 전용) | deprecated |
 | 나머지 agents/commands | 그대로 | 변경 없음 |
 
 ---
