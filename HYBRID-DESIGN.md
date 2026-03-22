@@ -134,17 +134,46 @@ scripts/novel-calc char_count file_path='"chapters/{arc}/chapter-{NN}.md"'
    - REWRITE_DONE sentinel 출력
 ```
 
-### batch-supervisor에서의 동작
+### fix-spec 공통 스키마
+
+모든 checker의 발견을 정규화:
+
+```yaml
+source: "why-check"          # checker 출처
+target_file: "chapters/arc-01/chapter-18.md"
+line_start: 142
+line_end: 176
+severity: "HIGH"
+patch_class: "rewrite"       # micro | local | rewrite | hold
+diagnosis: "침묵 선택 이유가 독자에게 전달되지 않음"
+rewrite_goal: "행동/지각으로 이유를 드러낸다"
+must_keep:
+  - "냉정하고 눌린 톤"
+  - "엔딩 훅 연결"
+must_avoid:
+  - "새 설정 추가"
+  - "해설적 설명"
+```
+
+### 라우팅
 
 ```
-unified-reviewer 결과 →
-  ├─ 사실관계 위반만 → Claude 직접 수정 (기존 narrative-fixer)
-  └─ prose 관련 → Codex에 partial rewrite 전송:
-     "chapters/{arc}/chapter-{NN}.md의 {줄} 구간을 재작성해줘.
-      문제: {fix-spec}
-      방향: {수정 목표}
-      유지: {톤/리듬/캐릭터}
-      완료 후: REWRITE_DONE"
+patch_class = micro  → Claude 직접 수정 (1-3문장 사실관계)
+patch_class = local  → Codex fixer (문단 내 수정, 톤 영향)
+patch_class = rewrite → Codex fixer (장면 수준 재작성)
+patch_class = hold   → 다음 사이클로 이관
+```
+
+### 운영 방식
+
+- 진단은 배치: 모든 checker를 먼저 돌려 fix-spec들을 수집
+- 수정은 번들: 한 화의 모든 fix-spec을 모아 Codex에 한 번에 전달
+- tmux는 작업 큐 트리거만: 긴 프롬프트 대신 `fix-spec 파일 경로`를 전달
+- 집필 세션 ≠ 수정 세션: writer 컨텍스트 오염 방지
+
+```
+Claude: "tmp/fix-specs/chapter-018.md 를 읽고 수정해줘. 완료 후 FIX_DONE"
+Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 ```
 
 ---
