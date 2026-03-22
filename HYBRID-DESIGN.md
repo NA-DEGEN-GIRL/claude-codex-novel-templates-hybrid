@@ -101,6 +101,54 @@ scripts/novel-calc char_count file_path='"chapters/{arc}/chapter-{NN}.md"'
 
 ---
 
+## 수정 라우팅 (Fix Routing)
+
+> **원칙: Claude는 무엇을 고칠지 결정하고, Codex는 어떻게 고칠지 쓴다.**
+
+### 라우팅 기준
+
+| 수정 유형 | 수행자 | 이유 |
+|----------|--------|------|
+| 사실관계 micro-patch (이름/시점/설정 1-3문장) | **Claude 직접** | 톤 영향 없음 |
+| 연속성/논리 위반 (사실만 교정) | **Claude 직접** | "오른손"→"왼손" 수준 |
+| 감정선/리듬/묘사 밀도 변경 | **Codex 재작성** | 문체 일관성 필수 |
+| 대화 톤/캐릭터 보이스 수정 | **Codex 재작성** | 원 작성 모델이 유지 |
+| 장면 구조 변경 (순서/삭제/추가) | **Codex 재작성** | 장면 호흡 영향 |
+
+### 2단계 수정 프로세스
+
+```
+1. Claude fix-spec generator
+   - 문제 유형, 위치, 원인
+   - 수정 목표
+   - 반드시 유지할 요소 (톤/리듬/캐릭터)
+   - 출력: 인라인 또는 임시 fix-spec
+
+2. 라우팅 판단:
+   - micro-patch (사실관계 1-3문장) → Claude 직접 수정
+   - prose 수정 (문단+ 또는 톤 영향) → Codex에 partial rewrite 요청
+
+3. Codex style-preserving rewrite
+   - fix-spec 기반으로 해당 구간만 재작성
+   - 앞뒤 문맥 유지, 기존 문체/리듬 보존
+   - REWRITE_DONE sentinel 출력
+```
+
+### batch-supervisor에서의 동작
+
+```
+unified-reviewer 결과 →
+  ├─ 사실관계 위반만 → Claude 직접 수정 (기존 narrative-fixer)
+  └─ prose 관련 → Codex에 partial rewrite 전송:
+     "chapters/{arc}/chapter-{NN}.md의 {줄} 구간을 재작성해줘.
+      문제: {fix-spec}
+      방향: {수정 목표}
+      유지: {톤/리듬/캐릭터}
+      완료 후: REWRITE_DONE"
+```
+
+---
+
 ## 핵심 파일
 
 | 파일 | 역할 | 변경 여부 |

@@ -269,9 +269,17 @@ WRITER_DONE chapter-{NN}.md
 1. **chapter 파일 확인**: `ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`
 2. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto")
 3. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영.
-4. **문제 발견 시**:
-   - 연속성/설정 위반 → Claude `narrative-fixer`로 직접 수정
-   - prose 품질 문제 → Codex에 부분 재작성 요청 (3b-rewrite, 1회 한정)
+4. **문제 발견 시 — fix routing**:
+   - **사실관계 micro-patch** (이름/시점/설정 1-3문장) → Claude `narrative-fixer`로 직접 수정
+   - **prose 수정** (감정선/리듬/묘사/대화톤, 문단+ 규모) → Claude가 fix-spec 작성 후 **Codex에 partial rewrite 요청** (tmux, 1회 한정):
+     ```
+     chapters/{arc}/chapter-{NN}.md의 {시작줄}~{끝줄} 구간을 재작성해줘.
+     문제: {fix-spec}
+     방향: {수정 목표}
+     유지: {기존 톤/리듬/캐릭터}
+     나머지는 건드리지 마라.
+     완료 후: REWRITE_DONE chapter-{NN}.md {시작줄}-{끝줄}
+     ```
 5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
 6. **summary fact-check**: 본문 ↔ 요약 대조
 7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
