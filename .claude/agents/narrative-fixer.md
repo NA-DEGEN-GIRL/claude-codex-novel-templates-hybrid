@@ -85,11 +85,11 @@ Present to the user:
 **연속성 리스크**: {수정으로 깨질 수 있는 것}
 ```
 
-**사용자 승인을 받은 후 진행.**
+**승인 후 진행** (supervisor auto-approve 또는 사용자 승인).
 
-### Step 3: Execute
+### Step 3: Execute (Hybrid: fix-spec → Codex)
 
-Apply the fix using the appropriate strategy (see below). After each episode edit:
+**Hybrid 실행**: Claude는 fix-spec을 `tmp/fix-specs/chapter-{NN}.md`에 저장하고, Codex writer 세션에 전달한다. Codex가 수정 후 `FIX_DONE`을 출력하면, Claude가 아래 검증을 수행:
 
 - Re-read the modified passage in context (surrounding paragraphs)
 - Verify character voice matches `settings/03-characters.md`
@@ -491,13 +491,13 @@ After all fixes, write `summaries/narrative-fix-log.md`:
 - {수정으로 인해 다른 부분에 영향 가능한 항목}
 ```
 
-Git commit: `{소설명} 서사 수정 반영 ({N}건)`
+Git commit (supervisor가 수행): `{소설명} 서사 수정 반영 ({N}건)`
 
 ---
 
 ## Prohibitions
 
-1. **Do NOT run the writer pipeline (steps 1-12).** This agent does not plan scenes or generate new content. Exception: post-fix `unified-reviewer` in `continuity` mode is required (step 4 of this agent's procedure).
+1. **Hybrid: 이 에이전트는 진단과 fix-spec 생성만 수행한다.** 실제 텍스트 수정은 Codex가 한다. Exception: post-fix `unified-reviewer` in `continuity` mode는 Claude(supervisor)가 수행.
 2. **Do NOT modify "건드리면 안 되는 것" items.** If unavoidable, mark as `보류`.
 3. **Do NOT change plot outcomes** without explicit user approval.
 4. **Do NOT add new characters, abilities, or worldbuilding** that aren't in settings.

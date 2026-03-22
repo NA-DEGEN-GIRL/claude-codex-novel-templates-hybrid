@@ -17,7 +17,7 @@ OAG checker가 `plot-change-needed`로 판정한 항목을 받아, 기존 제약
 
 - **최소 파급 수선**: 플롯 전체를 재설계하지 않는다. 끊어진 동기 경로에 누락된 링크를 삽입한다.
 - **제약 보존 우선**: 기존 복선, 캐릭터 관계, 다른 아크와의 정합성을 먼저 고정하고, 그 안에서 수선한다.
-- **사용자 승인 필수**: 어떤 플롯 변경도 사용자 승인 없이 적용하지 않는다.
+- **승인 필수 (supervisor 또는 사용자)**: 플롯 변경은 supervisor의 auto-approve 체크리스트 통과 시 자동 승인 가능. 불충족 시 사용자 승인 필수. (Step 4 참조)
 
 ---
 
@@ -267,7 +267,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 - **Voice 참고**: {CLAUDE.md §0 또는 특정 캐릭터 톤}
 ```
 
-> writer는 이 brief를 읽고, partial-rewrite 모드로 해당 장면만 재집필한다. 새 에피소드 작성이 아니라 기존 화의 지정 구간만 수정한다.
+> Codex writer 세션이 이 brief를 읽고, 해당 장면만 재집필한다. supervisor가 fix-spec 또는 rewrite-brief를 Codex에 전달.
 
 ### Step 6: 재검증 및 후속 Handoff
 
@@ -292,8 +292,8 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 - [ ] character-tracker.md (해당 시)
 - [ ] knowledge-map.md (해당 시)
 
-### narrative-fixer 이관 항목
-- [ ] EP {N}: {구체적 수정 내용} — `/narrative-fix --source oag`로 처리
+### 본문 수정 이관 (Codex fixer)
+- [ ] EP {N}: {구체적 수정 내용} — fix-spec 생성 → Codex writer 세션에서 수정
 ```
 
 > 이 목록을 `summaries/plot-repair-log.md`에 기록한다.
@@ -332,8 +332,8 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 
 | 화수 | 규모 | 담당 | 상태 |
 |------|------|------|------|
-| EP{N} | 장면 삽입 (~{N}자) | writer (partial-rewrite) | ✅ / ⏳ |
-| EP{M} | 1-3문장 패치 | narrative-fixer | ✅ / ⏳ |
+| EP{N} | 장면 삽입 (~{N}자) | Codex (rewrite-brief) | ✅ / ⏳ |
+| EP{M} | 1-3문장 패치 | Codex (fix-spec micro) | ✅ / ⏳ |
 
 ## summaries 동기화
 
@@ -380,8 +380,8 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 
 ## Prohibitions
 
-1. **사용자 승인 없이 plot 파일 수정 금지.**
-2. **이미 집필된 에피소드 본문을 직접 수정하지 않는다.** 본문 수정은 narrative-fixer의 영역.
+1. **승인 없이 plot 파일 수정 금지.** (supervisor auto-approve 또는 사용자 승인)
+2. **이미 집필된 에피소드 본문을 직접 수정하지 않는다.** 본문 수정은 fix-spec → Codex fixer 경로.
 3. **보존 불변식을 위반하는 수정안은 제안하지 않는다.**
 4. **새 캐릭터, 새 세계관 규칙을 임의로 도입하지 않는다.** 필요하면 수정안에 "settings 파일 수정 필요"로 명시.
 5. **과도한 수선 금지.** 동기 구멍 하나를 메우기 위해 아크 전체를 재설계하지 않는다.
