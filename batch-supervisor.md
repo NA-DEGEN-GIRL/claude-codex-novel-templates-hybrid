@@ -280,7 +280,7 @@ WRITER_DONE chapter-{NN}.md
       - `micro`: 사실관계 1-3문장 → **Codex fixer**
       - `local`: 문단 내 수정 → **Codex fixer**
       - `rewrite`: 장면 수준 재작성 → **Codex fixer**
-      - `hold`: 구조 변경 필요 → 다음 사이클 이관
+      - `hold`: 구조 변경 필요 → **HOLD Transfer Routing** (아래 §5g 참조)
    b. `micro`/`local`/`rewrite` 항목을 에피소드 단위로 번들: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성
    c. Codex writer 세션에 전송 (writer = fixer, 같은 세션):
       ```
@@ -496,6 +496,52 @@ When the episode number enters a new arc range:
     - `/oag-check plan` + `/why-check plan` → supervisor 직접 실행
     - 새 아크 컨셉이 장기 연재에서 지속 가능한지 검토 (story-consultant 참조 가능)
     - 정기 점검 트리거: 첫 화 프롬프트에 `※ 아크 전환 시점` 포함
+
+#### 5g. HOLD Transfer Routing
+
+> `patch_class = hold` 항목은 단순 fix-spec으로 해결 불가. supervisor가 즉시 `hold_route`를 분류한다.
+
+**분류 기준:**
+
+| hold_route | 조건 | 행동 |
+|------------|------|------|
+| `retro-fix` | 이미 쓴 장면이 **사실적으로 거짓**이 됨 (독자가 이미 읽은 내용과 충돌) | 해당 화 수정 — Codex fixer (rewrite급 fix-spec) |
+| `forward-fix` | 설명 부족/동기 약화 수준. 미래 5화 내 또는 다음 아크 초반에 자연스러운 보상 가능 | 미래 plot에 보상 비트 삽입. 기존 본문은 건드리지 않음 |
+| `plot-repair` | 미래 아크 설계 자체를 다시 짜야 함 | plot-surgeon 호출 |
+| `user-escalation` | 핵심 약속(§1.1) 위반, 3개+ 아크 영향, 세계관 규칙 변경 필요 | 집필 중단 + 사용자에게 보고 |
+
+**retro-fix vs forward-fix 판단:**
+- 이미 쓴 장면이 **"거짓"** (사실 오류, 모순) → `retro-fix`
+- 이미 쓴 장면이 **"부족"** (설명 누락, 동기 약화) → `forward-fix` 가능
+- 판단이 애매하면 → `forward-fix` 우선 (기존 본문 보존이 더 저렴)
+
+**forward-fix 기록 (3중 추적):**
+
+1. **`summaries/review-log.md`** (원장): HOLD 항목으로 기록
+   ```
+   ### HOLD-{NNN}
+   - hold_route: forward-fix
+   - 출처: {checker} / {화수}
+   - 문제: {진단}
+   - 보상 계획: {어떤 사건으로 해소할지}
+   - target: plot/{arc}.md {화수 범위}
+   - latest-safe-resolution: {최대 몇 화까지 해결해야 하는지}
+   - status: open
+   ```
+2. **`summaries/running-context.md`** (경고): "## HOLD 경고" 섹션에 한 줄 추가
+3. **`plot/arc-{NN}.md`** (삽입): 해당 화수에 `[FORWARD-FIX: HOLD-{NNN}]` 마커 삽입
+
+**만기 관리:**
+- 매 화 집필 전, supervisor가 `review-log.md`의 open HOLD를 확인
+- `latest-safe-resolution` 화수를 넘기면 자동 승격:
+  - `forward-fix` → `plot-repair` 또는 `user-escalation`
+- `blocker=yes`인 HOLD가 있으면 해당 아크 집필을 중단
+
+**완료 게이트:**
+- HOLD가 해소되면 `status: resolved` + 해소 화수/방법 기록
+- 아크 마감(F단계) 시 open HOLD가 남아있으면 F를 완료할 수 없음
+
+---
 
 #### 5c. Periodic Check (Hybrid: Supervisor 직접)
 

@@ -156,7 +156,7 @@ must_avoid:
 patch_class = micro   → Codex fixer (1-3문장 사실관계)
 patch_class = local   → Codex fixer (문단 내 수정)
 patch_class = rewrite → Codex fixer (장면 수준 재작성)
-patch_class = hold    → 다음 사이클로 이관 (Codex에 전달하지 않음)
+patch_class = hold    → HOLD Transfer Routing (retro-fix / forward-fix / plot-repair / user-escalation)
 ```
 
 > **모든 텍스트 수정은 Codex가 수행.** Claude는 메타데이터(summaries/META/log)만 직접 수정.
