@@ -56,8 +56,16 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 | `novel-editor` (review_episode) | **Claude review** | post-write: 외부 AI 리뷰 |
 | `compile_brief` | **Claude review** 또는 Codex (`scripts/compile-brief`) | 집필 전 맥락 확인 |
 
-> `scripts/` wrapper는 Codex가 **선택적으로** 사용할 수 있으나, 사용을 강제하지 않는다.
-> 핵심 MCP 작업은 review 세션이 보장한다.
+### Writer/Review 책임 분리
+
+| 구분 | 담당 | 도구 |
+|------|------|------|
+| **Writer 필수** | compile-brief (집필 전), char_count (초안 후) | `scripts/compile-brief`, `scripts/novel-calc` |
+| **Writer 선택** | 한자 검증 (비현대) | `scripts/novel-hanja` |
+| **Review 전담** | 외부 AI 리뷰, 한자 보정, 명칭 검사, naturalness, summaries, META, git | MCP 직접 |
+
+> Writer가 scripts를 실행하지 않더라도 review 세션이 MCP로 동일 검증을 수행한다 (이중 안전망).
+> scripts는 "쓰면 좋고 안 써도 review가 잡는다" 구조.
 
 ---
 
