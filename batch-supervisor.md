@@ -255,7 +255,6 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 - Voice Profile 우선. 한국어 본문만. # {N}화 - {제목} 으로 시작.
 - 분량: {MIN}~{MAX}자. 초안 후 novel-calc MCP의 char_count로 확인.
 - 비현대: 외래어/아라비아 숫자 금지. 한자 첫 등장 시 novel-hanja MCP의 hanja_lookup으로 검증 후 병기.
-- 전생 비교문 2회 이하. 메타 표현 금지.
 
 [초안 후 자기점검]
 - 즉흥 설정? POV 지식 경계? hook 중복? 불변 조건 대조? 서수/외래어?

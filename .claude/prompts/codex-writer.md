@@ -40,7 +40,6 @@
 - 분량: {MIN}~{MAX}자. 초안 완성 후 `novel-calc` MCP의 `char_count(file_path="chapters/{arc}/chapter-{NN}.md")`로 확인.
 - 수치 검증 필요 시 `novel-calc` MCP 활용: `date_calc`, `calculate`, `travel_estimate` 등. 단, 계산 결과를 대사/서술에 그대로 넣지 말 것 — 인간적 어림으로 변환.
 - 비현대 배경: 외래어/아라비아 숫자 금지. 한자어/한글 수사 사용.
-- 전생 비교문: 화당 2회 이하
 - 메타 표현 금지: "N화에서", "독자 여러분", "프롤로그에서"
 - 한자 병기: 첫 등장 시 음+한자 병기 (예: 내공(內功)). 이후 한국어만. `hanja_lookup(text="용어")` MCP로 검증. 모르면 한글만 쓰고 넘어가라 — review가 보정.
 
