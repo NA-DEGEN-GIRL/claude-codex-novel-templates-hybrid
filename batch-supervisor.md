@@ -296,14 +296,16 @@ Always send commands in this order:
 
 ```bash
 tmux send-keys -t {{SESSION}} -l 'command text'
-sleep 0.3
+sleep 3          # Codex: 즉시 Enter = 줄바꿈, 3초 후 Enter = 메시지 전송
 tmux send-keys -t {{SESSION}} Enter
 ```
+
+> **Codex 특이사항**: 텍스트 입력 직후 Enter를 누르면 줄바꿈만 된다. 3초 이상 대기 후 Enter를 눌러야 메시지가 전송된다. 긴 프롬프트는 `sleep 5`도 고려.
 
 Then verify shortly after sending:
 
 ```bash
-sleep 2
+sleep 5
 tmux capture-pane -t {{SESSION}} -p -S -20
 ```
 

@@ -2,6 +2,8 @@
 
 > 이 파일은 batch-supervisor가 Codex(GPT 5.4) tmux 세션에 전송하는 집필 프롬프트의 템플릿이다.
 > Codex는 본문 생성만 담당한다. 리뷰, summary, EPISODE_META, git은 Claude supervisor가 처리한다.
+>
+> **전송 프로토콜**: `tmux send-keys -l '...'` 후 **3초 대기** 후 `Enter`. 즉시 Enter는 줄바꿈만 됨.
 
 ---
 
