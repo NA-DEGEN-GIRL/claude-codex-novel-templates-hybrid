@@ -240,6 +240,9 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 너는 Codex full-auto writer다.
 목표: {N}화를 작성해 chapters/{arc}/chapter-{NN}.md에 저장한다.
 
+[MCP — 집필 전 필수]
+- novel-editor MCP의 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) 호출.
+
 [읽기 — 반드시]
 1. CLAUDE.md — 금지사항(§5), 호칭 매트릭스(§8)
 2. settings/01-style-guide.md — §0 Voice Profile
@@ -249,9 +252,9 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 6. 직전 화 마지막 2~3문단
 
 [작성 규칙]
-- 한국어 본문만. # {N}화 - {제목} 으로 시작.
-- 분량: {MIN}~{MAX}자. scripts/novel-calc char_count로 확인.
-- 비현대: 외래어/아라비아 숫자 금지. 한자 첫 등장 시 병기.
+- Voice Profile 우선. 한국어 본문만. # {N}화 - {제목} 으로 시작.
+- 분량: {MIN}~{MAX}자. 초안 후 novel-calc MCP의 char_count로 확인.
+- 비현대: 외래어/아라비아 숫자 금지. 한자 첫 등장 시 novel-hanja MCP의 hanja_lookup으로 검증 후 병기.
 - 전생 비교문 2회 이하. 메타 표현 금지.
 
 [초안 후 자기점검]
@@ -268,10 +271,12 @@ WRITER_DONE chapter-{NN}.md
 
 ```
 이어서 {N}화를 집필해줘.
+- novel-editor MCP의 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) 먼저 호출.
 - 직전 화 컨텍스트 유지. plot/{arc}.md 재확인.
 - 직전 화 마지막 2~3문단에서 오프닝 연결.
 - 파일명: chapters/{arc}/chapter-{NN}.md
 - 한국어 본문만. EPISODE_META/summary 불필요.
+- 초안 후 novel-calc char_count로 분량 확인. 한자는 novel-hanja hanja_lookup으로 검증.
 - 자기점검: 즉흥 설정, POV 경계, hook 중복, 불변 조건, 서수/외래어.
 - 완료 후: WRITER_DONE chapter-{NN}.md
 ```

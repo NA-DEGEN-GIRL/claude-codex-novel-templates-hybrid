@@ -69,10 +69,12 @@ WRITER_DONE chapter-{NN}.md
 
 ```
 이어서 {N}화를 집필해줘.
+- novel-editor MCP의 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) 먼저 호출.
 - 직전 화 컨텍스트를 유지하되, plot/{arc}.md를 다시 확인하라.
 - 직전 화 마지막 2~3문단에서 오프닝 연결.
 - 파일명: chapters/{arc}/chapter-{NN}.md
 - 한국어 본문만 작성. EPISODE_META/summary 불필요.
+- 초안 후 novel-calc char_count로 분량 확인. 한자는 novel-hanja hanja_lookup으로 검증.
 - 초안 후 자기점검: 즉흥 설정, POV 경계, hook 중복, 불변 조건 대조, 서수/외래어.
 - 완료 후: WRITER_DONE chapter-{NN}.md
 ```
