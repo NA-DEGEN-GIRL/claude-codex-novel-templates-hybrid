@@ -1,6 +1,6 @@
 # 기존 템플릿 → Lean 마이그레이션 프롬프트
 
-> 기존 12-agent 템플릿으로 만든 소설 프로젝트를 lean 9-agent 템플릿으로 전환한다.
+> 기존 12-agent 템플릿으로 만든 소설 프로젝트를 hybrid 템플릿으로 전환한다.
 > `/root/novel/`(상위 폴더)에서 Claude Code를 열고 아래 프롬프트를 붙여넣는다.
 
 ---
@@ -18,7 +18,7 @@ cd /root/novel && claude
 ## 프롬프트
 
 ```
-claude-novel-templates-lean/ 을 참고해서 no-title-{XXX}/ 소설 프로젝트를 lean 템플릿으로 마이그레이션해줘.
+claude-codex-novel-templates-hybrid/ 을 참고해서 no-title-{XXX}/ 소설 프로젝트를 hybrid 템플릿으로 마이그레이션해줘.
 
 ## 절대 금지
 
