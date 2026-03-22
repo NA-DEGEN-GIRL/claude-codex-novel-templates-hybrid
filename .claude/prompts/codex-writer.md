@@ -22,7 +22,13 @@
 6. 직전 화(chapters/{arc}/chapter-{NN-1}.md) 마지막 2~3문단 — 오프닝 연결.
 
 [MCP 도구 — 집필 전 필수]
-- `compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})` 호출하여 압축 맥락 확인.
+- `novel-editor` MCP의 `compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})` 호출하여 압축 맥락 확인.
+
+사용 가능한 MCP 서버:
+- `novel-editor`: compile_brief, review_episode
+- `novel-calc`: char_count, calculate, date_calc, travel_estimate 등
+- `novel-hanja`: hanja_lookup, hanja_search, hanja_verify
+- `novel-naming`: naming_check
 
 [읽기 — 필요시]
 - settings/04-worldbuilding.md — 세계관/시대 용어 확인 (비현대 배경)
