@@ -377,12 +377,13 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 To accurately determine "completed" state, verify all of the following:
 
-1. **Prompt waiting**: `> ` or `>` prompt on the last line of the screen
+1. **WRITER_DONE sentinel**: `tmux capture-pane`에서 `WRITER_DONE chapter-{NN}.md` 확인. 없으면 `›` 프롬프트 + 파일 존재로 대체.
 2. **Work artifact exists**: Chapter file exists (`ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`)
-3. **Progress log check**: `tail -1 {{NOVEL_DIR}}/summaries/batch-progress.log` contains the episode number
-   <!-- batch-progress.log is created and maintained by the supervisor. Format: one line per episode, 'EP {N} DONE {timestamp}'. Used for completion tracking and resume. -->
+3. **Progress log 기록**: supervisor가 직접 `echo "EP {N} DONE $(date +%H:%M)" >> {{NOVEL_DIR}}/summaries/batch-progress.log` 실행.
 
-All three conditions must be met for "completed" status. If only the prompt is visible but the file doesn't exist, the episode may have failed silently.
+> **batch-progress.log 관리**: supervisor가 3b-post 완료(commit까지 끝난 후)마다 기록한다. Codex가 아닌 supervisor의 책임.
+
+All conditions met → 다음 화 프롬프트. 파일 없으면 Codex 재지시.
 
 #### 4d. config.json Update (Supervisor Responsibility)
 
@@ -417,11 +418,11 @@ After completion verification, the supervisor directly registers the episode in 
 
 ```bash
 tmux send-keys -t {{SESSION}} -l '/clear'
-sleep 0.3
+sleep 3          # Codex: 3초 대기 후 Enter (즉시 Enter = 줄바꿈)
 tmux send-keys -t {{SESSION}} Enter
 ```
 
-Wait 3 seconds, then send full prompt (3a).
+Wait 5 seconds, then send full prompt (3a).
 
 > **When to use CHUNK_SIZE = -1 (recommended)**: Claude Opus or any model with auto-compact. Auto-compact preserves important context while managing window size.
 > **When to use CHUNK_SIZE > 0**: Models without auto-compact (NIM proxy models, open-source models), or when context window is small (< 200K).
@@ -431,14 +432,6 @@ Wait 3 seconds, then send full prompt (3a).
 > **Hybrid 핵심**: 아크 전환 A~F는 **Claude supervisor가 직접 실행**한다. Codex writer 세션에 보내지 않는다.
 > `/oag-check`, `/why-check`, `/narrative-fix` 등은 Claude 커맨드이므로 Codex에서 동작하지 않는다.
 > 수정이 필요하면: micro → Claude 직접, prose → Codex fixer 세션 (3b-post fix routing 적용).
-
-**arc_size 기반 단계 조정**:
-
-| arc_size | 실행 단계 | 이유 |
-|----------|----------|------|
-| ≤10화 | A(OAG) + B(패치) + D(통독) + F(마감) | 소규모: C/D.5/D.7/E는 ROI 낮음 |
-| 11~30화 | A + B + C(why) + D + D.5 + E(naturalness) + F | 중규모: D.7(반복)은 선택 |
-| 31화+ | A + B + C + D + D.5 + D.7 + E + F 전체 | 대규모: 전체 실행 |
 
 When the episode number enters a new arc range:
 
@@ -450,7 +443,7 @@ When the episode number enters a new arc range:
    - `plot-change-needed` → `/plot-repair` (supervisor 판단)
    - `patch-feasible` → micro는 Claude `/narrative-fix`, prose는 Codex fixer
 3. **B. 본문 패치** — fix routing 적용 (3b-post 동일)
-4. **C. 설명 갭** (11화+ 아크만) — supervisor가 직접 `/why-check text` 실행
+4. **C. 설명 갭** — supervisor가 직접 `/why-check text` 실행
    - MISSING 우선순위 6+ → fix routing 적용
    - HOLD → 다음 사이클 이관
 4. **Run external arc readthrough on the completed arc**:
@@ -486,12 +479,12 @@ When the episode number enters a new arc range:
    - Triaging rule:
      - `patch-feasible: yes` → fix routing (micro→Claude, prose→Codex fixer)
      - wider structural issue → `[HOLD]` + defer
-5. **D.5. 전문 감사** (11화+ 아크만) — supervisor 직접:
+5. **D.5. 전문 감사** — supervisor 직접:
    - `/pov-era-check` + `/scene-logic-check` 병렬
    - 수정: fix routing 적용
-6. **D.7. 반복 감사** (31화+ 아크만) — supervisor 직접:
+6. **D.7. 반복 감사** — supervisor 직접:
    - `/repetition-check` → HIGH 항목 fix routing
-7. **E. 자연스러움** (11화+ 아크만) — supervisor 직접:
+7. **E. 자연스러움** — supervisor 직접:
    - `/naturalness` (Claude only) → `/naturalness-fix`
 8. **F. 아크 마감** — supervisor 직접:
    - Arc summary + character state reset
@@ -515,16 +508,7 @@ Supervisor가 수행:
 
 After the periodic check, supervisor continues with next episode prompt to Codex writer.
 
-```bash
-# Writer에게 전담 감사 지시
-직전 5화({N-4}~{N}화)에 대해 /pov-era-check를 실행해줘.
-- .claude/agents/pov-era-checker.md 절차를 따른다.
-- 산출물: summaries/pov-era-report.md
-- ❌ 항목은 /narrative-fix --source pov-era로 수정한다.
-- 완료 후 대기.
-```
-
-> `scene-logic-checker`는 아크 경계에서만 배치 실행한다. 매화 검사는 unified-reviewer의 #14 "명백한 위반" 수준으로 충분하다.
+> **주의**: `/pov-era-check`, `/narrative-fix` 등은 Claude 커맨드이므로 **Codex writer 세션에 보내지 않는다**. Supervisor가 직접 실행한다.
 
 #### 5d. Session Crash Recovery
 
