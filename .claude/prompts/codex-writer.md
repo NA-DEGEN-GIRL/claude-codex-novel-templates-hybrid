@@ -31,7 +31,8 @@
 - **Voice Profile 우선**: 더 표준적이거나 더 매끈한 문장으로 수렴시키지 않는다. settings/01-style-guide.md §0의 보이스를 우선한다.
 - 한국어 본문만 작성. 마크다운 제목(# {N}화 - {제목})으로 시작.
 - 장면 구분: ***
-- 분량: {MIN}~{MAX}자. 초안 완성 후 `char_count(file_path="chapters/{arc}/chapter-{NN}.md")` MCP로 확인.
+- 분량: {MIN}~{MAX}자. 초안 완성 후 `novel-calc` MCP의 `char_count(file_path="chapters/{arc}/chapter-{NN}.md")`로 확인.
+- 수치 검증 필요 시 `novel-calc` MCP 활용: `date_calc`, `calculate`, `travel_estimate` 등. 단, 계산 결과를 대사/서술에 그대로 넣지 말 것 — 인간적 어림으로 변환.
 - 비현대 배경: 외래어/아라비아 숫자 금지. 한자어/한글 수사 사용.
 - 전생 비교문: 화당 2회 이하
 - 메타 표현 금지: "N화에서", "독자 여러분", "프롤로그에서"
