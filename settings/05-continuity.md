@@ -56,6 +56,27 @@ Write metadata at the end of each episode using the YAML template from the proje
 
 ---
 
+### Episode-Level Time Continuity Gate
+
+> 아래 항목 중 하나라도 있으면 writer와 reviewer는 `settings/05-continuity.md`를 직접 대조한다.
+> - 회상/과거 서술
+> - "사흘 뒤", "한 달 전", "며칠째" 같은 상대 시간 표현
+> - 이동 시간, 추적 기간, 수련 기간, 부상 회복 기간
+> - 나이/학년/세대/동기처럼 시점에 묶인 인물 정보
+> - 약속 만기, 습격 예정일, 회수 시점 같은 deadline
+
+점검 질문:
+
+1. 이번 화의 현재 시점은 직전 화 이후 얼마나 지났는가?
+2. 회상 속 나이, 가족 상태, 소속, 사건 순서는 불변 조건 표와 timeline markers에 맞는가?
+3. 이동/회복/수련/추적에 필요한 시간이 본문에서 실제로 확보되었는가?
+4. "곧", "조만간", "한참 뒤" 같은 모호 표현이 기존 마감 이벤트와 충돌하지 않는가?
+5. 확신이 없으면 `novel-calc`의 날짜/기간 계산을 쓰거나, 더 보수적인 서술로 낮춘다.
+
+이 게이트는 선택 사항이 아니다. 시간축이 장면 기능에 영향을 주는 화에서는 반드시 통과해야 한다.
+
+---
+
 ### Long-Term Continuity Management
 
 #### Every 8~12 episodes (or at arc transitions)
