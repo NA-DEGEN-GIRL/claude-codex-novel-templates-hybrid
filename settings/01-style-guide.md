@@ -2,7 +2,7 @@
 
 > 이 소설의 문체 규칙을 정의한다. 모든 에피소드는 이 가이드를 따른다.
 >
-> **When creating or editing this file**: All Korean example sentences (예시) must comply with CLAUDE.md prohibitions (§3.2.7 era-appropriate terminology, §5 prohibitions). If the novel uses a pre-modern setting, examples must NOT contain English loanwords (외래어), metric units, or Arabic numerals. Examples that violate CLAUDE.md are bugs, not style choices.
+> **When creating or editing this file**: All Korean example sentences (예시) must comply with CLAUDE.md prohibitions (§3.2.9 era-appropriate terminology, §5 prohibitions). If the novel uses a pre-modern setting, examples must NOT contain English loanwords (외래어), metric units, or Arabic numerals. Examples that violate CLAUDE.md are bugs, not style choices.
 
 ---
 
@@ -10,6 +10,7 @@
 
 > 캐릭터 말투(03-characters.md)가 대화를 앵커링하듯, 이 섹션은 **지문과 내면 서술의 톤**을 앵커링한다.
 > §0은 §1~§8을 무시하는 면허가 아니라, 그 규칙들을 **이 소설답게 해석하는 기준**이다.
+> 이 섹션은 "문장 버릇 목록"이 아니라 **문체 계약**이어야 한다. 특정 말버릇, 패턴 quota, 에피소드당 횟수 제한으로 보이스를 정의하지 않는다.
 
 ### 0.1 서술 온도 (Emotional Temperature)
 
@@ -30,15 +31,16 @@
 
 > §1~§8의 규칙이 충돌할 때, 이 소설에서 무엇을 먼저 살리는가?
 
-1. {{PRIORITY_1}} (예: 감정 절제)
-2. {{PRIORITY_2}} (예: 속도감)
-3. {{PRIORITY_3}} (예: 비유 회피)
+1. {{PRIORITY_1}} (예: 장면의 선명한 이해)
+2. {{PRIORITY_2}} (예: 절제된 감정 여운)
+3. {{PRIORITY_3}} (예: 장르적 가독성)
 
 ### 0.3 대표 문단 (Representative Prose)
 
 > 이 소설의 서술 목소리를 가장 잘 보여주는 지문 문단 2~3종. 대사가 아닌 서술자의 목소리에 집중.
 > **범위 커버**: 최소 2종은 서로 다른 장면 유형(긴장 vs 일상, 액션 vs 내면)이어야 한다.
 > **갱신**: `[provisional]` 태그가 있으면 첫 아크 완료 후 실제 에피소드에서 교체. 이후 아크 경계 full 리뷰 시 점검.
+> 대표 문단은 "말버릇 전시"가 아니라 **실제로 잘 읽히는 문단**이어야 한다. 단문 연타, 상투 냉소, 억지 punchline을 과시하는 예시는 피한다.
 
 #### 문단 A — {{장면 유형}}
 
@@ -48,7 +50,15 @@
 
 > {{실제 문단 또는 [provisional] 목표 문단}}
 
-### 0.4 허용 이탈 유형
+### 0.4 문체 계약
+
+- 문장은 먼저 상황과 판단을 독자에게 분명하게 전달한다. 분위기 때문에 정보가 흐려지면 실패다.
+- 건조함, 서정성, 냉소, 유머는 **문장의 태도**이지 고정 패턴이 아니다.
+- 짧은 문장은 결론, 단절, 충격, 판정에 쓰고, 긴 문장은 관찰과 누적을 처리할 때만 늘인다. 둘 다 장면 기능으로 결정한다.
+- 감정은 설명할 수도 숨길 수도 있다. 중요한 것은 "감정명이 적은가"가 아니라 "독자가 압력을 느끼는가"다.
+- 비유와 수사는 드물고 정확할 때만 쓴다. 떠오르지 않으면 생략한다.
+
+### 0.5 허용 이탈 유형
 
 > §0.1 기본 온도로부터의 이탈이 자연스러운 장면 유형. 이탈은 장면 종료 시 복귀한다. 복귀하지 않으면 drift다.
 
@@ -58,7 +68,7 @@
 - **유머/코미디 전환**: 대화 속도와 리듬 변형, 단 캐릭터 말투는 유지
 - **관계 정점**: 의도적 반복어, 여운형 문장, 침묵 중심 호흡 허용
 
-### 0.5 피해야 할 평균체
+### 0.6 피해야 할 평균체
 
 > "되면 안 되는 문체"를 정의한다. 아래는 금지가 아니라, 이 소설이 무의식적으로 미끄러지기 쉬운 방향에 대한 경고다.
 
@@ -68,7 +78,8 @@
 - 장면마다 **비슷한 신체 반응과 비슷한 결말 리듬**을 재사용하는 패턴
 - 서정이 필요한 순간이 아닌데도 **분위기 문장으로 장면을 덮는** 버릇
 
-> 판정: "잘 쓴 문장처럼 보이지만 아무 장면도 밀지 못하는가?" "이 소설이 아니라 다른 평균적 연재물처럼 들리는가?"
+- 판정 질문: "잘 쓴 문장처럼 보이지만 아무 장면도 밀지 못하는가?"
+- 판정 질문: "이 소설이 아니라 다른 평균적 연재물처럼 들리는가?"
 
 ---
 
