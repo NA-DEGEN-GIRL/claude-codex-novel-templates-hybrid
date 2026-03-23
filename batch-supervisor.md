@@ -126,6 +126,11 @@ elif N % 5 == 0                       → review_floor = standard
 else                                  → review_floor = continuity
 ```
 
+**Prose drift override**: 아래 중 하나라도 보이면 해당 화의 review_floor를 최소 `standard`로 올린다.
+- 첫 문단이나 장면 전환 첫 문장이 지나치게 문학적 압축에 기대어 뜻을 한 번 더 해석하게 만듦
+- 분위기는 있으나 한국어 결합이 어색한 문장(주어-서술어, 명사-동사, 추상명사-행위 결합)이 눈에 띔
+- review 세션이 "보이스일 수 있음"과 "어색한 한국어" 사이에서 애매하다고 판단함
+
 **Arc transition package** (마지막 화 완료 후 supervisor가 반드시 순서대로 지시):
 
 > **주의**: writer가 자체적으로 arc summary만 만들고 A~E를 스킵하는 경우가 있다. supervisor가 A→B→C→D→D.5→D.7→E→F를 빠짐없이 순차 지시해야 한다. 한 단계가 완료되었음을 확인한 뒤 다음 단계를 지시한다.
@@ -270,6 +275,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 2. **review 세션으로 post-write 지시 전송**: 기본은 `tmux-send-claude`로 보낸다. 아래 작업을 review 세션이 수행하게 한다.
 3. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto") — review 세션 수행
 4. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영 — review 세션 수행
+   - narration opening, scene-transition first line, paragraph-ending sentence 중 하나라도 어색한 결합이 의심되면 현재 화에 한해 `/naturalness {N}`를 추가 실행하고 결과를 fix routing에 합친다.
 5. **문제 발견 시 — fix routing**:
    a. 모든 발견 항목을 **patch_class**로 분류:
       - `micro`: 사실관계 1-3문장 → **Codex fixer**
