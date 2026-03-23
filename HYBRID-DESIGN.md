@@ -188,7 +188,7 @@ patch_class = hold    → HOLD Transfer Routing (retro-fix / forward-fix / plot-
 - 진단은 배치: 모든 checker를 먼저 돌려 fix-spec들을 수집
 - 수정은 번들: 한 화의 모든 fix-spec을 모아 Codex에 한 번에 전달
 - tmux는 작업 큐 트리거만: 긴 프롬프트 대신 `fix-spec 파일 경로`를 전달
-- 집필 세션 ≠ 수정 세션: writer 컨텍스트 오염 방지
+- 집필 세션 = 수정 세션 (writer=fixer, 같은 tmux). 문체 일관성 보장
 
 ```
 Claude: "tmp/fix-specs/chapter-018.md 를 읽고 수정해줘. 완료 후 FIX_DONE"
@@ -217,7 +217,8 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 
 | 파일 | 역할 | 변경 여부 |
 |------|------|----------|
-| `.claude/prompts/codex-writer.md` | Codex 집필 프롬프트 템플릿 | **신규** |
+| `.claude/prompts/codex-writer-role.md` | Codex 창작 역할 + 문체 원칙 | **신규** |
+| `.claude/prompts/codex-writer.md` | Codex 집필 프롬프트 템플릿 (정본) | **신규** |
 | `.claude/prompts/codex-fixer.md` | Codex 수정 프롬프트 템플릿 | **신규** |
 | `batch-supervisor.md` | Supervisor 규칙 (hybrid용) | **수정** |
 | `scripts/*` | MCP CLI wrapper (fallback) | 유지 |
@@ -249,7 +250,8 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 ## 구현 상태
 
 - [x] HYBRID-DESIGN.md 설계
-- [x] `.claude/prompts/codex-writer.md` 프롬프트 템플릿
+- [x] `.claude/prompts/codex-writer-role.md` 창작 역할 + 문체 원칙
+- [x] `.claude/prompts/codex-writer.md` 프롬프트 템플릿 (정본, batch-supervisor에서 참조)
 - [x] `batch-supervisor.md` hybrid용 수정 (3a/3b/3b-post/상태 판별)
 - [x] `scripts/` MCP wrapper 복사
 - [x] README.md hybrid용 작성

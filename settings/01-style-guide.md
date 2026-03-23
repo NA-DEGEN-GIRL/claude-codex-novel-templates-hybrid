@@ -2,7 +2,7 @@
 
 > 이 소설의 문체 규칙을 정의한다. 모든 에피소드는 이 가이드를 따른다.
 >
-> **When creating or editing this file**: All Korean example sentences (예시) must comply with CLAUDE.md prohibitions (§3.2.9 era-appropriate terminology, §5 prohibitions). If the novel uses a pre-modern setting, examples must NOT contain English loanwords (외래어), metric units, or Arabic numerals. Examples that violate CLAUDE.md are bugs, not style choices.
+> **When creating or editing this file**: All Korean example sentences (예시) must comply with the project's top-level operating document (`CLAUDE.md` or `CODEX.md`) prohibitions and notation rules. If the novel uses a pre-modern setting, examples must NOT contain English loanwords (외래어), metric units, or Arabic numerals. Examples that violate the operating document are bugs, not style choices.
 
 ---
 
@@ -63,12 +63,20 @@
 > §0.1 기본 온도로부터의 이탈이 자연스러운 장면 유형. 이탈은 장면 종료 시 복귀한다. 복귀하지 않으면 drift다.
 
 - **위기/전투**: 더 짧고 즉각적인 문장
-- **감정 밀착** (고백/이별/재회): 서술 온도 상승, 단 감정명 직서술로 봉합하지 않는다
+- **감정 밀착**: 서술 온도 상승, 단 감정명 직서술로 봉합하지 않는다
 - **꿈/환각/의식 훼손**: 비유 밀도와 감각 왜곡 상승, 단 독해 가능성은 유지
 - **유머/코미디 전환**: 대화 속도와 리듬 변형, 단 캐릭터 말투는 유지
 - **관계 정점**: 의도적 반복어, 여운형 문장, 침묵 중심 호흡 허용
 
-### 0.6 피해야 할 평균체
+### 0.6 피해야 할 설계
+
+- Voice Profile을 catchphrase, sentence formula, episode당 횟수 제한으로 쓰지 않는다.
+- 캐릭터 버릇과 서술자 목소리를 혼동하지 않는다.
+- "건조함"을 단문 연타나 정보 삭제로 오해하지 않는다.
+- "개성"을 상투 냉소, 과장된 반전 문장, 억지 비유로 만들지 않는다.
+- 잘 쓴 문장처럼 보이기 위해 장면의 기능과 인물의 판단을 희생하지 않는다.
+
+### 0.7 피해야 할 평균체
 
 > "되면 안 되는 문체"를 정의한다. 아래는 금지가 아니라, 이 소설이 무의식적으로 미끄러지기 쉬운 방향에 대한 경고다.
 
@@ -304,7 +312,7 @@
 ### 감정 부채
 
 - 감정적 클라이맥스(재회, 이별, 배신, 죽음)는 독자가 그 관계에 충분히 투자한 후에만 효과적이다.
-- 투자 없는 감정 폭발은 독자에게 닿지 않는다. (→ CLAUDE.md §5 prohibition 9 참조)
+- 투자 없는 감정 폭발은 독자에게 닿지 않는다. (→ 프로젝트 최상위 운영 문서의 금지 규칙 참조)
 
 ### 독자 갈망 관리 (Desire Engine)
 

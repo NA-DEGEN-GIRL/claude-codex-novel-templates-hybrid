@@ -22,6 +22,8 @@ Claude Code periodically checks a tmux session and automatically supervises a Co
 - **Writer**: Inside a tmux session, navigate to the novel folder (`no-title-XXX/`) and run `codex --dangerously-bypass-approvals-and-sandbox`.
   - Codex가 소설 폴더의 설정 파일을 직접 읽고 본문을 생성한다. 리뷰/summary/commit은 supervisor가 처리.
 
+`settings/`는 hybrid, Claude lean, Codex lean이 공유하는 공통 집필 레이어다. 이 문서는 hybrid 세션 오케스트레이션만 정의하며, 문체/캐릭터/연속성/정기 점검 규칙이 충돌하면 `settings/`를 우선한다.
+
 ---
 
 ## Configuration Variables
@@ -233,52 +235,24 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 
 #### 3a. Chunk Start Prompt — Codex Writer (first episode or new session)
 
-> `.claude/prompts/codex-writer.md`의 Chunk Start 템플릿을 사용한다.
-> supervisor가 {{변수}}를 채워 tmux로 전송.
+> **정본**: `.claude/prompts/codex-writer.md`의 **Chunk Start Prompt**.
+> supervisor가 아래 변수를 채워 tmux로 전송한다. **이 문서에 인라인 복사본을 두지 않는다** — 동기화 드리프트 방지.
 
-```
-너는 Codex full-auto writer다.
-목표: {N}화를 작성해 chapters/{arc}/chapter-{NN}.md에 저장한다.
+**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{MIN}`, `{MAX}`, `{{NOVEL_DIR}}`
 
-[MCP — 집필 전 필수]
-- novel-editor MCP의 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) 호출.
+**공통 집필 레이어**: writer는 `settings/01-style-guide.md`, `settings/03-characters.md`, `settings/05-continuity.md`, `settings/07-periodic.md`를 shared authoring layer로 취급한다. 이 문서는 세션 역할과 순서만 정의한다.
 
-[읽기 — 반드시]
-1. CLAUDE.md — 금지사항(§5), 호칭 매트릭스(§8)
-2. settings/01-style-guide.md — §0 Voice Profile
-3. settings/03-characters.md — 등장인물
-4. settings/05-continuity.md — Continuity Invariants
-5. plot/{arc}.md — 이번 화 역할
-6. 직전 화 마지막 2~3문단
-
-[작성 규칙]
-- Voice Profile 우선. 한국어 본문만. # {N}화 - {제목} 으로 시작.
-- 분량: {MIN}~{MAX}자. 초안 후 novel-calc MCP의 char_count로 확인.
-- 비현대: 외래어/아라비아 숫자 금지. 한자 첫 등장 시 novel-hanja MCP의 hanja_lookup으로 검증 후 병기.
-
-[초안 후 자기점검]
-- 즉흥 설정? POV 지식 경계? hook 중복? 불변 조건 대조? 서수/외래어?
-
-[금지]
-summaries 수정, EPISODE_META 삽입, git commit, config.json 수정, 질문
-
-[완료]
-WRITER_DONE chapter-{NN}.md
-```
+**전송 순서**:
+1. `.claude/prompts/codex-writer.md`의 Chunk Start 코드 블록을 읽는다
+2. 변수를 치환한다
+3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep 3` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
 
 #### 3b. Continuation Prompt — Codex Writer (previous episode context loaded)
 
-```
-이어서 {N}화를 집필해줘.
-- novel-editor MCP의 compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N}) 먼저 호출.
-- 직전 화 컨텍스트 유지. plot/{arc}.md 재확인.
-- 직전 화 마지막 2~3문단에서 오프닝 연결.
-- 파일명: chapters/{arc}/chapter-{NN}.md
-- 한국어 본문만. EPISODE_META/summary 불필요.
-- 초안 후 novel-calc char_count로 분량 확인. 한자는 novel-hanja hanja_lookup으로 검증.
-- 자기점검: 즉흥 설정, POV 경계, hook 중복, 불변 조건, 서수/외래어.
-- 완료 후: WRITER_DONE chapter-{NN}.md
-```
+> **정본**: `.claude/prompts/codex-writer.md`의 **Continuation Prompt**.
+> 변수 치환 + §3d 전송 프로토콜 동일.
+
+**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{{NOVEL_DIR}}`
 
 #### 3b-post. Supervisor Post-Write Pipeline (Codex 완료 후 Claude가 수행)
 
@@ -570,14 +544,14 @@ When the episode number enters a new arc range:
 #### 5c. Periodic Check (Hybrid: Supervisor 직접)
 
 > **Hybrid**: 정기 점검은 **supervisor가 직접 수행**. Codex writer 세션에 보내지 않는다.
-> P1~P9, batch_review MCP, pov-era-checker는 모두 Claude 커맨드/MCP이므로 supervisor 관할.
+> `settings/07-periodic.md`의 P1~P13을 기준으로 수행하되, Core는 반드시, Optional은 관련 있을 때만 수행한다. Claude 커맨드/MCP 기반 점검은 supervisor 관할이다.
 
 Trigger: 5화 단위 기본 (settings/07-periodic.md에 따라 조정).
 
 Supervisor가 수행:
-1. P1~P9 (settings/07-periodic.md 참조) — supervisor 직접
-2. 외부 AI 일괄 리뷰 (batch_review MCP) — supervisor가 MCP 호출
-3. pov-era-checker — supervisor 직접 (최근 5화)
+1. `settings/07-periodic.md`의 P1~P13 점검 — supervisor 직접
+2. 외부 AI 일괄 리뷰(P8, 프로젝트가 활성화한 경우만) — supervisor가 MCP 호출
+3. Claude 전용 checker (`pov-era-checker`, 필요 시 why/oag 보조 점검) — supervisor 직접
 
 After the periodic check, supervisor continues with next episode prompt to Codex writer.
 

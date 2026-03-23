@@ -1,6 +1,6 @@
 # Parallel Writing & Periodic Checks
 
-> Defines consistency checks after parallel writing and periodic checks (default every 5 episodes, flexible up to 8).
+> 정기 점검 규약. 매 화 파이프라인이 놓치기 쉬운 누적 드리프트를 제어한다.
 
 **Language Contract: All narrative output, summaries, and review text MUST be in Korean.**
 
@@ -8,61 +8,98 @@
 
 ## 1. Post-Parallel-Writing Consistency Check
 
-When episodes are written in parallel, the following procedure MUST be performed **after writing is complete**.
+동시 집필 또는 summary 지연이 있었으면, 병렬 작성 종료 후 아래 절차를 강제한다.
 
 ### Parallel Writing Criteria
 
-Any of the following qualifies as "parallel writing":
-- Multiple agents writing different episodes simultaneously
-- Consecutive episodes exist where summary files were not updated
-- User explicitly states parallel writing is in progress
+- 여러 agent/session이 다른 화를 동시에 집필
+- 연속 화가 존재하지만 summary가 뒤늦게 갱신됨
+- 사용자가 병렬 집필 중이라고 명시
 
 ### Per-Agent Rules
 
-- Steps 3.1-3.3 proceed as normal (context loading, writing, self-review)
-- Step 3.4 continuity verification: perform only within own assigned range
-- Step 3.5 post-processing: **defer summary updates** (to prevent conflicts)
-- EPISODE_META insertion: perform as normal
+- 각 작성자는 자신의 할당 범위 안에서 초안과 1차 self-review를 끝낸다.
+- 병렬 작성 중에는 summary 충돌을 막기 위해 필수 summary 갱신을 마지막 reconciliation까지 미뤄도 된다.
+- `EPISODE_META`는 각 화에 정상 삽입한다.
 
-### Post-Completion Reconciliation
+### Reconciliation
 
-1. **Cross-continuity verification**: Run `unified-reviewer` in `continuity` mode to check inter-episode connections
-2. **Conflict resolution**: Adjust higher-numbered episodes to match lower-numbered ones
-3. **Batch summary update**: Update all summary files in episode-number order
+1. 낮은 화수부터 높은 화수 순으로 본문 연결 확인
+2. higher episode를 lower episode에 맞춰 조정
+3. `running-context.md`, `episode-log.md`, `character-tracker.md`를 화수 순으로 일괄 갱신
+4. `review-log.md`와 `action-log.md`에 병렬 정리 결과 기록
 
 ---
 
 ## 2. Periodic Checks
 
-> Prevents **cumulative drift** that per-episode pipelines cannot catch.
-
 ### Trigger
 
-- 5화 단위를 기본으로 하되, 아크 전환·드리프트 징후·작가 판단에 따라 앞당기거나 늦출 수 있다. 단, 최대 8화를 넘기지 않는다.
-- Arc transition points (perform even if fewer than 5 episodes)
+- 기본 5화 단위
+- 최대 8화 초과 금지
+- 아크 전환에서는 무조건 실행
+- 드리프트 징후나 작가 판단이 있으면 조기 실행
+
+### Review Floors
+
+- 1화 또는 새 아크 첫 화: `full`
+- 5화 배수: `standard`
+- 아크 마지막 화: `standard + arc transition package`
 
 ### Check Items
 
-> Core 항목(P1, P3, P6, P9, P10)은 매 점검 시 필수. Optional 항목(P2, P4, P5, P7, P8, P11)은 해당 소설에 관련이 있을 때만 수행. P11(용어 온보딩)은 세계관이 강한 작품(무협/판타지/SF)에서는 core로 승격 권장.
+Core 항목은 매번 실행한다. Optional은 관련이 있을 때만 수행한다.
 
-| # | Item | Method |
-|---|------|--------|
-| P1 | Summary consistency | `unified-reviewer` in `standard` mode — verify summary accuracy (S1-S6) for episodes since last check |
-| P2 | Foreshadowing deadlines | Check `plot/foreshadowing.md` for threads past their expected resolution point |
-| P3 | Character state freshness | Verify `summaries/character-tracker.md` current state matches **latest episode end state** |
-| P4 | Unfulfilled promises | Check `summaries/promise-tracker.md` for overdue or neglected promises |
-| P5 | running-context | Verify `summaries/running-context.md` is under 200 lines and accurately reflects current state |
-| P6 | Personality drift vs growth | 캐릭터 변화가 문서화된 사건에 의한 것인지 확인. 비선형적 변화(일시적 퇴행, 갈등 속 동요)도 의도적이라면 허용. (a) 사건 근거 없이 확립된 상태에 반하는 행동 → ❌. (b) `character-tracker.md`에 사건 근거가 있는 변화 → ✅ intentional. (c) 일시적 퇴행·동요가 서사적으로 의도된 경우 → ✅ (사유 기록) |
-| P7 | External AI batch review | Call `mcp__novel_editor__batch_review` for episodes since last check. If `batch_review` is unavailable, call `review_episode` individually for each episode. Only target active sources per CLAUDE.md §1 feedback flags (gemini/gpt/nim/ollama). Prioritize episodes with `❌ 실패` records in `editor-feedback-log.md` |
-| P8 | Korean quality check | Only for episodes where P7 produced text modifications — re-check via `unified-reviewer` continuity mode (includes Korean proofreading) |
-| P9 | Meta-reference prohibition | Full scan for in-prose references like "X화에서", "프롤로그에서", "1부에서" (episode number/structure name references) |
-| P10 | Thematic progress | Review EPISODE_META `thematic_function` entries for the last 5 episodes. **선언 vs 실제 대조**: 집필자가 선언한 `thematic_function`이 실제 에피소드 내용과 부합하는지 확인. "주제 심화"라고 선언했지만 주제와 무관한 화는 ⚠️. 3+ consecutive episodes with no thematic connection → flag. **Soft warning only** — 과도하게 강제하면 주제를 매 화 노골적으로 말하게 됨. |
-| P11 | Term onboarding check | `summaries/term-onboarding.md`에서 "미설명 + 기한 초과" 용어 확인. 위험도 높음인 미설명 용어가 있으면 ⚠️. |
+| # | Item | Type | Method |
+|---|---|---|---|
+| P1 | Summary consistency | Core | 최근 점검 이후 화수의 본문과 `running-context`, `episode-log`, `character-tracker` 불일치 탐지 |
+| P2 | Foreshadowing deadlines | Optional | `plot/foreshadowing.md`에서 회수 시점 경과 여부 확인 |
+| P3 | Character state freshness | Core | `character-tracker.md`가 최신 화 종료 상태를 반영하는지 확인 |
+| P4 | Unfulfilled promises | Optional | `promise-tracker.md`에서 과잉 유예 또는 방치 약속 탐지 |
+| P5 | running-context hygiene | Optional | `running-context.md`가 과팽창하지 않았는지, 다음 화 런웨이가 선명한지 확인 |
+| P6 | Personality drift vs growth | Core | 성격 변화가 사건 기반인지 확인. 일시적 퇴행과 동요도 사건 근거가 있으면 허용 |
+| P7 | WHY/HOW + motivation-action gap | Core | 최근 5화 재독으로 설명 갭, 동기/행동 갭, OAG 의심 탐지 |
+| P8 | External batch review | Optional | 프로젝트가 외부 리뷰를 켠 경우에만 템플릿의 batch review 또는 episode review 도구를 실행하고, 비활성 프로젝트에서는 건너뛴다 |
+| P9 | POV / era / scene logic | Core | 시점 지식 위반, 시대 부적합 표현, 장면 물리·인과 논리 점검 |
+| P10 | Cross-episode repetition | Core | 어구, 감정 처리, 정보 재노출, 엔딩 훅 반복 패턴 탐지 |
+| P11 | Korean naturalness | Core | 번역투, 호응, 템포 저하, 장면별 어색한 문장 정리 |
+| P12 | Meta-reference prohibition | Core | 본문 속 `몇 화에서`, `프롤로그에서`, `1부에서` 금지 표현 탐지 |
+| P13 | Thematic progress | Core | 최근 화수의 `thematic_function`과 실제 본문이 같은 방향을 가는지 대조하고, 주제 진행이 끊긴 구간을 경고 |
+
+### Mandatory Order
+
+정기 점검 수정은 아래 순서로 한다.
+
+1. summary consistency
+2. fact / continuity
+3. WHY/HOW + motivation-action
+4. POV / era / scene logic
+5. repetition
+6. Korean naturalness
+7. external review reconciliation (if used)
+8. summary re-sync
 
 ### Post-Check Actions
 
-1. 치명/중대 이슈는 즉시 수정. 경미 이슈는 누적 기록 후 다음 집필 사이클에서 정리.
-2. Update `running-context.md` to current state.
-3. Include check results in commit: `{소설명} {N}~{M}화 정기 점검 완료`
+1. patch-feasible 항목은 즉시 수정
+2. 구조 수정이 필요한 항목은 `review-log.md`에 HOLD 기록
+3. `running-context.md`를 현재 상태로 갱신
+4. 반복 패턴이 발견되면 `repetition-watchlist.md` 갱신
+5. `action-log.md`에 점검 결과 append
+6. commit 메시지 예시: `{소설명} {N}~{M}화 정기 점검 완료`
+
+---
+
+## 3. Arc Transition Link
+
+아크 마지막 화 이후에는 이 문서만으로 끝내지 않는다.
+
+반드시 아래를 이어서 수행한다.
+
+1. 템플릿의 아크 전환 절차(`batch-supervisor.md` 또는 프로젝트 체크리스트)를 이어서 실행
+2. 아크 종료 범위를 다시 읽고 WHY/HOW 설명 갭, 동기/행동 갭, 미해결 약속, 반복 패턴을 점검
+3. `patch-feasible` 항목은 즉시 수정하고, 구조 수정이 필요한 항목은 `review-log.md`에 `HOLD`로 기록
+4. 본문 수정이 있었다면 영향 받은 summary와 tracker를 재정합
+5. 다음 아크 plot readiness를 확인하고, `forward-fix`와 다음 화 런웨이를 `running-context.md`에 반영
 
 ---
