@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  tmux-wait-sentinel SESSION SENTINEL [TIMEOUT_SECONDS] [POLL_SECONDS] [CAPTURE_LINES]
+
+Waits until a tmux pane contains the given sentinel string, or until timeout.
+Outputs a compact status line for supervisor scripts/prompts.
+
+Examples:
+  scripts/tmux-wait-sentinel write-001 "WRITER_DONE chapter-05.md" 1800 2 200
+  scripts/tmux-wait-sentinel write-001 "FIX_DONE chapter-05" 600 1 120
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -lt 2 ]]; then
+  usage >&2
+  exit 64
+fi
+
+SESSION="$1"
+SENTINEL="$2"
+TIMEOUT="${3:-1800}"
+POLL="${4:-2}"
+CAPTURE_LINES="${5:-200}"
+
+deadline=$(( $(date +%s) + TIMEOUT ))
+
+while true; do
+  now=$(date +%s)
+  if (( now >= deadline )); then
+    echo "TIMEOUT session=${SESSION} sentinel=${SENTINEL}"
+    exit 2
+  fi
+
+  if ! pane="$(tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null)"; then
+    echo "SESSION_MISSING session=${SESSION}"
+    exit 3
+  fi
+
+  if grep -Fq "${SENTINEL}" <<<"${pane}"; then
+    echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL}"
+    exit 0
+  fi
+
+  sleep "${POLL}"
+done

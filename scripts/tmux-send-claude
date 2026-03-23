@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  tmux-send-claude SESSION MESSAGE [CONFIRM_SECONDS] [CAPTURE_LINES]
+
+Sends a prompt to a Claude tmux session, waits 3 seconds, presses Enter,
+then checks whether the prompt line disappeared or a new Claude response block
+appeared. If not, it sends Enter once more and checks again.
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -lt 2 ]]; then
+  usage >&2
+  exit 64
+fi
+
+SESSION="$1"
+MESSAGE="$2"
+CONFIRM_SECONDS="${3:-2}"
+CAPTURE_LINES="${4:-80}"
+
+capture_pane() {
+  tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null
+}
+
+extract_delta() {
+  local before="$1"
+  local after="$2"
+  if [[ "${after}" == "${before}"* ]]; then
+    printf '%s' "${after#"${before}"}"
+  else
+    printf '%s' "${after}"
+  fi
+}
+
+has_claude_response() {
+  local pane="$1"
+  grep -Eq '^[[:space:]]*● ' <<<"${pane}"
+}
+
+message_still_waiting() {
+  local pane="$1"
+  grep -Fq "❯ ${MESSAGE}" <<<"${pane}" || grep -Fq "❯ ${MESSAGE}" <<<"${pane}"
+}
+
+if ! capture_pane >/dev/null; then
+  echo "SESSION_MISSING session=${SESSION}"
+  exit 3
+fi
+
+before_pane="$(capture_pane)"
+tmux send-keys -t "${SESSION}" -l "${MESSAGE}"
+sleep 3
+tmux send-keys -t "${SESSION}" Enter
+sleep "${CONFIRM_SECONDS}"
+
+pane="$(capture_pane)"
+delta="$(extract_delta "${before_pane}" "${pane}")"
+if has_claude_response "${delta}"; then
+  echo "CLAUDE_RESPONSE_CONFIRMED session=${SESSION}"
+  exit 0
+fi
+if ! message_still_waiting "${pane}"; then
+  echo "PROMPT_DISAPPEARED session=${SESSION}"
+  exit 0
+fi
+
+tmux send-keys -t "${SESSION}" Enter
+sleep "${CONFIRM_SECONDS}"
+pane="$(capture_pane)"
+delta="$(extract_delta "${before_pane}" "${pane}")"
+if has_claude_response "${delta}"; then
+  echo "CLAUDE_RESPONSE_CONFIRMED_AFTER_RETRY session=${SESSION}"
+  exit 0
+fi
+if ! message_still_waiting "${pane}"; then
+  echo "PROMPT_DISAPPEARED_AFTER_RETRY session=${SESSION}"
+  exit 0
+fi
+
+echo "NO_CLAUDE_START_SIGNAL session=${SESSION}"
+exit 1

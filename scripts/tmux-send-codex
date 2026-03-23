@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  tmux-send-codex SESSION MESSAGE [CONFIRM_SECONDS] [CAPTURE_LINES]
+
+Sends a prompt to a Codex tmux session, waits 3 seconds, presses Enter,
+then checks whether `Working` appears within the confirm window.
+If not, it sends Enter once more and checks again.
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -lt 2 ]]; then
+  usage >&2
+  exit 64
+fi
+
+SESSION="$1"
+MESSAGE="$2"
+CONFIRM_SECONDS="${3:-2}"
+CAPTURE_LINES="${4:-60}"
+
+capture_pane() {
+  tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null
+}
+
+extract_delta() {
+  local before="$1"
+  local after="$2"
+  if [[ "${after}" == "${before}"* ]]; then
+    printf '%s' "${after#"${before}"}"
+  else
+    printf '%s' "${after}"
+  fi
+}
+
+has_working_marker() {
+  local pane="$1"
+  grep -Fq "Working" <<<"${pane}"
+}
+
+has_response_block() {
+  local pane="$1"
+  grep -Eq '^[[:space:]]*• ' <<<"${pane}"
+}
+
+if ! capture_pane >/dev/null; then
+  echo "SESSION_MISSING session=${SESSION}"
+  exit 3
+fi
+
+before_pane="$(capture_pane)"
+tmux send-keys -t "${SESSION}" -l "${MESSAGE}"
+sleep 3
+tmux send-keys -t "${SESSION}" Enter
+sleep "${CONFIRM_SECONDS}"
+
+pane="$(capture_pane)"
+delta="$(extract_delta "${before_pane}" "${pane}")"
+if has_working_marker "${delta}"; then
+  echo "WORKING_CONFIRMED session=${SESSION}"
+  exit 0
+fi
+if has_response_block "${delta}"; then
+  echo "RESPONSE_CONFIRMED session=${SESSION}"
+  exit 0
+fi
+
+tmux send-keys -t "${SESSION}" Enter
+sleep "${CONFIRM_SECONDS}"
+pane="$(capture_pane)"
+delta="$(extract_delta "${before_pane}" "${pane}")"
+if has_working_marker "${delta}"; then
+  echo "WORKING_CONFIRMED_AFTER_RETRY session=${SESSION}"
+  exit 0
+fi
+if has_response_block "${delta}"; then
+  echo "RESPONSE_CONFIRMED_AFTER_RETRY session=${SESSION}"
+  exit 0
+fi
+
+echo "NO_START_SIGNAL session=${SESSION}"
+exit 1

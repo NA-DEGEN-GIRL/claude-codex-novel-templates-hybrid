@@ -87,7 +87,7 @@
    - Fallback if unavailable: `summaries/running-context.md` → relevant arc plot → `plot/foreshadowing.md` → `summaries/character-tracker.md`.
 2. **Read last 2-3 paragraphs of previous episode**: Verify hook connection + prevent same ending hook type consecutively.
 3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue.
-4. **Check continuity anchors when needed**: If this episode depends on dates, ages, travel time, injuries, carry-forward promises, or other invariants, read `settings/05-continuity.md` directly instead of relying on memory alone.
+4. **Check continuity anchors when needed**: If this episode contains flashbacks, explicit elapsed time, deadlines, travel time, injuries, recovery periods, age-sensitive recall, or carry-forward promises, read `settings/05-continuity.md` directly instead of relying on memory alone.
 5. **Check editor feedback**: Reference `EDITOR_FEEDBACK_*.md` if unprocessed feedback exists.
 
 ### 3.2 Writing (Write)
@@ -95,7 +95,12 @@
 1. Follow `settings/02-episode-structure.md`.
 2. Follow `settings/01-style-guide.md`.
 3. Target length: {{TARGET_LENGTH}}
-4. **`novel-calc` MCP is for narrative verification only. Calculations must NOT drive the narrative.**
+4. **When 2+ active characters share a scene, let dialogue and reaction carry part of the scene load.** Narration may frame the exchange, but the reader should be able to infer at least some combination of situation, hierarchy, hidden intent, or emotional pressure from the spoken interaction itself.
+5. **Co-presence rule**: If a named character is in the same room, lodging, meal, cart, boat, watch post, or hideout, the prose must acknowledge that presence in a natural way. They may speak, react, stay silent, sleep, listen, leave, or be explicitly absent, but they must not vanish from scene logic.
+6. **Use MCP tools directly.** In Codex/Claude runtime, `novel-calc` is an MCP server, not a required shell wrapper.
+   - Preferred path: direct MCP tool calls (`calculate`, `date_calc`, `travel_estimate`, `char_count`, etc.).
+   - `scripts/novel-calc` is only a manual shell fallback for local debugging. It is not the default runtime path.
+7. **`novel-calc` MCP is for narrative verification only. Calculations must NOT drive the narrative.**
    - Write prose naturally first. Then verify numerical consistency with calc only if needed.
    - Calc results allowed in: (1) unified-reviewer evidence, (2) summaries/ updates, (3) in-world UI/popup/display numbers. NEVER insert calc results into narration, dialogue, or inner monologue.
    - **Characters do mental math like humans, not computers.** Exact tool outputs are for author/model reasoning only. Do NOT copy exact results into character dialogue, monologue, or close-POV narration. Convert to human estimates, rounded quantities, sensory scale, or emotional interpretation.
@@ -123,13 +128,13 @@
      - **Edge case**: 여러 가격을 보고 합산 → 개별 가격은 정확, 합계는 어림 ("대충 한 5만 원어치 샀나"). 캐릭터가 평소 외우고 있는 숫자(월세, 비밀번호, 시험 등급)는 정확 허용.
    - **Use calc when**: dates are plot-critical, travel distance/time may cause contradiction, economy/supply is core conflict, checking word count.
    - **Skip calc when**: vague time expressions, atmospheric approximations, mundane travel/trade, combat distances/speeds.
-   - Tools: dates(`date_calc`/`weekday`/`d_plus`/`date_diff`) | arithmetic(`calculate`) | travel(`speed_distance_time`/`travel_estimate`) | units(`unit_convert`/`convert_time`) | economy(`currency_calc`/`supply_calc`/`growth_calc`) | length(`char_count`)
-5. **When the novel uses Hanja naming** (martial arts, historical, Sino-Korean fantasy), **use `novel-hanja` MCP**. Never assemble Hanja via LLM inference. For modern/SF settings where names don't require Hanja etymology, this step may be skipped.
+   - Tools: dates(`date_calc`/`weekday`/`d_plus`/`date_diff`) | arithmetic(`calculate`) | travel(`speed_distance_time`/`travel_estimate`) | units(`unit_convert`/`convert_time`) | economy(`currency_calc`/`supply_calc`/`growth_calc`) | narrative formatting(`narrative_number`/`narrative_range`/`narrative_ratio`/`narrative_ordinal`/`narrative_time_phrase`) | length(`char_count`)
+8. **When the novel uses Hanja naming** (martial arts, historical, Sino-Korean fantasy), **use `novel-hanja` MCP**. Never assemble Hanja via LLM inference. For modern/SF settings where names don't require Hanja etymology, this step may be skipped.
    - `hanja_lookup`, `hanja_search`, `hanja_meaning`, `hanja_verify`
-6. **Hanja notation**: Show reading + Hanja only on first appearance (e.g., 내공(內功), 대사헌(大司憲) — genre-dependent). Korean-only thereafter. Ref: `summaries/hanja-glossary.md`. Exception: re-appearance after 30+ episodes, homophone disambiguation.
-7. **Use `novel-naming` MCP** for spelling variants, title consistency, faction/skill naming drift, and alias normalization when proper nouns start proliferating.
-8. **Dialogue anchor rule**: `settings/03-characters.md`의 대표 대사는 복붙용 문장이 아니다. 어휘 선택, 높낮이, 위계감, 판단 방식을 읽고, 실제 장면에 맞게 변주한다.
-9. **Use era-appropriate units and terminology.** Refer to `settings/04-worldbuilding.md` for your novel's setting.
+9. **Hanja notation**: Show reading + Hanja only on first appearance (e.g., 내공(內功), 대사헌(大司憲) — genre-dependent). Korean-only thereafter. Ref: `summaries/hanja-glossary.md`. Exception: re-appearance after 30+ episodes, homophone disambiguation.
+10. **Use `novel-naming` MCP** for spelling variants, title consistency, faction/skill naming drift, and alias normalization when proper nouns start proliferating.
+11. **Dialogue anchor rule**: `settings/03-characters.md`의 대표 대사는 복붙용 문장이 아니다. 어휘 선택, 높낮이, 위계감, 판단 방식을 읽고, 실제 장면에 맞게 변주한다.
+12. **Use era-appropriate units and terminology.** Refer to `settings/04-worldbuilding.md` for your novel's setting.
    - Modern/SF: Modern units, loanwords, and Arabic numerals are natural. No conversion needed.
    - Pre-modern/historical: metric → traditional units, loanwords → Sino-Korean/native Korean. Use `unit_convert`.
    - **Pre-modern numeral rules (Korean output)** — (Apply only when settings specify a pre-modern or historical era. For modern/SF, Arabic numerals and modern counting are natural.):
@@ -137,20 +142,22 @@
      - No decimal notation: `1.5장` → `일 장 반`
      - `100명` → `백 명`, `3일` → `사흘`, `7일` → `이레`, `10일` → `열흘`, `15일` → `보름`
      - Exception: EPISODE_META, plot/, summaries/ (meta areas)
-10. **Footnotes**: Use `[^N]` format. `\[N\]` or `[N]` formats forbidden.
+12. **Footnotes**: Use `[^N]` format. `\[N\]` or `[N]` formats forbidden.
 
 ### 3.3 Unified Review
 
 Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korean proofreading + external feedback in a single pass.
 
 **Modes** (periodic + change-based triggers):
-- `continuity` (every episode): 14 continuity items + critical Korean errors(❌) + 반복표현/번역투/호응오류
+- `continuity` (every episode): 14 continuity items + time/age/duration consistency + critical Korean errors(❌) + 반복표현/번역투/호응오류
 - `standard` (as triggered by `settings/07-periodic.md`): continuity + 7 narrative items + full Korean proofing + configured external feedback
 - `full` (arc boundary / setting change / long-term foreshadowing payoff): all items + detailed analysis + direct settings reference, especially `01/03/05/07`
 
 **Review anchor**:
 - review 시 주요 인물 대사가 `settings/03-characters.md`의 운용 앵커와 어긋나는지 확인한다.
 - 대표 대사를 그대로 반복한 문장은 drift 위험으로 본다.
+- 인물 둘 이상 장면에서 대사와 반응이 실제로 상황/관계/압력을 운반하는지 확인한다. 지문이 이미 제공한 사실을 대사가 복창하면 감점한다.
+- 최근 화수의 장면들이 계속 눌리기만 하지 않는지 본다. 무거운 화라도 짧은 완충 리듬이나 관계성 호흡이 완전히 사라졌다면 drift 후보로 본다.
 
 **External feedback sources** (per CLAUDE.md flags):
 1. **Gemini** (`gemini_feedback: true`): continuity/worldbuilding → `EDITOR_FEEDBACK_gemini.md`
@@ -219,6 +226,7 @@ Arc boundary principle:
 9. **No unearned emotional escalation**: 감정적 클라이맥스(죽음, 고백, 배신, 재회)는 해당 관계나 갈등이 독자가 체감할 수 있을 만큼 사전에 전개된 후에만 허용한다. 화수 제한은 없으나, 축적이 부족하면 독자가 설득되지 않는다.
 10. **No costless victories**: 주요 성과를 "무상 보상"처럼 처리하지 말 것. 희생·트레이드오프·후속 부담은 같은 화에 드러날 수도 있고, 복선으로 유예되었다가 이후 큰 대가로 회수될 수도 있다. 어떤 경우에도 성과가 장기적으로 긴장과 균형을 깨는 순이익으로만 남아서는 안 된다.
 11. **No finale overload**: 마지막 아크에서 설명, 감정 결산, 클라이맥스 액션을 한 화에 과밀하게 압축하지 않는다. 독자가 전개를 따라가고 감정과 사건을 각각 소화할 여백을 확보한다. 적정 분량은 전체 길이·장르·리듬에 맞게 조정. 스릴러 등 압축이 미덕인 장르에서는 의도된 고밀도 전개를 허용한다.
+12. **No invisible co-present characters**: 같은 공간에 두고도 이름 있는 인물을 장면에서 완전히 지워 두지 않는다. 침묵, 반응, 자리 비움, 수면, 경계, 퇴장 중 하나로라도 상식적인 처리 필요.
 
 ### 5.1 Intentional Mysteries (의도적 비밀)
 

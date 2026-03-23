@@ -82,6 +82,8 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 **Supervisor** (메인 터미널):
 - `/root/novel/`에서 실행. tmux 관리 + 상태 판단 + 프롬프트 조립만 담당.
 - 리뷰/검증/수정은 직접 수행하지 않고, Review 세션의 Claude에게 지시한다.
+- 메인 세션에서 직접 해도 되는 일은 `tmux` 관리, 상태 판독, sentinel 대기, 파일 존재 확인, `/root/novel/config.json` 갱신뿐이다.
+- review 세션이 맡아야 할 후처리를 메인 세션에서 직접 시작하면 안 된다. 그 조짐이 보이면 즉시 멈추고 review 세션으로 재전송한다.
 
 **Writer 세션** (Codex — 집필 + 수정):
 - tmux session name: `{{SESSION}}` (예: `write-001`)
@@ -95,6 +97,11 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - unified-reviewer, external AI review(MCP), summary 갱신, EPISODE_META 삽입, git commit 수행.
 - supervisor가 review 세션에 post-write 지시를 전송한다.
 - **Session size**: Must be 220x50 or larger
+- **완료 sentinel 강제**:
+  - 화별 post-write 완료 후: `REVIEW_DONE chapter-{NN}`
+  - fix 재검증 완료 후: `RECHECK_DONE chapter-{NN}`
+  - 아크 경계 패키지 완료 후: `ARC_DONE {arc}`
+- review 세션 프롬프트 전송은 기본적으로 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}}-review '...' 2 80`을 사용한다.
 
 > **3세션 필수**: supervisor는 tmux 관리에 집중하고, 리뷰/후처리는 반드시 Review 세션에서 수행한다. context 분리로 안정적 운영을 보장.
 
@@ -246,6 +253,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 1. `.claude/prompts/codex-writer.md`의 Chunk Start 코드 블록을 읽는다
 2. 변수를 치환한다
 3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep 3` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
+4. 전송 직후 장시간 고정 `sleep`으로 기다리지 말고, 가능하면 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" ...` 로 sentinel/timeout을 함께 감시한다.
 
 #### 3b. Continuation Prompt — Codex Writer (previous episode context loaded)
 
@@ -259,9 +267,10 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 > Codex가 `WRITER_DONE`을 출력하면, supervisor(Claude Code)가 아래를 순서대로 수행한다.
 
 1. **chapter 파일 확인**: `ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`
-2. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto")
-3. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영.
-4. **문제 발견 시 — fix routing**:
+2. **review 세션으로 post-write 지시 전송**: 기본은 `tmux-send-claude`로 보낸다. 아래 작업을 review 세션이 수행하게 한다.
+3. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto") — review 세션 수행
+4. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영 — review 세션 수행
+5. **문제 발견 시 — fix routing**:
    a. 모든 발견 항목을 **patch_class**로 분류:
       - `micro`: 사실관계 1-3문장 → **Codex fixer**
       - `local`: 문단 내 수정 → **Codex fixer**
@@ -276,12 +285,13 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
       ```
    e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
    f. **재수정 상한**: Codex fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
-5. **summary 갱신**: running-context, episode-log, character-tracker 등 (supervisor 직접)
-6. **summary fact-check**: 본문 ↔ 요약 대조
-7. **EPISODE_META 삽입**: chapter 파일 끝에 append (supervisor 직접)
-8. **action-log 갱신**
-9. **git commit**: chapter + summaries + EDITOR_FEEDBACK
-10. **config.json 업데이트** (supervisor 직접)
+6. **summary 갱신**: running-context, episode-log, character-tracker 등 — review 세션 수행
+7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행
+8. **EPISODE_META 삽입**: chapter 파일 끝에 append — review 세션 수행
+9. **action-log 갱신** — review 세션 수행
+10. **git commit**: chapter + summaries + EDITOR_FEEDBACK — review 세션 수행
+11. **완료 신호 출력**: review 세션은 마지막 줄에 반드시 `REVIEW_DONE chapter-{NN}` 출력
+12. **config.json 업데이트**: `REVIEW_DONE` 확인 후 supervisor가 직접 수행
 
 #### 3c. Plot Generation Prompt (when the arc's plot file doesn't exist)
 
@@ -306,17 +316,23 @@ tmux send-keys -t {{SESSION}} Enter
 
 > **Codex 특이사항**: 텍스트 입력 직후 Enter를 누르면 줄바꿈만 된다. 3초 이상 대기 후 Enter를 눌러야 메시지가 전송된다. 긴 프롬프트는 `sleep 5`도 고려.
 
+**Codex 전용 권장 방식**:
+
+```bash
+bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} 'command text' 2 60
+```
+
 Then verify shortly after sending:
 
 ```bash
-sleep 5
+sleep 2
 tmux capture-pane -t {{SESSION}} -p -S -20
 ```
 
 Interpretation:
 
-- **Started correctly**: New output appears, or the trailing `> ` prompt disappeared
-- **Enter likely failed**: The command text is visible but the session is still waiting at `> `
+- **Started correctly**: `Working`이 보이거나, 새 응답 블록(`• ...`)이 붙는다
+- **Enter likely failed**: `Working`과 새 응답 블록이 2초 안에 모두 보이지 않는다
 
 If Enter likely failed, resend only Enter once:
 
@@ -331,6 +347,7 @@ Rules:
 - Use `-l` for command text so tmux sends the string literally
 - Send `Enter` separately; do not use double-Enter by default
 - Retry only one extra `Enter` before treating it as a state/error investigation case
+- Codex tmux 전송 확인은 `Working` 또는 새 응답 블록만 기준으로 본다. `Explored`, `Edited`, `Ran`은 화면 윗부분의 이전 작업 로그일 수 있다.
 - Apply this protocol to all prompt sends, `/clear`, `/why-check`, permission answers, and recovery commands
 
 ### 4. Supervision Loop
@@ -360,13 +377,25 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 To accurately determine "completed" state, verify all of the following:
 
-1. **WRITER_DONE sentinel**: `tmux capture-pane`에서 `WRITER_DONE chapter-{NN}.md` 확인. 없으면 `›` 프롬프트 + 파일 존재로 대체.
+1. **WRITER_DONE sentinel**: 기본은 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 1800 2 200`으로 감시한다. timeout이면 `tmux capture-pane` + `›` 프롬프트 + 파일 존재를 함께 확인한다.
 2. **Work artifact exists**: Chapter file exists (`ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`)
 3. **Progress log 기록**: supervisor가 직접 `echo "EP {N} DONE $(date +%H:%M)" >> {{NOVEL_DIR}}/summaries/batch-progress.log` 실행.
 
 > **batch-progress.log 관리**: supervisor가 3b-post 완료(commit까지 끝난 후)마다 기록한다. Codex가 아닌 supervisor의 책임.
 
 All conditions met → 다음 화 프롬프트. 파일 없으면 Codex 재지시.
+
+#### 4c-2. Review Session Completion Verification
+
+review 세션도 writer와 마찬가지로 sentinel 기반으로 완료를 판정한다.
+
+- 화별 post-write: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "REVIEW_DONE chapter-{NN}" 1800 2 200`
+- fix 재검증: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "RECHECK_DONE chapter-{NN}" 900 2 200`
+- 아크 경계 패키지: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "ARC_DONE {arc}" 3600 3 260`
+
+주의:
+- review 세션 프롬프트는 항상 마지막 줄에 해당 sentinel을 출력하라고 명시한다.
+- sentinel이 없으면 supervisor는 review 세션 pane과 산출 파일을 직접 확인하고, 필요하면 `tmux-send-claude`로 sentinel 출력만 짧게 재지시한다.
 
 #### 4d. config.json Update (Supervisor Responsibility)
 
@@ -541,21 +570,26 @@ When the episode number enters a new arc range:
 
 ---
 
-#### 5c. Periodic Check (Hybrid: Supervisor 직접)
+#### 5c. Periodic Check (Hybrid: Review 세션 위임)
 
-> **Hybrid**: 정기 점검은 **supervisor가 직접 수행**. Codex writer 세션에 보내지 않는다.
-> `settings/07-periodic.md`의 P1~P13을 기준으로 수행하되, Core는 반드시, Optional은 관련 있을 때만 수행한다. Claude 커맨드/MCP 기반 점검은 supervisor 관할이다.
+> **Hybrid**: 정기 점검은 Codex writer 세션에 보내지 않는다. 그러나 메인 supervisor가 직접 수행하는 것도 금지한다.
+> 정기 점검은 반드시 review 세션 Claude에게 지시해서 수행한다.
 
 Trigger: 5화 단위 기본 (settings/07-periodic.md에 따라 조정).
 
-Supervisor가 수행:
-1. `settings/07-periodic.md`의 P1~P13 점검 — supervisor 직접
-2. 외부 AI 일괄 리뷰(P8, 프로젝트가 활성화한 경우만) — supervisor가 MCP 호출
-3. Claude 전용 checker (`pov-era-checker`, 필요 시 why/oag 보조 점검) — supervisor 직접
+Supervisor가 할 일:
+1. review 세션에 periodic 프롬프트 전송 (`tmux-send-claude` 기본)
+2. `PERIODIC_DONE {start}-{end}` sentinel 대기
+3. 산출물과 action-log 확인
+
+Review 세션이 수행:
+1. `settings/07-periodic.md`의 periodic 점검 항목
+2. 외부 AI 일괄 리뷰(프로젝트가 활성화한 경우만)
+3. Claude 전용 checker 및 관련 MCP 점검
 
 After the periodic check, supervisor continues with next episode prompt to Codex writer.
 
-> **주의**: `/pov-era-check`, `/narrative-fix` 등은 Claude 커맨드이므로 **Codex writer 세션에 보내지 않는다**. Supervisor가 직접 실행한다.
+> **주의**: `/pov-era-check`, `/narrative-fix` 등은 Claude 커맨드이므로 **Codex writer 세션에 보내지 않는다**. 그러나 메인 supervisor가 직접 실행하는 것도 금지한다. 항상 review 세션으로 보낸다.
 
 #### 5d. Session Crash Recovery
 

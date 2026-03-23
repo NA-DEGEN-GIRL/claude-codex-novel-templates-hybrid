@@ -20,10 +20,14 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - fix-spec에 적힌 수정 목표와 제약만 따른다.
 - must_keep 항목은 반드시 보존한다.
 - must_avoid 항목은 반드시 회피한다.
-- 수정 범위(line_start~line_end) 밖의 문장은 건드리지 않는다.
+- 수정 범위(line_start~line_end) 밖의 문장은 건드리지 않는다. 다만 fix-spec에 적힌 원문 앵커를 먼저 대조해 실제 수정 대상을 확인한다.
 - 기존 문체, 리듬, 캐릭터 보이스를 유지한다.
-- 새 설정/인물/능력을 추가하지 않는다.
+- 핵심 설정, 중요 인물, 새 능력, 새 세력, 새 장소를 멋대로 추가하지 않는다.
+- 동석 인물 처리나 장면 상식선을 맞추기 위한 최소한의 생활 조연 표기는 허용된다. 단, fix-spec 목적을 넘는 비중 확대나 새 축 생성은 금지한다.
 - 수정 후 앞뒤 문맥과 자연스럽게 이어지는지 확인한다.
+- 여러 FIX 항목이 있으면 줄번호 드리프트를 피하기 위해 **항상 아래 줄번호부터 위로** 적용한다.
+- summaries/*, EPISODE_META, git, config.json은 건드리지 않는다.
+- 완료 신호는 `FIX_DONE`만 쓴다. `WRITER_DONE`을 출력하지 않는다.
 
 [완료]
 - 파일 직접 수정 후 변경 요약 3줄 이하 출력.
@@ -45,6 +49,7 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - **출처**: {checker 이름} (why-check / oag / naturalness / pov-era / scene-logic / repetition / arc-read)
 - **심각도**: {HIGH / MEDIUM}
 - **위치**: {line_start}~{line_end}행
+- **원문 앵커**: "{해당 구간에서 식별 가능한 짧은 원문 한 줄 또는 핵심 구절}"
 - **patch_class**: {micro / local / rewrite}
 - **문제**: {진단 요약 1-2문장}
 - **수정 목표**: {어떻게 바꿔야 하는지 1-2문장}
@@ -60,6 +65,7 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - 이 화의 Voice Profile: {§0 핵심 1줄}
 - 이 화의 POV: {인물명}
 - 수정 범위 밖 문장 변경 금지
+- 여러 항목이 있으면 line_start가 큰 항목부터 처리
 ```
 
 ---
@@ -70,6 +76,7 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 chapters/{arc}/chapter-{NN}.md의 {시작줄}~{끝줄}을 수정해줘.
 문제: {1줄 진단}
 목표: {1줄 수정 방향}
+원문 앵커: "{짧은 원문 구절}"
 유지: {톤/리듬}
 금지: {범위 밖 수정, 새 설정}
 완료 후: FIX_DONE chapter-{NN} {시작줄}-{끝줄}

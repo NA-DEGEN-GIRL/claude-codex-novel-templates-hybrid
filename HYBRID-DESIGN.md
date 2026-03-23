@@ -45,8 +45,8 @@ GPT가 집필하므로 리뷰 구조가 변경됨:
 
 ## MCP 도구 구조
 
-> **Codex도 MCP를 네이티브로 지원한다.** `codex mcp add`로 서버를 등록하면 Claude Code와 동일하게 MCP 도구를 사용할 수 있다.
-> `scripts/` wrapper는 MCP 미설정 시 fallback으로만 유지.
+> **Codex도 MCP를 네이티브로 지원한다.** `codex mcp add`로 서버를 등록하면 Claude Code와 동일하게 MCP 도구를 직접 사용할 수 있다.
+> 런타임 기본 경로는 MCP 직접 호출이며, `scripts/`는 수동 셸 디버깅용 보조로만 남긴다.
 
 ### Codex MCP 설정
 
@@ -209,7 +209,7 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 - [ ] 설정 파일 위치: `~/.codex/config.toml`
 
 > MCP 등록은 글로벌이므로 한 번만 하면 모든 소설 프로젝트에서 사용 가능.
-> `scripts/`는 MCP 미등록 시 fallback으로 유지.
+> `scripts/`는 수동 셸 테스트가 필요할 때만 보조적으로 유지한다.
 
 ---
 
@@ -221,7 +221,7 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 | `.claude/prompts/codex-writer.md` | Codex 집필 프롬프트 템플릿 (정본) | **신규** |
 | `.claude/prompts/codex-fixer.md` | Codex 수정 프롬프트 템플릿 | **신규** |
 | `batch-supervisor.md` | Supervisor 규칙 (hybrid용) | **수정** |
-| `scripts/*` | MCP CLI wrapper (fallback) | 유지 |
+| `scripts/*` | 수동 셸 테스트용 보조 스크립트 | 유지 |
 | `.claude/agents/writer.md` | Claude writer (lean 전용) | deprecated |
 | 나머지 agents/commands | 그대로 | 변경 없음 |
 
@@ -253,7 +253,7 @@ Codex: 파일 읽기 → 수정 → FIX_DONE chapter-018
 - [x] `.claude/prompts/codex-writer-role.md` 창작 역할 + 문체 원칙
 - [x] `.claude/prompts/codex-writer.md` 프롬프트 템플릿 (정본, batch-supervisor에서 참조)
 - [x] `batch-supervisor.md` hybrid용 수정 (3a/3b/3b-post/상태 판별)
-- [x] `scripts/` MCP wrapper 복사
+- [x] `scripts/` 수동 셸 테스트용 보조 스크립트 복사
 - [x] README.md hybrid용 작성
 - [x] Codex tmux 상호작용 테스트 (1화 집필 성공)
 - [x] fix-spec 공통 스키마 정의

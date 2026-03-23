@@ -110,6 +110,7 @@ Specialized agent for web novel episode writing. Handles: manuscript → summary
   **Planning flags** (set yes/no for each):
   ```
   - flashback_present: does this episode contain flashback/backstory?
+  - time_check_required: does this episode contain explicit elapsed time, deadline pressure, travel duration, recovery period, or age-sensitive recall?
   - new_danger: does a character learn new threat/enemy/critical info?
   - new_setting_claim: does the episode introduce, revise, or materially rely on a world rule?
   - calc_used: will novel-calc be used for numerical verification?
@@ -144,6 +145,7 @@ Specialized agent for web novel episode writing. Handles: manuscript → summary
   **Tier 1 — 치명적 사실성 (증거형 검토 필수):**
   - [ ] 7-1. **Improvisation check**: Were any characters/abilities/locations improvised without being in settings? → 검사 대상 인용 + 대조 기준 명시.
   - [ ] 7-2. **POV knowledge boundary**: POV 인물이 지금 모르는 사실/명칭/용어를 서술에 사용하지 않았는가? → compile_brief 불변 조건 표 + knowledge-map 대조. 의심 문장 1-2개 인용.
+  - [ ] 7-2A. **Time continuity check**: 현재 시점, 경과일수, 상대 시간 표현, 이동/회복/수련 기간, deadline이 직전 화와 `settings/05-continuity.md`에 맞는가? → 관련 문장 1-2개 인용 + timeline markers/invariants 대조.
   - [ ] 7-3. **Prohibition check**: CLAUDE.md §5 위반 여부. → 위반 가능성 가장 높은 항목 1개 + 본문 근거.
   - [ ] 7-4. **Loanword check** (pre-modern only — skip for modern/SF): 본문 전체(UI/readout 포함)에서 외래어 스캔. → 의심 표현 2-3개 직접 인용. Common offenders: 시스템→체계, 에너지→기운, 레벨→등급, 네트워크→정보망.
 
@@ -166,6 +168,8 @@ Specialized agent for web novel episode writing. Handles: manuscript → summary
   - If `flashback_present=yes`:
     - [ ] 7-F1. **Flashback/setting consistency** — 본문의 과거 사실 주장을 항목화한 뒤, 각 주장마다 compile_brief 불변 조건 표/settings의 대응 근거를 찾아 대조한다. 값이 없으면 **추론하지 말고 UNCERTAIN → 모호 표현으로 수정**.
       - **금지**: 키워드만 맞고 수치가 다른데 PASS. settings에 없는 값을 장르 관습으로 보충. "대체로 맞음" 같은 모호한 통과.
+  - If `time_check_required=yes`:
+    - [ ] 7-F1A. **Elapsed-time/deadline consistency** — "사흘 뒤", "한 달 전", "며칠째", "곧" 같은 표현이 실제 timeline markers와 충돌하지 않는지 본다. 이동/회복/수련 기간이 부족하면 PASS 금지.
   - If `new_danger=yes`:
     - [ ] 7-F2. **Obligatory action check** — If a character learned new danger/enemy/critical info, the draft must show a proportional response given their goals and loved ones. If absent, BOTH must hold: (a) the text contains at least a minimal signal (character notices but is forced to defer, or a visible constraint prevents action), AND (b) the deliberate withholding is recorded in EPISODE_META intentional_deviations or summaries/decision-log.md. Internal record alone without any textual signal = plot hole.
   - If `calc_used=yes`:
