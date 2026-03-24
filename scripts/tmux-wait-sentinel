@@ -56,10 +56,14 @@ extract_delta() {
 has_exact_sentinel_line() {
   local text="$1"
   local line
+  local normalized_line
+  local normalized_sentinel
+  normalized_sentinel="${SENTINEL%.md}"
   while IFS= read -r line; do
     line="${line%$'\r'}"
     line="$(printf '%s' "${line}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-    if [[ "${line}" == "${SENTINEL}" ]]; then
+    normalized_line="${line%.md}"
+    if [[ "${line}" == "${SENTINEL}" || "${normalized_line}" == "${normalized_sentinel}" ]]; then
       return 0
     fi
   done <<< "${text}"
