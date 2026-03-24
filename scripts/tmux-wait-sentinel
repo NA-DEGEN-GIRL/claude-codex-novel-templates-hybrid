@@ -58,6 +58,7 @@ has_exact_sentinel_line() {
   local line
   while IFS= read -r line; do
     line="${line%$'\r'}"
+    line="$(printf '%s' "${line}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
     if [[ "${line}" == "${SENTINEL}" ]]; then
       return 0
     fi
