@@ -6,7 +6,8 @@ usage() {
 Usage:
   tmux-wait-sentinel SESSION SENTINEL [TIMEOUT_SECONDS] [POLL_SECONDS] [CAPTURE_LINES]
 
-Waits until a tmux pane contains the given sentinel string, or until timeout.
+Waits until a tmux pane emits the given sentinel as a standalone line in new output,
+or until timeout.
 Outputs a compact status line for supervisor scripts/prompts.
 
 Examples:
@@ -33,6 +34,50 @@ CAPTURE_LINES="${5:-200}"
 
 deadline=$(( $(date +%s) + TIMEOUT ))
 
+capture_pane() {
+  tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null
+}
+
+tail_window() {
+  local text="$1"
+  printf '%s\n' "${text}" | tail -n 20
+}
+
+extract_delta() {
+  local before="$1"
+  local after="$2"
+  if [[ "${after}" == "${before}"* ]]; then
+    printf '%s' "${after#"${before}"}"
+  else
+    printf '%s' "${after}"
+  fi
+}
+
+has_exact_sentinel_line() {
+  local text="$1"
+  local line
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    if [[ "${line}" == "${SENTINEL}" ]]; then
+      return 0
+    fi
+  done <<< "${text}"
+  return 1
+}
+
+if ! before_pane="$(capture_pane)"; then
+  echo "SESSION_MISSING session=${SESSION}"
+  exit 3
+fi
+
+before_tail="$(tail_window "${before_pane}")"
+if has_exact_sentinel_line "${before_tail}"; then
+  echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=already_present"
+  exit 0
+fi
+
+echo "WAITING session=${SESSION} sentinel=${SENTINEL}"
+
 while true; do
   now=$(date +%s)
   if (( now >= deadline )); then
@@ -40,13 +85,20 @@ while true; do
     exit 2
   fi
 
-  if ! pane="$(tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null)"; then
+  if ! pane="$(capture_pane)"; then
     echo "SESSION_MISSING session=${SESSION}"
     exit 3
   fi
 
-  if grep -Fq "${SENTINEL}" <<<"${pane}"; then
+  delta="$(extract_delta "${before_pane}" "${pane}")"
+  if has_exact_sentinel_line "${delta}"; then
     echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL}"
+    exit 0
+  fi
+
+  pane_tail="$(tail_window "${pane}")"
+  if has_exact_sentinel_line "${pane_tail}"; then
+    echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=tail_fallback"
     exit 0
   fi
 
