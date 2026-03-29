@@ -126,7 +126,7 @@ Phase 1 보존 명세서를 항목별로 계승하며 재구성한다:
 
 #### 3-3. 플롯 재설계
 - `plot/master-outline.md` — 전체 아크 구성 재설계
-- `plot/arc-01.md` — 1아크 상세 비트시트
+- 첫 집필 구간의 `plot/{arc}.md` — prologue / arc-XX / epilogue / interlude 등 실제 시작 구간의 상세 비트시트
 - `plot/foreshadowing.md` — 복선 계획
 
 > ✅ 완료 기준: 모든 설정 파일 + plot 파일 작성 완료
@@ -134,7 +134,7 @@ Phase 1 보존 명세서를 항목별로 계승하며 재구성한다:
 ### Phase 4: 사전 검증
 
 #### 4-1a. /oag-check plan (동기 갭 — 먼저)
-`plot/master-outline.md`와 `plot/arc-01.md`에 대해 oag-checker Planning Mode 실행.
+`plot/master-outline.md`와 첫 집필 구간의 `plot/{arc}.md`에 대해 oag-checker Planning Mode 실행.
 PLANNING GAP / MOTIVATION GAP 발견 시 즉시 수정.
 
 #### 4-1b. /why-check plan (설명 갭 — 4-1a 수정 후)

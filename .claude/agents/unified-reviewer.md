@@ -66,6 +66,14 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 
 **3-level classification**: Clear conflict with settings → ❌ / High probability of contradiction → ⚠️ / Low probability of contradiction → ✅
 
+**Specialist Escalation (continuity 모드 전용)**: continuity 검증 후, 아래 조건에 해당하면 해당 flag를 출력에 포함한다. "maybe 위험" 식 남발 금지 — 구체적 본문 근거가 있을 때만 flag.
+- `ESCALATE_OAG`: 인물이 정보를 알면서 당연한 행동을 하지 않는 장면이 확인됨
+- `ESCALATE_WHY`: 독자가 "왜?"라고 물을 설명 누락이 확인됨
+- `ESCALATE_POV_ERA`: 시점 인물의 지식 범위를 넘는 명칭/정보, 또는 시대 부적합 표현이 의심됨
+- `ESCALATE_SCENE_LOGIC`: 동작/시선/방향/위치의 물리적 모순이 의심됨
+
+해당 없으면 flag를 출력하지 않는다. flag는 supervisor의 specialist 실행 판정에만 사용되며, writer에게 전달되지 않는다.
+
 ---
 
 ## B. Narrative Quality (7 Items) — standard, full Modes
@@ -244,6 +252,12 @@ When errors/warnings exist:
 ### 한글 오류 (❌)
 | # | 항목 | 위치 | 원문 | 수정안 |
 |---|------|------|------|--------|
+
+### Specialist Escalation (해당 있을 때만 출력. 없으면 이 섹션 자체를 생략)
+ESCALATE_OAG — {근거 1줄}
+ESCALATE_WHY — {근거 1줄}
+ESCALATE_POV_ERA — {근거 1줄}
+ESCALATE_SCENE_LOGIC — {근거 1줄}
 ```
 
 ### standard mode

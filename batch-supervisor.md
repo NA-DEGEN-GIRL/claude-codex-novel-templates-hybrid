@@ -153,6 +153,31 @@ elif periodic_due (settings/07-periodic) → review_floor = standard
 else                                     → review_floor = continuity
 ```
 
+**Specialist trigger determination** (continuity review 완료 후):
+
+```
+# 1. plot에서 risk tag 읽기 (writer brief에는 포함하지 않음)
+# 형식: plot 파일 에피소드 항목에 "- risk: oag, why" (쉼표 구분)
+# 대상 파일: plot/{arc}.md (arc-01, prologue, epilogue, interlude 등 ARC_MAP의 arc명에 대응)
+# 허용 값: oag | why | pov-era | scene-logic (이 4개만. repetition은 제외)
+# 필드 없으면 empty set. 필드가 optional이므로 대부분 화에는 없음.
+risk_tags = extract "risk:" field from plot/{arc}.md for episode N
+
+# 2. continuity review 출력에서 ESCALATE_* flag 읽기
+# "Specialist Escalation" 섹션이 없으면 empty set
+escalation_flags = extract ESCALATE_* from continuity review output
+
+# 3. 판정
+for each specialist in [oag, why, pov_era, scene_logic]:
+  if tag AND flag   → 즉시 review 세션에 specialist 실행 지시
+  elif flag only    → 실행 (emergent risk)
+  elif tag only     → watch 등록 (review-log.md에 "WATCH {specialist}: {tag 근거}" 1줄 append). 본문 증거가 붙거나 periodic due 시 승격
+  else              → skip
+```
+
+> repetition은 plot risk tag 대상이 아님. periodic/watchlist 트리거만 사용.
+> 이미 열린 forward-fix/HOLD와 같은 리스크면 중복 finding으로 찍지 않고 기존 항목에 연결.
+
 **Prose drift override**: 아래 중 하나라도 보이면 해당 화의 review_floor를 최소 `standard`로 올린다.
 - 첫 문단이나 장면 전환 첫 문장이 지나치게 문학적 압축에 기대어 뜻을 한 번 더 해석하게 만듦
 - 분위기는 있으나 한국어 결합이 어색한 문장(주어-서술어, 명사-동사, 추상명사-행위 결합)이 눈에 띔
@@ -585,7 +610,7 @@ When the episode number enters a new arc range:
    - status: open
    ```
 2. **`summaries/running-context.md`** (경고): "## HOLD 경고" 섹션에 한 줄 추가
-3. **`plot/arc-{NN}.md`** (삽입): 해당 화수에 `[FORWARD-FIX: HOLD-{NNN}]` 마커 삽입
+3. **`plot/{arc}.md`** (삽입): 해당 화수에 `[FORWARD-FIX: HOLD-{NNN}]` 마커 삽입
 
 **만기 관리:**
 - `latest-safe-resolution` 설정 상한: **현재 화수 + 10화** 또는 **현재 아크 종료 전** (짧은 쪽 적용)
@@ -599,7 +624,7 @@ When the episode number enters a new arc range:
 - HOLD가 해소되면 `status: resolved` + 아래 3곳 동기화:
   1. `review-log.md`: status → resolved, 해소 화수/방법 기록
   2. `running-context.md`: HOLD 경고 행 제거
-  3. `plot/arc-{NN}.md`: 마커에 `[RESOLVED: {N}화]` 태그 추가 (삭제가 아니라 이력 보존)
+  3. `plot/{arc}.md`: 마커에 `[RESOLVED: {N}화]` 태그 추가 (삭제가 아니라 이력 보존)
 - 아크 마감(F단계) 게이트:
   - `scope: current-arc`인 open HOLD → **F 완료 불가** (해결 필수)
   - `scope: next-arc`인 open HOLD → **이관 확인(carry-forward) 후 F 통과 가능** (다음 아크에서 해결)

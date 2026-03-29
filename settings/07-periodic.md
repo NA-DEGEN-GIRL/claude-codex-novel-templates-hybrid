@@ -38,7 +38,7 @@
 - **약한 안전장치를 자주, 강한 진단기는 드물게.**
 - `review_floor`와 specialist checker cadence를 분리한다.
 - `standard` review를 실행한다고 해서 `why-check`, `oag-check`, `pov-era-check`, `scene-logic-check`, `repetition-check`를 자동 실행하지 않는다.
-- specialist checker는 화수 고정 주기보다 **위험 신호(risk signal)**를 우선 트리거로 삼는다.
+- specialist checker는 화수 고정 주기보다 **위험 신호(risk signal)**를 우선 트리거로 삼는다. 트리거 소스: (1) `plot/arc-XX.md`의 `risk:` 태그, (2) unified-reviewer continuity의 `ESCALATE_*` flag.
 - periodic의 목적은 초안을 다시 쓰게 만드는 것이 아니라, **누적 drift를 조기에 잡고 다음 구간에서 더 크게 망가지지 않게 하는 것**이다.
 - 검사 규칙은 초안 생성 규칙을 오염시키지 않는다. patch-feasible한 사실 오류와 장면 로컬 문제는 즉시 수정하되, 설명/동기/반복/주제 문제는 기본적으로 `watch`, `forward-fix`, `HOLD`를 우선 검토한다.
 
