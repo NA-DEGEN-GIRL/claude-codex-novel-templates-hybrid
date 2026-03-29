@@ -29,7 +29,7 @@ claude-codex-novel-templates-hybrid/ 을 참고해서 no-title-{XXX}/ 소설 프
 
 ## 마이그레이션 목표
 
-> **Note**: hybrid 템플릿은 lean 아키텍처 위에 Codex 집필 레이어를 추가한 것이다. 아래의 "lean 구조/골격"은 이 공유 아키텍처를 가리킨다.
+> **Note**: hybrid 템플릿은 lean 아키텍처 위에 Writer/Supervisor 분리 레이어를 추가한 것이다 (`writer_model`에 따라 Codex 또는 Claude가 writer). 아래의 "lean 구조/골격"은 이 공유 아키텍처를 가리킨다. 요약 갱신은 writer가 아닌 review 세션이 담당한다 (3세션 분리 원칙).
 
 - `CLAUDE.md`를 lean 구조(§1~§10)로 재편한다.
 - `settings/`는 규칙을 유지한 채 영어 지시문으로 전환한다. 한국어 예시/호칭/고유 용어는 유지.
@@ -107,7 +107,7 @@ lean 템플릿에서 아래를 복사/적용:
 - `continuity-checker` → `unified-reviewer`
 - `gemini-feedback` → `unified-reviewer` + `review_episode` MCP
 - `korean-proofreader` → `korean-naturalness`
-- `summary-generator` →  **writer** (compile_brief 기반, 인라인 요약)인라인 갱신
+- `summary-generator` → **review 세션** (compile_brief 기반, 후처리로 갱신. hybrid에서 writer는 요약을 수행하지 않음)
 - 기타 구 참조 → lean 대응
 
 새 에이전트/커맨드 추가 확인:
@@ -224,12 +224,12 @@ git commit 2단계:
 
 | old 에이전트 | lean 대응 |
 |-------------|-----------|
-|  **writer** (compile_brief 기반, 인라인 요약)| **writer** (compile_brief 기반, 인라인 요약) |
+| writer | **Writer 세션** (compile_brief 기반 본문 생성 + fix-spec 수정, `writer_model`에 따라 Codex 또는 Claude) |
 | reviewer | **unified-reviewer** (3모드 통합) |
 | continuity-checker | unified-reviewer continuity 모드 |
 | korean-proofreader | **korean-naturalness** |
 | gemini-feedback | `review_episode` MCP + unified-reviewer |
-| summary-generator |  **writer** (compile_brief 기반, 인라인 요약)인라인 갱신 (steps 8-9) |
+| summary-generator | **review 세션 후처리** (running-context / episode-log / character-tracker 갱신) |
 | full-audit | **full-audit** (1M 컨텍스트) |
 | audit-verifier | full-audit 내부 |
 | audit-fixer | `/audit-fix` 커맨드 |
@@ -256,14 +256,14 @@ git commit 2단계:
 | summaries/decision-log.md | 프로젝트 단위 반복 이탈 기록 |
 | oag-checker (별도 에이전트) | 의무 행동 갭 탐지 (Generate-Then-Check, Fixability Triage) |
 | plot-surgeon | 플롯 수선 (proposal + 평가 + auto-approve + rewrite-brief) |
-|  **writer** (compile_brief 기반, 인라인 요약)partial-rewrite mode | plot-surgeon의 rewrite-brief 기반 기존 에피소드 부분 재작성 |
+| Writer 세션 partial rewrite | plot-surgeon의 rewrite-brief 또는 fix-spec 기반 기존 에피소드 부분 재작성 |
 | narrative-fixer OAG mode | `--source oag` 모드 (A1~A3 전략) |
 | narrative-fixer arc-read mode | `--source arc-read` 모드 (R1~R4 전략) |
 | why-checker Phase 2.5 | Consequence Audit (CONSEQUENCE GAP, CAUSAL CHAIN BREAK 탐지) |
 | style-lexicon | 어휘 치환 사전 (summaries/style-lexicon.md, compile_brief에 포함) |
 | action-log | 에이전트 작업 이력 (summaries/action-log.md) |
 | arc-readthrough | 외부 AI 아크 통독 (batch-supervisor D단계) |
-|  **writer** (compile_brief 기반, 인라인 요약)planning flags | flashback/danger/setting/calc 플래그 기반 조건부 리뷰 |
+| review_floor + source-specific escalation | 화수/아크 위치/발견 이슈에 따라 naturalness, why-check, oag, pov-era, scene-logic 등 조건부 점검 확장 |
 | Reader Onboarding | 세계관 용어 설명 우선순위 (worldbuilding-heavy 작품에서 사용) |
 
 ---

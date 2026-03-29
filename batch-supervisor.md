@@ -1,6 +1,9 @@
 # Batch Writing Supervisor Prompt (Hybrid)
 
-Claude Code periodically checks a tmux session and automatically supervises a Codex (GPT 5.4) instance's novel writing. Hybrid mode: Codex writes, Claude reviews/fixes/manages.
+Claude Code periodically checks a tmux session and automatically supervises a writer instance's novel writing. Two modes supported:
+
+- **codex mode** (`writer_model: codex`): Codex/GPT writes, Claude reviews/fixes/manages. (기존 hybrid)
+- **claude mode** (`writer_model: claude`): Claude writes (별도 tmux), Claude reviews/fixes/manages. (writer/reviewer 컨텍스트 분리 유지)
 
 > **Why Claude Code instead of a script?**
 > A bash script (file-existence/timeout-based) cannot judge the AI's actual state.
@@ -19,8 +22,8 @@ Claude Code periodically checks a tmux session and automatically supervises a Co
 
 - **Supervisor**: Open Claude Code at `/root/novel/` (parent folder) and input this prompt.
   - Reads the parent folder's CLAUDE.md (project guide), giving it full context for config.json management etc.
-- **Writer**: Inside a tmux session, navigate to the novel folder (`no-title-XXX/`) and run `codex --dangerously-bypass-approvals-and-sandbox`.
-  - Codex가 소설 폴더의 설정 파일을 직접 읽고 본문을 생성한다. 리뷰/summary/commit은 supervisor가 처리.
+- **Writer**: Inside a tmux session, navigate to the novel folder (`no-title-XXX/`) and run `{{WRITER_CMD}}`.
+  - Writer가 소설 폴더의 설정 파일을 직접 읽고 본문을 생성한다. 리뷰/summary/commit은 supervisor가 처리.
 
 `settings/`는 hybrid, Claude lean, Codex lean이 공유하는 공통 집필 레이어다. 이 문서는 hybrid 세션 오케스트레이션만 정의하며, 문체/캐릭터/연속성/정기 점검 규칙이 충돌하면 `settings/`를 우선한다.
 
@@ -41,13 +44,32 @@ Modify these values for your novel before inputting the prompt.
 | `WRITER_CMD` | Writer launch command | `codex --dangerously-bypass-approvals-and-sandbox` |
 | `ARC_MAP` | Arc-to-episode mapping | See below |
 
+**Context 운영 원칙**:
+- 기본값은 `CHUNK_SIZE = -1`로 두고 `/clear`보다 자동 compact를 우선한다.
+- 수동 `/clear`는 auto-compact가 없는 모델이거나, 명백한 컨텍스트 오염/세션 꼬임이 있을 때만 예외적으로 사용한다.
+
 ### WRITER_CMD Examples
 
 | Value | Description |
 |-------|-------------|
-| `codex --dangerously-bypass-approvals-and-sandbox` | **Hybrid default**: GPT 5.4 writer, 승인 프롬프트 없이 파일 읽기/쓰기 |
-| `claude` | Lean fallback: Claude Code 전체 파이프라인 (hybrid에서는 비권장) |
-| `claude --model claude-sonnet-4-6` | Specify a particular model |
+| `codex --dangerously-bypass-approvals-and-sandbox` | **codex mode default**: GPT 5.4 writer, 승인 프롬프트 없이 파일 읽기/쓰기 |
+| `claude` | **claude mode default**: Claude Code writer (별도 tmux, writer 전용) |
+| `claude --model claude-sonnet-4-6` | claude mode: 특정 모델 지정 |
+
+### Mode-Dependent Defaults
+
+| Setting | codex mode | claude mode |
+|---------|-----------|-------------|
+| WRITER_CMD | `codex --dangerously-bypass-approvals-and-sandbox` | `claude` |
+| Writer send script | `tmux-send-codex` | `tmux-send-claude` |
+| Writer role prompt | `.claude/prompts/codex-writer-role.md` | `.claude/prompts/claude-writer-role.md` |
+| Writer prompt template | `.claude/prompts/codex-writer.md` | `.claude/prompts/claude-writer.md` |
+| Fixer prompt template | `.claude/prompts/codex-fixer.md` | `.claude/prompts/claude-fixer.md` |
+| tmux send sleep | 3 sec (Codex Enter quirk) | 0.3 sec (standard) |
+| Writer session prefix | — | `unset CLAUDECODE &&` (nested Claude 방지) |
+| gpt_feedback 권장값 | false | true |
+| Completion sentinel | `WRITER_DONE` (공통) | `WRITER_DONE` (공통) |
+| Fix sentinel | `FIX_DONE` (공통) | `FIX_DONE` (공통) |
 
 ### ARC_MAP Example
 
@@ -84,12 +106,15 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - 리뷰/검증/수정은 직접 수행하지 않고, Review 세션의 Claude에게 지시한다.
 - 메인 세션에서 직접 해도 되는 일은 `tmux` 관리, 상태 판독, sentinel 대기, 파일 존재 확인, `/root/novel/config.json` 갱신뿐이다.
 - review 세션이 맡아야 할 후처리를 메인 세션에서 직접 시작하면 안 된다. 그 조짐이 보이면 즉시 멈추고 review 세션으로 재전송한다.
+- context 관리는 기본적으로 writer의 자동 compact에 맡긴다. 세션을 습관적으로 `/clear`하지 않는다.
 
-**Writer 세션** (Codex — 집필 + 수정):
+**Writer 세션** (Codex 또는 Claude — `writer_model`에 따름 — 집필 + 수정):
 - tmux session name: `{{SESSION}}` (예: `write-001`)
 - **If session doesn't exist**: Create with `tmux new-session -d -s {{SESSION}} -x 220 -y 50 -c {{NOVEL_DIR}}`, then launch `{{WRITER_CMD}}`
+  - claude mode일 때: `unset CLAUDECODE && {{WRITER_CMD}}` (nested Claude 방지)
 - **If session exists**: Capture the screen to assess current state and continue
-- Codex가 집필과 fix-spec 수정을 모두 같은 세션에서 수행 (writer = fixer).
+- Writer가 집필과 fix-spec 수정을 모두 같은 세션에서 수행 (writer = fixer).
+- Writer 프롬프트 전송: codex mode → `tmux-send-codex`, claude mode → `tmux-send-claude`.
 
 **Review 세션** (Claude Code — 리뷰/검증/후처리):
 - tmux session name: `{{SESSION}}-review` (예: `write-001-review`)
@@ -120,10 +145,12 @@ Given episode number N, determine the arc and zero-padded filename from this map
 Before sending any writing prompt, the supervisor determines the `review_floor` for that episode:
 
 ```
-if N is first episode of a new arc   → review_floor = full
-elif N is last episode of current arc → review_floor = standard + arc transition package
-elif N % 5 == 0                       → review_floor = standard
-else                                  → review_floor = continuity
+if N is first episode of a new arc       → review_floor = full
+elif N is last episode of current arc    → review_floor = standard + arc transition package
+elif periodic_due (settings/07-periodic) → review_floor = standard
+    # 기본 7화 간격, 최대 8화. 조기 drift trigger 시 앞당김 가능.
+    # N % 5 == 0 고정 주기 아님. 07-periodic.md Trigger 섹션 참조.
+else                                     → review_floor = continuity
 ```
 
 **Prose drift override**: 아래 중 하나라도 보이면 해당 화의 review_floor를 최소 `standard`로 올린다.
@@ -209,14 +236,14 @@ else                                  → review_floor = continuity
 9. Arc summary + character state reset (settings/05-continuity.md)
 10. Unresolved thread triage (carry-forward vs discard)
 
-**Hybrid**: `review_floor`은 Codex writer 프롬프트에 넣지 않는다. supervisor가 3b-post에서 직접 해당 모드로 unified-reviewer를 실행한다.
+**Hybrid**: `review_floor`은 Writer 프롬프트에 넣지 않는다. supervisor가 3b-post에서 직접 해당 모드로 unified-reviewer를 실행한다.
 
 **Arc boundary detection**: Check ARC_MAP:
 - **First episode** of any arc → `full` (보이스/설정/톤 진입 제어)
 - **Last episode** of any arc → `standard` + arc transition package (why-check + 요약 리셋)
 - Both checks apply to prologue, all arcs, and epilogue.
 
-**Periodic check alignment**: When `review_floor = standard` (5화 배수), also add periodic check instruction to the prompt.
+**Periodic check alignment**: When `review_floor = standard` because `periodic_due` or an early drift trigger fired, also add periodic check instruction to the prompt.
 
 ### 2.6 Supervisor Plot-Repair Approval Protocol
 
@@ -245,9 +272,9 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 
 ### 3. Writing Prompts
 
-#### 3a. Chunk Start Prompt — Codex Writer (first episode or new session)
+#### 3a. Chunk Start Prompt — Writer (first episode or new session)
 
-> **정본**: `.claude/prompts/codex-writer.md`의 **Chunk Start Prompt**.
+> **정본**: `writer_model`에 따라 `.claude/prompts/codex-writer.md` 또는 `.claude/prompts/claude-writer.md`의 **Chunk Start Prompt**.
 > supervisor가 아래 변수를 채워 tmux로 전송한다. **이 문서에 인라인 복사본을 두지 않는다** — 동기화 드리프트 방지.
 
 **채울 변수**: `{N}`, `{arc}`, `{NN}`, `{MIN}`, `{MAX}`, `{{NOVEL_DIR}}`
@@ -255,21 +282,23 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 **공통 집필 레이어**: writer는 `settings/01-style-guide.md`, `settings/03-characters.md`, `settings/05-continuity.md`, `settings/07-periodic.md`를 shared authoring layer로 취급한다. 이 문서는 세션 역할과 순서만 정의한다.
 
 **전송 순서**:
-1. `.claude/prompts/codex-writer.md`의 Chunk Start 코드 블록을 읽는다
+1. writer_model에 맞는 writer prompt 파일의 Chunk Start 코드 블록을 읽는다
 2. 변수를 치환한다
-3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep 3` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
-4. 전송 직후 장시간 고정 `sleep`으로 기다리지 말고, 가능하면 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" ...` 로 sentinel/timeout을 함께 감시한다.
+3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
+4. 전송 직후 **즉시** `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 420 2 200`로 들어간다.
+   - 장시간 고정 `sleep`으로 먼저 기다리지 않는다.
+   - `tmux capture-pane` 수동 확인은 **timeout 이후 fallback**으로만 쓴다.
 
-#### 3b. Continuation Prompt — Codex Writer (previous episode context loaded)
+#### 3b. Continuation Prompt — Writer (previous episode context loaded)
 
-> **정본**: `.claude/prompts/codex-writer.md`의 **Continuation Prompt**.
+> **정본**: `writer_model`에 따라 `.claude/prompts/codex-writer.md` 또는 `.claude/prompts/claude-writer.md`의 **Continuation Prompt**.
 > 변수 치환 + §3d 전송 프로토콜 동일.
 
 **채울 변수**: `{N}`, `{arc}`, `{NN}`, `{{NOVEL_DIR}}`
 
-#### 3b-post. Supervisor Post-Write Pipeline (Codex 완료 후 Claude가 수행)
+#### 3b-post. Supervisor Post-Write Pipeline (Writer 완료 후 Claude가 수행)
 
-> Codex가 `WRITER_DONE`을 출력하면, supervisor(Claude Code)가 아래를 순서대로 수행한다.
+> Writer가 `WRITER_DONE`을 출력하면, supervisor(Claude Code)가 아래를 순서대로 수행한다.
 
 1. **chapter 파일 확인**: `ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`
 2. **review 세션으로 post-write 지시 전송**: 기본은 `tmux-send-claude`로 보낸다. 아래 작업을 review 세션이 수행하게 한다.
@@ -278,19 +307,19 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
    - narration opening, scene-transition first line, paragraph-ending sentence 중 하나라도 어색한 결합이 의심되면 현재 화에 한해 `/naturalness {N}`를 추가 실행하고 결과를 fix routing에 합친다.
 5. **문제 발견 시 — fix routing**:
    a. 모든 발견 항목을 **patch_class**로 분류:
-      - `micro`: 사실관계 1-3문장 → **Codex fixer**
-      - `local`: 문단 내 수정 → **Codex fixer**
-      - `rewrite`: 장면 수준 재작성 → **Codex fixer**
+      - `micro`: 사실관계 1-3문장 → **Writer fixer**
+      - `local`: 문단 내 수정 → **Writer fixer**
+      - `rewrite`: 장면 수준 재작성 → **Writer fixer**
       - `hold`: 구조 변경 필요 → **HOLD Transfer Routing** (아래 §5g 참조)
    b. `micro`/`local`/`rewrite` 항목을 에피소드 단위로 번들: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성
-   c. Codex writer 세션에 전송 (writer = fixer, 같은 세션):
+   c. Writer 세션에 전송 (writer = fixer, 같은 세션):
       ```
       tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
       완료 후: FIX_DONE chapter-{NN}
       ```
    e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
-   f. **재수정 상한**: Codex fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
+   f. **재수정 상한**: Writer fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
 6. **summary 갱신**: running-context, episode-log, character-tracker 등 — review 세션 수행
 7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행
 8. **EPISODE_META 삽입**: chapter 파일 끝에 append — review 세션 수행
@@ -321,6 +350,8 @@ tmux send-keys -t {{SESSION}} Enter
 ```
 
 > **Codex 특이사항**: 텍스트 입력 직후 Enter를 누르면 줄바꿈만 된다. 3초 이상 대기 후 Enter를 눌러야 메시지가 전송된다. 긴 프롬프트는 `sleep 5`도 고려.
+>
+> **Claude mode**: `sleep 0.3`이면 충분하다. Claude Code는 Codex와 달리 즉시 Enter가 전송을 트리거하므로 긴 대기가 불필요하다.
 
 **Codex 전용 권장 방식**:
 
@@ -337,8 +368,8 @@ tmux capture-pane -t {{SESSION}} -p -S -20
 
 Interpretation:
 
-- **Started correctly**: `Working`이 보이거나, 새 응답 블록(`• ...`)이 붙는다
-- **Enter likely failed**: `Working`과 새 응답 블록이 2초 안에 모두 보이지 않는다
+- **Started correctly**: Codex — `Working`이 보이거나 새 응답 블록(`• ...`)이 붙는다. Claude — `⏺` 스피너 또는 `Reading`/`Editing` 등 진행 표시가 보인다
+- **Enter likely failed**: 진행 표시가 2초 안에 보이지 않는다
 
 If Enter likely failed, resend only Enter once:
 
@@ -353,7 +384,7 @@ Rules:
 - Use `-l` for command text so tmux sends the string literally
 - Send `Enter` separately; do not use double-Enter by default
 - Retry only one extra `Enter` before treating it as a state/error investigation case
-- Codex tmux 전송 확인은 `Working` 또는 새 응답 블록만 기준으로 본다. `Explored`, `Edited`, `Ran`은 화면 윗부분의 이전 작업 로그일 수 있다.
+- Codex tmux 전송 확인은 `Working` 또는 새 응답 블록만 기준으로 본다. `Explored`, `Edited`, `Ran`은 화면 윗부분의 이전 작업 로그일 수 있다. Claude는 `⏺` 스피너 출현으로 판단한다.
 - Apply this protocol to all prompt sends, `/clear`, `/why-check`, permission answers, and recovery commands
 
 ### 4. Supervision Loop
@@ -371,32 +402,35 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 | State | Detection Pattern | Action |
 |-------|-------------------|--------|
-| **Working** | `• Working (Ns)` 표시, 또는 `• Explored`, `• Edited`, `• Ran` 등 진행 표시 | Re-check after 2 minutes |
-| **Completed (WRITER_DONE)** | `WRITER_DONE chapter-{NN}.md` 출력 + `›` 프롬프트 대기 | **Post-write pipeline (3b-post) 시작** |
-| **Completed (prompt ready)** | `›` 프롬프트 + `gpt-5.4` 표시 (WRITER_DONE 없이) | Chapter 파일 존재 확인 후 post-write pipeline |
-| **Trust prompt** | `Do you trust the contents` + `Press enter to continue` | Enter 전송 |
+| **Working** | Codex: `• Working (Ns)`, `• Explored`, `• Edited`, `• Ran` 등 진행 표시. Claude: `⏺` 스피너, `Reading`, `Editing`, `Running` 등 진행 표시 | Re-check after 2 minutes |
+| **Completed (WRITER_DONE)** | `WRITER_DONE chapter-{NN}.md` 출력 + 프롬프트 대기 (Codex: `›`, Claude: `>`) | **Post-write pipeline (3b-post) 시작** |
+| **Prompt ready without sentinel** | Codex: `›` 프롬프트 + `gpt-5.4` 표시. Claude: `>` 프롬프트 (WRITER_DONE 없이) | **완료로 즉시 간주하지 않는다.** timeout 이후 fallback 점검 대상으로만 본다 |
+| **Trust prompt** | `Do you trust the contents` + `Press enter to continue` (Codex 전용) | Enter 전송 |
 | **Error occurred** | `Error`, `FATAL`, `Permission denied` etc. | 분석 후 복구 |
 | **Infinite loop** | 같은 파일 반복 편집, 10분+ 진전 없음 | Esc로 중단 후 재지시 |
-| **Abnormal exit** | codex 종료, bash `$` 프롬프트만 표시 | `{{WRITER_CMD}}` 재시작 |
+| **Abnormal exit** | writer 종료, bash `$` 프롬프트만 표시 | `{{WRITER_CMD}}` 재시작 |
 
 #### 4c. Completion Verification
 
 To accurately determine "completed" state, verify all of the following:
 
-1. **WRITER_DONE sentinel**: 기본은 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 1800 2 200`으로 감시한다. timeout이면 `tmux capture-pane` + `›` 프롬프트 + 파일 존재를 함께 확인한다.
+1. **WRITER_DONE sentinel**: send 직후 곧바로 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 420 2 200`으로 감시한다.
+   - 이 단계가 기본 경로다. 중간에 `sleep 300 && tmux capture-pane ...` 같은 장시간 대기는 넣지 않는다.
+   - timeout일 때만 `tmux capture-pane` + `›` 프롬프트 + 파일 존재를 함께 확인한다.
 2. **Work artifact exists**: Chapter file exists (`ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`)
 3. **Progress log 기록**: supervisor가 직접 `echo "EP {N} DONE $(date +%H:%M)" >> {{NOVEL_DIR}}/summaries/batch-progress.log` 실행.
 
-> **batch-progress.log 관리**: supervisor가 3b-post 완료(commit까지 끝난 후)마다 기록한다. Codex가 아닌 supervisor의 책임.
+> **batch-progress.log 관리**: supervisor가 3b-post 완료(commit까지 끝난 후)마다 기록한다. Writer가 아닌 supervisor의 책임.
 
-All conditions met → 다음 화 프롬프트. 파일 없으면 Codex 재지시.
+All conditions met → 다음 화 프롬프트. 파일 없으면 Writer 재지시.
+`›` 프롬프트만 보였다는 이유로는 완료 처리하지 않는다. sentinel 없이 prompt ready면 fallback 조사 후에만 post-write로 넘어간다.
 
 #### 4c-2. Review Session Completion Verification
 
 review 세션도 writer와 마찬가지로 sentinel 기반으로 완료를 판정한다.
 
-- 화별 post-write: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "REVIEW_DONE chapter-{NN}" 1800 2 200`
-- fix 재검증: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "RECHECK_DONE chapter-{NN}" 900 2 200`
+- 화별 post-write: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "REVIEW_DONE chapter-{NN}" 300 2 200`
+- fix 재검증: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "RECHECK_DONE chapter-{NN}" 300 2 200`
 - 아크 경계 패키지: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "ARC_DONE {arc}" 3600 3 260`
 
 주의:
@@ -445,23 +479,23 @@ Wait 5 seconds, then send full prompt (3a).
 > **When to use CHUNK_SIZE = -1 (recommended)**: Claude Opus or any model with auto-compact. Auto-compact preserves important context while managing window size.
 > **When to use CHUNK_SIZE > 0**: Models without auto-compact (NIM proxy models, open-source models), or when context window is small (< 200K).
 
-#### 5b. Arc Transition (Hybrid: Supervisor 직접 실행)
+#### 5b. Arc Transition (Review 세션에 지시)
 
-> **Hybrid 핵심**: 아크 전환 A~F는 **Claude supervisor가 직접 실행**한다. Codex writer 세션에 보내지 않는다.
-> `/oag-check`, `/why-check`, `/narrative-fix` 등은 Claude 커맨드이므로 Codex에서 동작하지 않는다.
-> 수정이 필요하면: 모든 텍스트 수정은 Codex writer 세션에서 수행 (fix routing 적용).
+> **3세션 원칙 유지**: 아크 전환 A~F도 supervisor가 직접 실행하지 않고 **review 세션에 지시**한다.
+> `/oag-check`, `/why-check`, `/narrative-fix` 등은 review 세션의 Claude가 실행한다.
+> 텍스트 수정이 필요하면: review 세션이 fix-spec 생성 → Writer 세션에서 수정 (fix routing 적용).
 
 When the episode number enters a new arc range:
 
 1. Confirm completion of the last episode of the previous arc
-2. **A. OAG 탐지** — supervisor가 직접 `/oag-check` 실행:
+2. **A. OAG 탐지** — review 세션에 `/oag-check` 지시:
    - `.claude/agents/oag-checker.md` Text Mode
    - 대상: {start}~{end}화
    - 산출물: `summaries/oag-report.md`
-   - `plot-change-needed` → `/plot-repair` (supervisor 판단)
-   - `patch-feasible` → Claude가 fix-spec 생성 → Codex fixer 수정
+   - `plot-change-needed` → review 세션이 `/plot-repair` 실행 (supervisor 판단 후 지시)
+   - `patch-feasible` → review 세션이 fix-spec 생성 → Writer 세션 수정
 3. **B. 본문 패치** — fix routing 적용 (3b-post 동일)
-4. **C. 설명 갭** — supervisor가 직접 `/why-check text` 실행
+4. **C. 설명 갭** — review 세션에 `/why-check text` 지시
    - MISSING 우선순위 6+ → fix routing 적용
    - HOLD → 다음 사이클 이관
 4. **Run external arc readthrough on the completed arc**:
@@ -495,26 +529,26 @@ When the episode number enters a new arc range:
    - Save the normalized result to `summaries/arc-readthrough-report.md`.
    - If the external AI requests source text for a specific item, send only that episode (or small chunk), not the whole arc.
    - Triaging rule:
-     - `patch-feasible: yes` → fix routing → Codex writer 세션에서 수정
+     - `patch-feasible: yes` → fix routing → Writer 세션에서 수정
      - wider structural issue → `[HOLD]` + **§5g HOLD Transfer Routing** 수행
-5. **D.5. 전문 감사** — supervisor 직접:
+5. **D.5. 전문 감사** — review 세션에 지시:
    - `/pov-era-check` + `/scene-logic-check` 병렬
    - 수정: fix routing 적용
-6. **D.7. 반복 감사** — supervisor 직접:
+6. **D.7. 반복 감사** — review 세션에 지시:
    - `/repetition-check` → HIGH 항목 fix routing
-7. **E. 자연스러움** — supervisor 직접:
+7. **E. 자연스러움** — review 세션에 지시:
    - `/naturalness` (Claude + GPT MCP) → `/naturalness-fix`
-8. **E.5. 개발편집** — supervisor 직접:
+8. **E.5. 개발편집** — review 세션에 지시:
    - `/narrative-review` 실행 → 서사 품질 거시 진단 (10기둥 분석)
    - "이 아크가 좋은 소설로 작동하는가" 판정: 주인공 수동화, 스케일 인플레이션, 주제 표류 감지
-   - HIGH 이상 항목 → fix routing (Codex fixer)
+   - HIGH 이상 항목 → fix routing (Writer 세션)
    - 사용자 판단이 필요한 구조적 제안 → 사용자에게 보고
-9. **F. 아크 마감** — supervisor 직접:
+9. **F. 아크 마감** — review 세션에 지시:
    - Arc summary + character state reset
    - Unresolved thread triage
-10. **새 아크 준비** — supervisor 직접:
+10. **새 아크 준비** — review 세션에 지시:
     - `plot/{arc}.md` 존재 확인 → 없으면 3c로 생성
-    - `/oag-check plan` + `/why-check plan` → supervisor 직접 실행
+    - `/oag-check plan` + `/why-check plan` → review 세션에서 실행
     - 새 아크 컨셉이 장기 연재에서 지속 가능한지 검토 (story-consultant 참조 가능)
     - 정기 점검 트리거: 첫 화 프롬프트에 `※ 아크 전환 시점` 포함
 
@@ -526,7 +560,7 @@ When the episode number enters a new arc range:
 
 | hold_route | 조건 | 행동 |
 |------------|------|------|
-| `retro-fix` | 이미 쓴 장면이 **사실적으로 거짓**이 됨 (독자가 이미 읽은 내용과 충돌) | 해당 화 수정 — Codex fixer (rewrite급 fix-spec) |
+| `retro-fix` | 이미 쓴 장면이 **사실적으로 거짓**이 됨 (독자가 이미 읽은 내용과 충돌) | 해당 화 수정 — Writer fixer (rewrite급 fix-spec) |
 | `forward-fix` | 설명 부족/동기 약화 수준. 미래 5화 내 또는 다음 아크 초반에 자연스러운 보상 가능 | 미래 plot에 보상 비트 삽입. 기존 본문은 건드리지 않음 |
 | `plot-repair` | 미래 아크 설계 자체를 다시 짜야 함 | plot-surgeon 호출 |
 | `user-escalation` | 핵심 약속(§1.1) 위반, 3개+ 아크 영향, 세계관 규칙 변경 필요 | 집필 중단 + 사용자에게 보고 |
@@ -578,10 +612,10 @@ When the episode number enters a new arc range:
 
 #### 5c. Periodic Check (Hybrid: Review 세션 위임)
 
-> **Hybrid**: 정기 점검은 Codex writer 세션에 보내지 않는다. 그러나 메인 supervisor가 직접 수행하는 것도 금지한다.
+> **Hybrid**: 정기 점검은 Writer 세션에 보내지 않는다. 그러나 메인 supervisor가 직접 수행하는 것도 금지한다.
 > 정기 점검은 반드시 review 세션 Claude에게 지시해서 수행한다.
 
-Trigger: 5화 단위 기본 (settings/07-periodic.md에 따라 조정).
+Trigger: 6~8화 단위 (기본 7화 간격, 최대 8화 초과 금지). 조기 drift trigger 시 앞당김 가능. 상세: `settings/07-periodic.md`.
 
 Supervisor가 할 일:
 1. review 세션에 periodic 프롬프트 전송 (`tmux-send-claude` 기본)
@@ -593,9 +627,9 @@ Review 세션이 수행:
 2. 외부 AI 일괄 리뷰(프로젝트가 활성화한 경우만)
 3. Claude 전용 checker 및 관련 MCP 점검
 
-After the periodic check, supervisor continues with next episode prompt to Codex writer.
+After the periodic check, supervisor continues with next episode prompt to Writer.
 
-> **주의**: `/pov-era-check`, `/narrative-fix` 등은 Claude 커맨드이므로 **Codex writer 세션에 보내지 않는다**. 그러나 메인 supervisor가 직접 실행하는 것도 금지한다. 항상 review 세션으로 보낸다.
+> **주의**: `/pov-era-check`, `/narrative-fix` 등은 Claude 커맨드이므로 **Writer 세션에 보내지 않는다** (codex/claude 모두 동일 — writer는 집필 전용). 그러나 메인 supervisor가 직접 실행하는 것도 금지한다. 항상 review 세션으로 보낸다.
 
 #### 5d. Session Crash Recovery
 

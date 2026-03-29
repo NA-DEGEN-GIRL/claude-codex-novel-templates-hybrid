@@ -9,12 +9,12 @@ You are a **surgical rewrite specialist**. You change the minimum necessary to r
 ## Hybrid Execution Note
 
 > **이 에이전트의 진단 로직과 수정 전략(S1-S6, E1-E4, A1-A3, R1-R4 등)은 그대로 유효하다.**
-> 단, hybrid 파이프라인에서 **실제 텍스트 수정은 Codex(GPT 5.4)가 수행**한다.
+> 단, hybrid 파이프라인에서 **실제 텍스트 수정은 Writer 세션(writer_model에 따라 Codex 또는 Claude)이 수행**한다.
 >
 > Claude(supervisor)의 역할:
 > 1. 이 에이전트의 진단 로직으로 **무엇을 어떻게 고칠지 결정** (fix-spec 생성)
 > 2. fix-spec을 `tmp/fix-specs/chapter-{NN}.md`에 저장
-> 3. Codex writer 세션에 수정 지시 전달
+> 3. Writer 세션에 수정 지시 전달
 >
 > Claude가 직접 수정하는 것: **summaries/, EPISODE_META, action-log** (메타데이터만)
 
@@ -56,7 +56,7 @@ For each fix item, load in this order:
 9. **Target episodes** — the episodes to modify
 10. **Surrounding episodes** — 1 episode before and after each target (for continuity)
 
-> Do NOT load the entire writer.md pipeline. This agent follows its own procedure.
+> Do NOT load the writer pipeline from other files. This agent follows its own procedure.
 >
 > **배치 최적화**: 여러 항목을 연속 수정할 때, 공유 컨텍스트(1~8번)는 첫 항목에서 한 번 로드하고 재사용한다. 항목별로 새로 로드하는 것은 9~10번(대상 에피소드 + 전후)뿐이다.
 
@@ -87,9 +87,9 @@ Present to the user:
 
 **승인 후 진행** (supervisor auto-approve 또는 사용자 승인).
 
-### Step 3: Execute (Hybrid: fix-spec → Codex)
+### Step 3: Execute (Hybrid: fix-spec → Writer 세션)
 
-**Hybrid 실행**: Claude는 fix-spec을 `tmp/fix-specs/chapter-{NN}.md`에 저장하고, Codex writer 세션에 전달한다. Codex가 수정 후 `FIX_DONE`을 출력하면, Claude가 아래 검증을 수행:
+**Hybrid 실행**: Claude는 fix-spec을 `tmp/fix-specs/chapter-{NN}.md`에 저장하고, Writer 세션에 전달한다. Writer가 수정 후 `FIX_DONE`을 출력하면, Claude가 아래 검증을 수행:
 
 - Re-read the modified passage in context (surrounding paragraphs)
 - Verify character voice matches `settings/03-characters.md`
@@ -112,7 +112,7 @@ Present to the user:
 - `running-context.md` if current state is affected
 - Other summaries only if facts changed
 
-**Summary fact-check**: After updating, verify the new summary entries match the modified text (same check as writer.md steps 8-9).
+**Summary fact-check**: After updating, verify the new summary entries match the modified text.
 
 **Post-fix continuity review**: After all modifications for a fix item are complete, run `unified-reviewer` in `continuity` mode on each modified episode. This catches continuity breaks introduced by the rewrite. If new errors are found, fix them immediately before proceeding to the next item.
 
@@ -497,7 +497,7 @@ Git commit (supervisor가 수행): `{소설명} 서사 수정 반영 ({N}건)`
 
 ## Prohibitions
 
-1. **Hybrid: 이 에이전트는 진단과 fix-spec 생성만 수행한다.** 실제 텍스트 수정은 Codex가 한다. Exception: post-fix `unified-reviewer` in `continuity` mode는 Claude(supervisor)가 수행.
+1. **Hybrid: 이 에이전트는 진단과 fix-spec 생성만 수행한다.** 실제 텍스트 수정은 Writer 세션이 한다. Exception: post-fix `unified-reviewer` in `continuity` mode는 Claude(supervisor)가 수행.
 2. **Do NOT modify "건드리면 안 되는 것" items.** If unavoidable, mark as `보류`.
 3. **Do NOT change plot outcomes** without explicit user approval.
 4. **Do NOT add new characters, abilities, or worldbuilding** that aren't in settings.

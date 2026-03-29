@@ -27,7 +27,8 @@
 - **nim_feedback_model**: "openai/gpt-oss-120b"
 - **ollama_feedback**: false  <!-- set true to enable Ollama proofreading -->
 - **ollama_feedback_model**: "gpt-oss:120b"
-- **gpt_feedback**: false  <!-- hybrid: GPT가 집필하므로 GPT 리뷰 비활성 -->
+- **gpt_feedback**: false  <!-- codex mode: false (집필 모델과 동일). claude mode: true 권장 (교차 검증) -->
+- **writer_model**: codex  <!-- codex = Codex/GPT writer, claude = Claude writer. 모드에 따라 writer 프롬프트, tmux 전송 방식, gpt_feedback 기본값이 달라짐 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
 
 ### 1.1 Core Promises
@@ -70,6 +71,7 @@
 │   ├── running-context.md
 │   ├── episode-log.md
 │   ├── character-tracker.md
+│   ├── dialogue-log.md    ← Character voice drift + role lock tracking
 │   ├── decision-log.md    ← Project-level deviation recording
 │   └── (+ promise/knowledge/relationship/feedback logs)
 └── .claude/agents/        ← Agents (writer, unified-reviewer, etc.)
@@ -93,13 +95,13 @@
 ### 3.2 Writing (Write)
 
 1. Follow `settings/02-episode-structure.md`.
-2. Follow `settings/01-style-guide.md`.
+2. Follow `settings/01-style-guide.md`. **규칙이 충돌하면 §0.8 우선순위를 따른다.**
 3. Target length: {{TARGET_LENGTH}}
 4. **When 2+ active characters share a scene, let dialogue and reaction carry part of the scene load.** Narration may frame the exchange, but the reader should be able to infer at least some combination of situation, hierarchy, hidden intent, or emotional pressure from the spoken interaction itself.
 5. **Co-presence rule**: If a named character is in the same room, lodging, meal, cart, boat, watch post, or hideout, the prose must acknowledge that presence in a natural way. They may speak, react, stay silent, sleep, listen, leave, or be explicitly absent, but they must not vanish from scene logic.
-6. **Use MCP tools directly.** In Codex/Claude runtime, `novel-calc` is an MCP server, not a required shell wrapper.
+6. **Use MCP tools directly.** In Codex/Claude runtime, `novel-calc` is an MCP server, not a shell wrapper.
    - Preferred path: direct MCP tool calls (`calculate`, `date_calc`, `travel_estimate`, `char_count`, etc.).
-   - `scripts/novel-calc` is only a manual shell fallback for local debugging. It is not the default runtime path.
+   - This template keeps **native MCP only** for calculation/naming/editor flows. Do not introduce a parallel shell-wrapper path.
 7. **`novel-calc` MCP is for narrative verification only. Calculations must NOT drive the narrative.**
    - Write prose naturally first. Then verify numerical consistency with calc only if needed.
    - Calc results allowed in: (1) unified-reviewer evidence, (2) summaries/ updates, (3) in-world UI/popup/display numbers. NEVER insert calc results into narration, dialogue, or inner monologue.
@@ -161,7 +163,7 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 
 **External feedback sources** (per CLAUDE.md flags):
 1. **Gemini** (`gemini_feedback: true`): continuity/worldbuilding → `EDITOR_FEEDBACK_gemini.md`
-2. **GPT** (`gpt_feedback: false`): ~~prose/dialogue/emotion~~ — hybrid에서 비활성 (집필 모델과 동일)
+2. **GPT** (`gpt_feedback`): prose/dialogue/emotion → `EDITOR_FEEDBACK_gpt.md`. codex mode에서는 false 권장 (집필 모델과 동일), claude mode에서는 true 권장 (교차 검증)
 3. **NIM** (`nim_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_nim.md`
 4. **Ollama** (`ollama_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_ollama.md`
 
@@ -169,11 +171,12 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 
 ### 3.4 Post-Processing (Hybrid: Supervisor가 수행)
 
-> **Hybrid 파이프라인**: Codex writer는 본문 생성만 담당. 아래 후처리는 **Claude supervisor가 직접 수행**한다.
+> **Hybrid 파이프라인**: Writer (Codex 또는 Claude, `writer_model` 설정에 따름)는 본문 생성만 담당. 아래 후처리는 **Claude supervisor가 직접 수행**한다.
 
 1. **Summary update**: Supervisor가 chapter 파일을 읽고 직접 갱신.
    - Required (every ep): `running-context.md`, `episode-log.md`, `character-tracker.md`
    - Conditional (only if relevant change): `promise-tracker.md`, `knowledge-map.md`, `relationship-log.md`, `foreshadowing.md`, `decision-log.md`
+   - Conditional: `dialogue-log.md` — 대화 기능 태그는 매화 등장 시 항상 기록 (role-only 행). 톤 델타/관계톤/지향은 앵커에서 이탈한 경우만 기록 (이탈 행). 원문 복붙 금지. 3화 이상 반복된 패턴은 `03-characters.md`로 승격 검토.
 2. **Insert EPISODE_META**: Supervisor가 chapter 파일 끝에 append. Set `date` to today `"YYYY-MM-DD"`.
 3. **Update feedback log**: Record 3.3 results in `editor-feedback-log.md`.
 4. **Git commit**: After episode completion (manuscript + summaries). Message: `{소설명} {N}~{M}화 집필`. Push only on user request.
@@ -188,15 +191,17 @@ Arc boundary principle:
 
 → See `settings/07-periodic.md`.
 
-**Why-checker** (`/why-check`): Runs at arc boundaries (text mode), arc starts (plan mode), and optionally every 5-8 episodes (rolling mini-check). See `.claude/agents/why-checker.md`.
+**Why-checker** (`/why-check`): Detects explanation gaps, consequence gaps, and causality-chain breaks from a text-only reader perspective. OAG/action-gap 판정은 포함하지 않는다. 기본 상시 아님 — 설명 누락 의심 구간, 고위험 장면, 아크 전환에서 실행. See `.claude/agents/why-checker.md`.
 
-**OAG-checker** (`/oag-check`): Detects Obligatory Action Gaps — characters knowing information but failing to act on it. Runs at arc transitions (text mode) and before writing new arcs (plan mode). See `.claude/agents/oag-checker.md`.
+**OAG-checker** (`/oag-check`): Detects Obligatory Action Gaps — characters knowing information but failing to act on it. 기본 상시 아님 — 구조상 행동 기대가 강한 장면, 아크 전환에서 실행. See `.claude/agents/oag-checker.md`.
 
-**POV-Era-checker** (`/pov-era-check`): POV 인물의 지식 범위를 벗어난 명칭/정보 + 시대/세계관에 부적합한 표현 전담 감사. 5화 단위 periodic check + 아크 경계 배치 실행. See `.claude/agents/pov-era-checker.md`.
+**POV-Era-checker** (`/pov-era-check`): POV 인물의 지식 범위를 벗어난 명칭/정보 + 시대/세계관에 부적합한 표현 전담 감사. 전근대/무협/회귀/시스템 용어 위험 화수와 아크 경계에서 실행. See `.claude/agents/pov-era-checker.md`.
 
-**Scene-Logic-checker** (`/scene-logic-check`): 장면 내부의 동작/시선/방향/자세 논리 모순 전담 감사. 아크 경계 배치 실행. See `.claude/agents/scene-logic-checker.md`.
+**Scene-Logic-checker** (`/scene-logic-check`): 장면 내부의 동작/시선/방향/자세 논리 모순 전담 감사. 전투/추격/블로킹 복잡 장면과 아크 경계에서 실행. See `.claude/agents/scene-logic-checker.md`.
 
-**Repetition-checker** (`/repetition-check`): 크로스 에피소드 반복 패턴(표현, 감정 처리, 정보 전달 구조, 에피소드 아키타입) 전담 감사. 5화 단위 정기 + 아크 경계 배치 실행. See `.claude/agents/repetition-checker.md`. 산출물: `summaries/cross-episode-repetition-report.md` + `summaries/repetition-watchlist.md`.
+**Repetition-checker** (`/repetition-check`): 크로스 에피소드 반복 패턴(표현, 감정 처리, 정보 전달 구조, 에피소드 아키타입) 전담 감사. 8~15화 간격 또는 아크 경계에서 실행. watchlist가 없으면 더 늦춰도 됨. See `.claude/agents/repetition-checker.md`. 산출물: `summaries/cross-episode-repetition-report.md` + `summaries/repetition-watchlist.md`.
+
+> Specialist checker cadence 상세: `settings/07-periodic.md` Specialist Cadence 테이블 참조.
 
 ---
 

@@ -128,7 +128,7 @@ Format:
 
 ## Report Format
 
-> **이 보고서는 감지와 진단만 한다.** 수정은 supervisor가 fix-spec을 생성하고 Codex가 수행한다. oag-checker는 "뭐가 빠졌는지"와 "왜 독자가 느끼는지"만 보고한다.
+> **이 보고서는 감지와 진단만 한다.** 수정은 supervisor가 fix-spec을 생성하고 Writer 세션이 수행한다. oag-checker는 "뭐가 빠졌는지"와 "왜 독자가 느끼는지"만 보고한다.
 
 ```markdown
 # OAG 검사 보고서
@@ -155,11 +155,11 @@ Format:
 
 | 심각도 | Fixability | 건수 | 수정 경로 |
 |--------|-----------|------|----------|
-| CRITICAL | patch-feasible | {N} | fix-spec → Codex 수정 |
+| CRITICAL | patch-feasible | {N} | fix-spec → Writer 세션 수정 |
 | CRITICAL | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
-| HIGH | patch-feasible | {N} | fix-spec → Codex 수정 |
+| HIGH | patch-feasible | {N} | fix-spec → Writer 세션 수정 |
 | HIGH | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
-| MODERATE | patch-feasible | {N} | fix-spec → Codex 수정 |
+| MODERATE | patch-feasible | {N} | fix-spec → Writer 세션 수정 |
 | MODERATE | plot-change-needed | {N} | plot-surgeon → 플롯 수정 |
 ```
 
@@ -221,7 +221,7 @@ Format:
 ## Important Notes
 
 1. **감지와 진단만**: 이 에이전트는 "뭐가 빠졌는지"와 "왜 독자가 느끼는지"만 보고한다. "어떻게 고칠지"는 판단하지 않는다.
-2. **수정은 Codex가**: supervisor가 fix-spec을 생성하고, Codex writer 세션에서 본문 맥락을 보고 캐릭터에 맞는 방식으로 메운다. oag-checker의 기대 행동이 유일한 해법이 아님.
+2. **수정은 Writer 세션이**: supervisor가 fix-spec을 생성하고, Writer 세션에서 본문 맥락을 보고 캐릭터에 맞는 방식으로 메운다. oag-checker의 기대 행동이 유일한 해법이 아님.
 3. **다른 에이전트와 독립**: 별도 컨텍스트에서 실행. 집필 과정의 합리화 편향을 피하기 위함.
 4. **Phase 1-5는 텍스트 + 캐릭터 시트만 읽는다**: settings/03-characters.md 외에 plot/, summaries/는 읽지 않음. **Phase 5.5(Fixability)에서만 plot 참조 허용** — 패치 충돌 검사와 수정 범위 판정 용도로만.
 5. **짧게 끝낸다**: OAG만 기재. 잘 된 부분, 총평, 칭찬은 보고하지 않음.

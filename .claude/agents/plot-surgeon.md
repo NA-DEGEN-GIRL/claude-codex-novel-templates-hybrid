@@ -236,14 +236,14 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 - `plot/arc-{NN}.md` 수정
 - 필요시 `plot/master-outline.md`, `plot/foreshadowing.md` 수정
 
-**B. 기집필 에피소드 본문 수정 지시** (Hybrid: Codex에게 handoff):
+**B. 기집필 에피소드 본문 수정 지시** (Hybrid: Writer 세션에 handoff):
 
-> **모든 텍스트 수정은 Codex가 수행한다.** Claude(supervisor)는 fix-spec만 생성.
+> **모든 텍스트 수정은 Writer 세션이 수행한다.** Claude(supervisor)는 fix-spec만 생성.
 
 | 규모 | 방식 | 지시 방법 |
 |------|------|----------|
-| 국소 보강 (현 장면 내부) | fix-spec `micro`/`local` | `tmp/fix-specs/chapter-{NN}.md` → Codex writer 세션 |
-| 장면 재설계/삽입 (파급 큼) | fix-spec `rewrite` + rewrite-brief | `summaries/rewrite-brief.md` → Codex writer 세션 |
+| 국소 보강 (현 장면 내부) | fix-spec `micro`/`local` | `tmp/fix-specs/chapter-{NN}.md` → Writer 세션 |
+| 장면 재설계/삽입 (파급 큼) | fix-spec `rewrite` + rewrite-brief | `summaries/rewrite-brief.md` → Writer 세션 |
 
 > 분류 기준은 분량이 아니라 **서사 파급 범위**다.
 
@@ -267,7 +267,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 - **Voice 참고**: {CLAUDE.md §0 또는 특정 캐릭터 톤}
 ```
 
-> Codex writer 세션이 이 brief를 읽고, 해당 장면만 재집필한다. supervisor가 fix-spec 또는 rewrite-brief를 Codex에 전달.
+> Writer 세션이 이 brief를 읽고, 해당 장면만 재집필한다. supervisor가 fix-spec 또는 rewrite-brief를 Writer 세션에 전달.
 
 ### Step 6: 재검증 및 후속 Handoff
 
@@ -292,8 +292,8 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 - [ ] character-tracker.md (해당 시)
 - [ ] knowledge-map.md (해당 시)
 
-### 본문 수정 이관 (Codex fixer)
-- [ ] EP {N}: {구체적 수정 내용} — fix-spec 생성 → Codex writer 세션에서 수정
+### 본문 수정 이관 (Writer 세션)
+- [ ] EP {N}: {구체적 수정 내용} — fix-spec 생성 → Writer 세션에서 수정
 ```
 
 > 이 목록을 `summaries/plot-repair-log.md`에 기록한다.
@@ -317,7 +317,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 | 3. 승인 | {승인 유형} | ✅ |
 | 4. Plot 파일 수정 | plot/{files} | ✅ / ⏳ |
 | 5. Rewrite Brief | summaries/rewrite-brief.md | ✅ / ⏳ |
-| 6. Codex Rewrite (fix-spec/brief) | chapters/{files} | ✅ / ⏳ |
+| 6. Writer Rewrite (fix-spec/brief) | chapters/{files} | ✅ / ⏳ |
 | 7. Rewrite Log | summaries/rewrite-log.md | ✅ / ⏳ |
 | 8. 재검증 (oag plan) | summaries/oag-check-plan-{arc}.md | ✅ / ⏳ |
 | 9. 재검증 (why plan) | summaries/why-check-plan-{arc}.md | ✅ / ⏳ |
@@ -332,8 +332,8 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 
 | 화수 | 규모 | 담당 | 상태 |
 |------|------|------|------|
-| EP{N} | 장면 삽입 (~{N}자) | Codex (rewrite-brief) | ✅ / ⏳ |
-| EP{M} | 1-3문장 패치 | Codex (fix-spec micro) | ✅ / ⏳ |
+| EP{N} | 장면 삽입 (~{N}자) | Writer (rewrite-brief) | ✅ / ⏳ |
+| EP{M} | 1-3문장 패치 | Writer (fix-spec micro) | ✅ / ⏳ |
 
 ## summaries 동기화
 
@@ -381,7 +381,7 @@ Auto-approve 시 로그에 `[AUTO-APPROVED]` 태그를 기록한다.
 ## Prohibitions
 
 1. **승인 없이 plot 파일 수정 금지.** (supervisor auto-approve 또는 사용자 승인)
-2. **이미 집필된 에피소드 본문을 직접 수정하지 않는다.** 본문 수정은 fix-spec → Codex fixer 경로.
+2. **이미 집필된 에피소드 본문을 직접 수정하지 않는다.** 본문 수정은 fix-spec → Writer 세션 경로.
 3. **보존 불변식을 위반하는 수정안은 제안하지 않는다.**
 4. **새 캐릭터, 새 세계관 규칙을 임의로 도입하지 않는다.** 필요하면 수정안에 "settings 파일 수정 필요"로 명시.
 5. **과도한 수선 금지.** 동기 구멍 하나를 메우기 위해 아크 전체를 재설계하지 않는다.

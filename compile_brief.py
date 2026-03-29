@@ -575,6 +575,114 @@ def _extract_last_n_episodes(
     return "\n\n".join(result)
 
 
+def _filter_dialogue_log(
+    content: str, characters: list[str], before_episode: int
+) -> str:
+    """dialogue-log.md에서 등장인물의 최근 대화 운용을 추출한다.
+
+    행 유형:
+    - 이탈 행: 톤 델타/관계톤/지향이 채워진 행 (보이스 drift 정보)
+    - role-only 행: 대화 기능만 기록, 나머지 "—" (역할 고착 판정용)
+
+    추출 우선순위: 이탈 행 > role-only 행.
+    캐릭터당 최대 2행, 전체 최대 8행, 섹션 하드캡 1200자.
+    """
+    if not content:
+        return ""
+
+    # 테이블 행 파싱 (헤더/구분선 제외)
+    rows: list[dict] = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) < 5:
+            continue
+        # 헤더/구분선 스킵: 숫자가 없는 행은 모두 제외
+        ep_str = re.sub(r"[^0-9]", "", cells[0])
+        if not ep_str:
+            continue
+        ep_num = int(ep_str)
+        if ep_num >= before_episode:
+            continue
+        # 이탈 행 vs role-only 행 판별 (톤 델타가 "—"이면 role-only)
+        is_deviation = len(cells) > 3 and cells[3].strip() not in ("—", "-", "")
+        rows.append({
+            "episode": ep_num,
+            "character": cells[1],
+            "line": line,
+            "is_deviation": is_deviation,
+        })
+
+    if not rows:
+        return ""
+
+    # 캐릭터 필터
+    include_all = not characters
+    matched_chars: set[str] = set()
+
+    for row in rows:
+        char = row["character"]
+        if not include_all and not any(c in char for c in characters):
+            continue
+        matched_chars.add(char)
+
+    # 각 캐릭터별: 이탈 행 우선, role-only 보조. 캐릭터당 최대 2행.
+    result_lines: list[str] = []
+    for char in matched_chars:
+        char_rows = [r for r in rows if r["character"] == char]
+        if not char_rows:
+            continue
+
+        recent_cutoff = before_episode - 3
+        # 이탈 행: 최근 3화 내 + 마지막 이탈 1건
+        dev_rows = [r for r in char_rows if r["is_deviation"]]
+        recent_dev = [r for r in dev_rows if r["episode"] >= recent_cutoff]
+        if dev_rows and dev_rows[-1] not in recent_dev:
+            recent_dev.append(dev_rows[-1])
+
+        # role-only 행: 최신 1건 (역할 고착 판정 보조)
+        role_rows = [r for r in char_rows if not r["is_deviation"]]
+        latest_role = [role_rows[-1]] if role_rows else []
+
+        # 이탈 우선 합치기, 최대 2행
+        combined = recent_dev + latest_role
+        # 중복 제거 + 최신 우선
+        seen_lines: set[str] = set()
+        unique: list[dict] = []
+        for r in sorted(combined, key=lambda x: x["episode"], reverse=True):
+            if r["line"] not in seen_lines:
+                seen_lines.add(r["line"])
+                unique.append(r)
+        for r in unique[:2]:
+            result_lines.append(r["line"])
+
+    if not result_lines:
+        return ""
+
+    # 전체 캡: 최대 8행
+    result_lines = result_lines[:8]
+
+    header = "| 화 | 캐릭터 | 대화 기능 | 톤 델타 | 관계톤 | 지향 |\n"
+    header += "|----|--------|----------|---------|--------|------|\n"
+    output = header + "\n".join(result_lines)
+
+    # 섹션 하드캡: 1200자
+    if len(output) > 1200:
+        lines = output.splitlines()
+        truncated = lines[:2]  # 헤더 + 구분선
+        total = sum(len(l) for l in truncated) + len(truncated)
+        for line in lines[2:]:
+            if total + len(line) + 1 > 1200:
+                break
+            truncated.append(line)
+            total += len(line) + 1
+        output = "\n".join(truncated)
+
+    return output
+
+
 def _extract_character_slice(
     novel_dir: str, characters: list[str]
 ) -> str:
@@ -973,6 +1081,7 @@ def _compile_brief(
     promise_tracker = _safe_read(summaries / "promise-tracker.md")
     foreshadowing = _safe_read(novel_path / "plot" / "foreshadowing.md")
     episode_log = _safe_read(summaries / "episode-log.md")
+    dialogue_log = _safe_read(summaries / "dialogue-log.md")
     claude_md = _safe_read(novel_path / "CLAUDE.md")
     style_guide = _safe_read(
         novel_path / "settings" / "01-style-guide.md"
@@ -1062,13 +1171,30 @@ def _compile_brief(
     else:
         sections.append("## 최근 맥락\n\n(파일 없음)")
 
-    # 3. 등장인물 상태
+    # 3. 등장인물 설정 슬라이스 (settings/03-characters.md에서 핵심만 — 앵커 역할)
+    slice_chars = characters
+    if not slice_chars:
+        slice_chars = _extract_all_tracked_characters(
+            summaries / "character-tracker.md"
+        )
+    char_slice = _extract_character_slice(novel_dir, slice_chars)
+    if char_slice:
+        sections.append(f"## 등장인물 설정\n\n{char_slice}")
+
+    # 3.5. 최근 대화 운용 (dialogue-log.md — 이탈 행 + role-only 행)
+    filtered_dialogue = _filter_dialogue_log(
+        dialogue_log, characters, episode_number
+    )
+    if filtered_dialogue:
+        sections.append(f"## 최근 대화 운용\n\n{filtered_dialogue}")
+
+    # 4. 등장인물 상태
     filtered_chars = _filter_character_tracker(
         character_tracker, characters
     )
     sections.append(f"## 등장인물 상태\n\n{filtered_chars}")
 
-    # 4. 정보 보유 현황
+    # 5. 정보 보유 현황
     filtered_knowledge = _filter_knowledge_map(knowledge_map, characters)
     sections.append(f"## 정보 보유 현황\n\n{filtered_knowledge}")
 
@@ -1178,16 +1304,7 @@ def _compile_brief(
         if cont_parts:
             sections.append("## 연속성 불변 조건\n\n" + "\n\n".join(cont_parts))
 
-    # 10. 등장인물 설정 슬라이스 (settings/03-characters.md에서 핵심만)
-    # characters가 비어있으면(첫 화 등) 전체 추적 캐릭터, 그것도 비면 주인공+주요 캐릭터 전체
-    slice_chars = characters
-    if not slice_chars:
-        slice_chars = _extract_all_tracked_characters(
-            summaries / "character-tracker.md"
-        )
-    char_slice = _extract_character_slice(novel_dir, slice_chars)
-    if char_slice:
-        sections.append(f"## 등장인물 설정\n\n{char_slice}")
+    # 10. (등장인물 설정은 섹션 3으로 이동됨)
 
     # 10.5. 에피소드 구조/분량 (settings/02-episode-structure.md에서 핵심만)
     ep_structure = _safe_read(novel_path / "settings" / "02-episode-structure.md")

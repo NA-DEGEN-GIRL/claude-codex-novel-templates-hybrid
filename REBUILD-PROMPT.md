@@ -199,14 +199,14 @@ git commit -m "{소설명} 재구축 완료 — 설정 재정립, 기존 원고 
 
 ### Phase 8: 집필 시작 (Hybrid)
 
-재구축이 완료되면 **Claude supervisor + Codex writer** 구조로 집필:
+재구축이 완료되면 **Claude supervisor + Writer** 구조로 집필 (`writer_model`에 따라 Codex 또는 Claude):
 
 ```bash
 cd /root/novel && claude
 # → "no-title-{XXX}/batch-supervisor.md 대로 수행"
 ```
 
-Claude supervisor가 tmux에서 Codex를 실행하고 자동 관리한다.
+Claude supervisor가 tmux에서 Writer 세션을 실행하고 자동 관리한다.
 
 ---
 
