@@ -34,6 +34,7 @@ Performs continuity verification + narrative quality + Korean proofreading + ext
 
 > The brief contains most necessary information. Do NOT read CLAUDE.md or settings/ separately (except in full mode).
 > **Exception**: `summaries/dialogue-log.md` — 항목 6b(역할 고착 판정)에서는 brief에 포함된 1건으로는 부족하므로 원본 파일을 직접 읽는다.
+> If the brief contains `직전 화 직결 앵커`, treat it as the primary opening continuity anchor for the current episode's first scene.
 > If compile_brief output or previous-episode text is no longer in context, the caller must refresh them before invoking this agent.
 
 ---
@@ -51,6 +52,7 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 | 5 | Foreshadowing conflicts | No contradiction with existing foreshadowing? No reappearance of resolved conflicts? |
 | 6 | Dialogue tone/speech style | Does each character's speech style and honorifics match settings/matrix? Check `dialogue-log.md` for recent voice delta — is the current episode consistent with the established trajectory? |
 | 6b | Voice role lock | Read `summaries/dialogue-log.md` directly (not brief). Has this character performed the same dialogue function (추궁자/회피자/etc.) for 4+ of their last 5 appearances? If so, flag as "역할 고착 경고". Brief에는 role-only 행이 1건만 포함되므로 반드시 원본 파일을 참조한다. |
+| 6c | Dialogue-log staleness | `summaries/dialogue-log.md`의 마지막 기록 화수와 **직전 화**(현재 화 - 1)를 비교. 3화 이상 연속 기록이 없으면 `⚠️ dialogue-log stale ({last}화 이후 미갱신)` 경고. **현재 화의 dialogue-log 갱신은 post-write step 6에서 수행하므로, 현재 화의 누락 여부는 이 단계에서 판정하지 않는다.** |
 | 7 | Proper nouns/ability names | Are character names, place names, and skill names accurate? No typo variants? |
 | 8 | Deceased characters | No reappearance of dead characters? Past tense when mentioned? (세계관 규칙과 사전 단서가 있는 재등장 — 부활, 회귀, 빙의, 환영, 꿈, 복제, 영혼 등 — 은 허용. settings/03-characters.md 규칙 4 참조) |
 | 9 | Emotional/relationship continuity | Do relationships reflect prior events? No unexplained emotional shifts? |
@@ -59,6 +61,8 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 | 12 | Encounter/relationship consistency | Based on relationship-log: No familiar conversation between unacquainted characters? |
 | 13 | Era/worldbuilding terminology | **명백한 위반만**: 아라비아 숫자, 명백한 외래어 등 즉시 알 수 있는 시대 부적합만 ❌. UI/readout, 제도/개념, 비유 체계까지 포괄하는 정밀 감사는 `pov-era-checker`가 전담한다. **Modern/SF**: N/A — loanwords and modern units are natural. |
 | 14 | Intra-scene spatial/action logic | **명백한 위반만**: 앉은 상태에서 걷기, 등 뒤를 보지 않고 등 뒤 묘사 등 즉시 알 수 있는 물리 모순만 ❌. 장면별 체계적 추적(자세/시선/소지품/거리)은 `scene-logic-checker`가 전담한다. |
+
+**Opening carry-forward gate**: 리뷰 시작 시 현재 화 첫 장면이 직전 화 마지막 장면의 공개 정보/미공개 정보/미완료 조치를 건너뛰지 않았는지 먼저 본다. 보고 완료, 허락 완료, 안심, 소문 확산, 관아 전달, 관계 변화 등을 본문 밖에서 이미 끝난 일처럼 처리하면 최소 ⚠️, 직전 화와 명백히 충돌하면 ❌.
 
 **Time/distance verification principle**: Vague expressions ("며칠 후", "사흘 거리") are NOT errors. Only verify with `novel-calc` when specific numbers are stated.
 
@@ -169,10 +173,12 @@ Evaluate when `EDITOR_FEEDBACK_*.md` files exist.
 | 📌 참고 | Valid but not immediately actionable | Record in notes |
 | ⏭️ 건너뜀 | Conflicts with CLAUDE.md, violates settings, subjective preference | Record reason |
 
-**Domain expertise by source**:
+**Domain expertise by source** (오류 유형별 우선순위):
 - **Gemini**: Continuity/worldbuilding/logic → Actively adopt [Continuity], [Setting] items
 - **GPT**: codex mode에서는 비활성 권장 (집필 모델과 동일). claude mode에서는 활성 권장 (교차 검증). `gpt_feedback` 설정에 따름
-- **NIM/Ollama**: Spelling/grammar only → Selectively adopt only genuine errors that Gemini missed
+- **NIM/Ollama**: 철자/띄어쓰기/문장부호/대사 맥락 전담 → 규칙형 교정 항목은 이 소스 우선
+- **Proxy**: 번역투/어색한 결합/주술 호응/문단 내 반복 + 과압축 문장 + 첫 문장/장면 전환/문단 말미의 읽힘 문제 전담 → 한국어 자연스러움 항목은 이 소스 우선. 대사·사투리·시대어 관련은 proxy가 아닌 설정 파일 기준으로 판정
+- NIM/Ollama와 Proxy가 같은 문장을 지적한 경우: 철자/문법 → NIM 우선, 자연스러움/번역투/읽힘/과압축 → Proxy 우선. 판단 애매 시 reviewer가 직접 결정
 
 **Special rule**: Meta-reference flagging (in-text mention of "X화") → Treat as Critical Error, immediately ✅ adopt.
 
@@ -379,7 +385,7 @@ Append the following to the standard output:
 1. **Brief-based verification**: Do NOT read settings/ directly (except in full mode). The brief contains sufficient information.
 2. **Objective comparison**: The core task is comparing against explicitly stated content in settings files. Minimize subjective judgment.
 3. **Fix suggestions mandatory**: When flagging errors or improvements, always include the specific location + proposed fix.
-4. **Style lexicon 참조**: `summaries/style-lexicon.md`에 이미 등록된 치환이 본문에서 안 지켜지고 있으면 지적한다. 기록은 실제 수정 주체(writer/fixer)가 한다.
+4. **Style lexicon 참조**: `summaries/style-lexicon.md`에 이미 등록된 치환이 본문에서 안 지켜지고 있으면 지적한다. 기록은 실제 수정 주체(review 세션 또는 fixer)가 한다.
 4. **Respect intentional non-standard text**: Do NOT correct character speech styles or dialects in dialogue.
 5. **No over-correction**: Rules must not override creative intent. Preserve ellipses, repetition, etc. when they serve a deliberate narrative purpose.
 6. **Report settings file contradictions**: If a contradiction is found within settings files themselves, report it separately.

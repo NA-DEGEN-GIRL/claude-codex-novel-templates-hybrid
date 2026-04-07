@@ -28,6 +28,8 @@
 - **ollama_feedback**: false  <!-- set true to enable Ollama proofreading -->
 - **ollama_feedback_model**: "gpt-oss:120b"
 - **gpt_feedback**: false  <!-- codex mode: false (집필 모델과 동일). claude mode: true 권장 (교차 검증) -->
+- **proxy_feedback**: false  <!-- set true to enable local LLM proxy line-edit review (Korean naturalness + line-level readability) -->
+- **proxy_feedback_model**: "gemma4moe"
 - **writer_model**: codex  <!-- codex = Codex/GPT writer, claude = Claude writer. 모드에 따라 writer 프롬프트, tmux 전송 방식, gpt_feedback 기본값이 달라짐 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
 
@@ -55,7 +57,7 @@
 ```
 {{NOVEL_ID}}/
 ├── CLAUDE.md              ← This file (Writing Constitution)
-├── EDITOR_FEEDBACK_*.md   ← Editor reviews (gemini/gpt/nim/ollama)
+├── EDITOR_FEEDBACK_*.md   ← Editor reviews (gemini/gpt/nim/ollama/proxy)
 ├── settings/              ← Shared novel-craft layer (same authoring rules as lean variants)
 │   ├── 01-style-guide.md
 │   ├── 02-episode-structure.md
@@ -85,9 +87,9 @@
 
 ### 3.1 Preparation (Prep)
 
-1. **Call `compile_brief` MCP tool**: Generates a compressed brief (~4-15KB) from project files (~300KB+). compile_brief를 우선 사용하되, 불가능하면 아래 fallback으로 전환.
+1. **Call `compile_brief` MCP tool**: Generates a compressed brief (~4-15KB) from project files (~300KB+). compile_brief를 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프에 `직전 화 직결 앵커`가 있으면 현재 화 오프닝의 1차 기준으로 사용한다.
    - Fallback if unavailable: `summaries/running-context.md` → relevant arc plot → `plot/foreshadowing.md` → `summaries/character-tracker.md`.
-2. **Read last 2-3 paragraphs of previous episode**: Verify hook connection + prevent same ending hook type consecutively.
+2. **Read the previous episode's last scene**: 최소 2~3문단, 가능하면 마지막 장면 전체 또는 마지막 8~12문단을 읽어 hook connection + opening carry-forward facts를 확인한다.
 3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue.
 4. **Check continuity anchors when needed**: If this episode contains flashbacks, explicit elapsed time, deadlines, travel time, injuries, recovery periods, age-sensitive recall, or carry-forward promises, read `settings/05-continuity.md` directly instead of relying on memory alone.
 5. **Check editor feedback**: Reference `EDITOR_FEEDBACK_*.md` if unprocessed feedback exists.
@@ -164,20 +166,25 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 **External feedback sources** (per CLAUDE.md flags):
 1. **Gemini** (`gemini_feedback: true`): continuity/worldbuilding → `EDITOR_FEEDBACK_gemini.md`
 2. **GPT** (`gpt_feedback`): prose/dialogue/emotion → `EDITOR_FEEDBACK_gpt.md`. codex mode에서는 false 권장 (집필 모델과 동일), claude mode에서는 true 권장 (교차 검증)
-3. **NIM** (`nim_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_nim.md`
-4. **Ollama** (`ollama_feedback: true`): spelling/grammar → `EDITOR_FEEDBACK_ollama.md`
+3. **NIM** (`nim_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_nim.md`
+4. **Ollama** (`ollama_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_ollama.md`
+5. **Proxy** (`proxy_feedback`): Korean line-edit quality (번역투/어색한 결합/반복/호응/과압축/서술 register 흔들림) → `EDITOR_FEEDBACK_proxy.md`. 로컬 LLM(Gemma4 등)을 활용한 한국어 자연스러움 전담 감수.
 
 > All sources false → skip external review. Individual source failure → skip that source only, log it.
+>
+> **오류 유형별 우선순위**: 철자/띄어쓰기/문장부호 → NIM/Ollama 우선. 번역투/결합 자연성/호응/반복/과압축 문장/장면 첫 문장 읽힘 → Proxy 우선. 충돌 시 unified reviewer가 판정.
 
 ### 3.4 Post-Processing (Hybrid: Supervisor가 수행)
 
-> **Hybrid 파이프라인**: Writer (Codex 또는 Claude, `writer_model` 설정에 따름)는 본문 생성만 담당. 아래 후처리는 **Claude supervisor가 직접 수행**한다.
+> **Hybrid 파이프라인**: Writer (Codex 또는 Claude, `writer_model` 설정에 따름)는 본문 생성만 담당. 아래 후처리는 **Review 세션(Claude Code)**이 수행한다. Supervisor는 review 세션에 지시하고 완료를 확인한다.
 
-1. **Summary update**: Supervisor가 chapter 파일을 읽고 직접 갱신.
+1. **Summary update**: Review 세션이 chapter 파일을 읽고 갱신.
    - Required (every ep): `running-context.md`, `episode-log.md`, `character-tracker.md`
-   - Conditional (only if relevant change): `promise-tracker.md`, `knowledge-map.md`, `relationship-log.md`, `foreshadowing.md`, `decision-log.md`
-   - Conditional: `dialogue-log.md` — 대화 기능 태그는 매화 등장 시 항상 기록 (role-only 행). 톤 델타/관계톤/지향은 앵커에서 이탈한 경우만 기록 (이탈 행). 원문 복붙 금지. 3화 이상 반복된 패턴은 `03-characters.md`로 승격 검토.
-2. **Insert EPISODE_META**: Supervisor가 chapter 파일 끝에 append. Set `date` to today `"YYYY-MM-DD"`.
+     - `running-context.md`에는 반드시 `Immediate Carry-Forward` 또는 `직전 화 직결 상태` 섹션을 유지한다. 3~7개 bullet로 현재 위치/시간, 부상·자원 상태, 공개 정보와 비공개 정보, 이미 처리된 일과 아직 안 된 일을 기록한다.
+   - Conditional+Logged (해당 시 갱신, 아닐 때도 skipped 사유 기록 필수): `promise-tracker.md`, `knowledge-map.md`, `relationship-log.md`, `foreshadowing.md`, `decision-log.md`, `term-onboarding.md`(해당 프로젝트), `hanja-glossary.md`(한자 사용 프로젝트)
+     - `knowledge-map.md`: 새 정보를 배운 경우뿐 아니라, 보고/경고/허락/소문/비밀 공유/오해가 실제로 성립했거나 불발된 경우에도 갱신 대상이다. `/clear` 여부와 무관하게 다음 화 오프닝에 영향을 주면 skipped하면 안 된다.
+   - Conditional+Logged: `dialogue-log.md` — 의미 있는 대사가 있으면 대화 기능 태그를 기록 (role-only 행). 톤 델타/관계톤/지향은 앵커에서 이탈한 경우만 기록 (이탈 행). 원문 복붙 금지. 3화 이상 반복된 패턴은 `03-characters.md`로 승격 검토. **갱신 여부와 무관하게 판단 기록 필수**: action-log에 `dialogue-log: updated N건` 또는 `dialogue-log: skipped (사유)` 기록. 사유 없는 skip은 후처리 미완료로 간주.
+2. **Insert EPISODE_META**: Review 세션이 chapter 파일 끝에 append. Set `date` to today `"YYYY-MM-DD"`.
 3. **Update feedback log**: Record 3.3 results in `editor-feedback-log.md`.
 4. **Git commit**: After episode completion (manuscript + summaries). Message: `{소설명} {N}~{M}화 집필`. Push only on user request.
 5. **Action log**: 주요 작업 완료 시 `summaries/action-log.md`에 한 줄 append. 형식: `| {시각} | {에이전트} | {행동} | {대상} | {상태} | {비고} |`. 운영 로그이므로 compile_brief에 포함하지 않는다.

@@ -56,8 +56,10 @@
 - 질문하지 말고 자율 완료
 
 [완료]
-- 파일 저장 후 터미널에 다음 한 줄만 출력:
-WRITER_DONE chapter-{NN}.md
+- run nonce: `{RUN_NONCE}`
+- 완료 문자열 접두: `WRITER_DONE chapter-{NN}.md`
+- 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
+- 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 계획/메모/자기점검/중간 보고/오류 설명에 다시 쓰지 말 것.
 ```
 
 ---
@@ -72,7 +74,10 @@ WRITER_DONE chapter-{NN}.md
 - 이번 화 기능, 주요 장면, 감정 앵커, 엔딩 훅을 짧게 정리하고 집필.
 - 잘 쓰려 하기보다 잘 읽히게 쓴다. 첫 문장, 전투 문장, 장면 전환 문장을 특히 평이하고 선명하게 유지한다.
 - 초안 후 분량 확인 + 기능 수행/반복 설명/결합 자연성/전투 선명도/공간 공유 인물만 짧게 점검.
-- 완료 후: WRITER_DONE chapter-{NN}.md
+- run nonce: `{RUN_NONCE}`
+- 완료 문자열 접두: `WRITER_DONE chapter-{NN}.md`
+- 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
+- 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 중간에 다시 쓰지 말 것.
 ```
 
 ---
@@ -84,5 +89,7 @@ chapters/{arc}/chapter-{NN}.md의 {시작줄}~{끝줄} 구간을 재작성해줘
 문제: {문제 설명}
 방향: {수정 방향}
 나머지는 건드리지 마라. 해당 구간만 교체.
-완료 후: REWRITE_DONE chapter-{NN}.md {시작줄}-{끝줄}
+- run nonce: `{RUN_NONCE}`
+- 완료 문자열 접두: `REWRITE_DONE chapter-{NN}.md {시작줄}-{끝줄}`
+- 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
 ```

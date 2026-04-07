@@ -40,13 +40,15 @@ Modify these values for your novel before inputting the prompt.
 | `NOVEL_DIR` | Novel absolute path | `/root/novel/no-title-015` |
 | `START_EP` | Starting episode | `1` |
 | `END_EP` | Ending episode | `70` |
-| `CHUNK_SIZE` | /clear interval (in episodes). **`-1` = never /clear** (use auto-compact instead) | `10` or `-1` |
+| `CHUNK_SIZE` | Manual context-reset interval (in episodes). **`-1` = auto-compact only** | `10` or `-1` |
 | `WRITER_CMD` | Writer launch command | `codex --dangerously-bypass-approvals-and-sandbox` |
 | `ARC_MAP` | Arc-to-episode mapping | See below |
+| `RUN_NONCE` | Per-prompt unique sentinel token minted by supervisor | `20260407-ep05-a1c9` |
 
 **Context 운영 원칙**:
-- 기본값은 `CHUNK_SIZE = -1`로 두고 `/clear`보다 자동 compact를 우선한다.
-- 수동 `/clear`는 auto-compact가 없는 모델이거나, 명백한 컨텍스트 오염/세션 꼬임이 있을 때만 예외적으로 사용한다.
+- 기본 권장은 `CHUNK_SIZE = -1`. 모델의 auto-compact를 우선 사용한다.
+- `CHUNK_SIZE > 0` 또는 수동 `/clear`는 반복, 맥락 누수, 세션 꼬임이 실제로 보일 때만 예외적으로 사용한다.
+- 로컬 모델이라도 auto-compact가 안정적이면 `/clear`를 습관적으로 강제하지 않는다.
 
 ### WRITER_CMD Examples
 
@@ -68,8 +70,8 @@ Modify these values for your novel before inputting the prompt.
 | tmux send sleep | 3 sec (Codex Enter quirk) | 0.3 sec (standard) |
 | Writer session prefix | — | `unset CLAUDECODE &&` (nested Claude 방지) |
 | gpt_feedback 권장값 | false | true |
-| Completion sentinel | `WRITER_DONE` (공통) | `WRITER_DONE` (공통) |
-| Fix sentinel | `FIX_DONE` (공통) | `FIX_DONE` (공통) |
+| Completion sentinel | `WRITER_DONE ... :: run={RUN_NONCE}` | `WRITER_DONE ... :: run={RUN_NONCE}` |
+| Fix sentinel | `FIX_DONE ... :: run={RUN_NONCE}` | `FIX_DONE ... :: run={RUN_NONCE}` |
 
 ### ARC_MAP Example
 
@@ -123,12 +125,14 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - supervisor가 review 세션에 post-write 지시를 전송한다.
 - **Session size**: Must be 220x50 or larger
 - **완료 sentinel 강제**:
-  - 화별 post-write 완료 후: `REVIEW_DONE chapter-{NN}`
-  - fix 재검증 완료 후: `RECHECK_DONE chapter-{NN}`
-  - 아크 경계 패키지 완료 후: `ARC_DONE {arc}`
+  - 화별 post-write 완료 후: `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}`
+  - fix 재검증 완료 후: `RECHECK_DONE chapter-{NN} :: run={RUN_NONCE}`
+  - 아크 경계 패키지 완료 후: `ARC_DONE {arc} :: run={RUN_NONCE}`
 - review 세션 프롬프트 전송은 기본적으로 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}}-review '...' 2 80`을 사용한다.
 
 > **3세션 필수**: supervisor는 tmux 관리에 집중하고, 리뷰/후처리는 반드시 Review 세션에서 수행한다. context 분리로 안정적 운영을 보장.
+
+> **화별 사이클은 직렬이다**: 한 화의 전체 사이클(Writer 집필 → Review 리뷰/fix → summary → META → REVIEW_DONE)이 완료된 후에만 다음 화 Writer 프롬프트를 전송한다. Writer와 Review를 병렬로 돌리지 않는다.
 
 ### 2. Episode-to-Arc Mapping
 
@@ -302,7 +306,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 > **정본**: `writer_model`에 따라 `.claude/prompts/codex-writer.md` 또는 `.claude/prompts/claude-writer.md`의 **Chunk Start Prompt**.
 > supervisor가 아래 변수를 채워 tmux로 전송한다. **이 문서에 인라인 복사본을 두지 않는다** — 동기화 드리프트 방지.
 
-**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{MIN}`, `{MAX}`, `{{NOVEL_DIR}}`
+**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{MIN}`, `{MAX}`, `{RUN_NONCE}`, `{{NOVEL_DIR}}`
 
 **공통 집필 레이어**: writer는 `settings/01-style-guide.md`, `settings/03-characters.md`, `settings/05-continuity.md`, `settings/07-periodic.md`를 shared authoring layer로 취급한다. 이 문서는 세션 역할과 순서만 정의한다.
 
@@ -310,7 +314,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 1. writer_model에 맞는 writer prompt 파일의 Chunk Start 코드 블록을 읽는다
 2. 변수를 치환한다
 3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
-4. 전송 직후 **즉시** `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 420 2 200`로 들어간다.
+4. 전송 직후 **즉시** `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 200`로 들어간다.
    - 장시간 고정 `sleep`으로 먼저 기다리지 않는다.
    - `tmux capture-pane` 수동 확인은 **timeout 이후 fallback**으로만 쓴다.
 
@@ -319,7 +323,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 > **정본**: `writer_model`에 따라 `.claude/prompts/codex-writer.md` 또는 `.claude/prompts/claude-writer.md`의 **Continuation Prompt**.
 > 변수 치환 + §3d 전송 프로토콜 동일.
 
-**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{{NOVEL_DIR}}`
+**채울 변수**: `{N}`, `{arc}`, `{NN}`, `{RUN_NONCE}`, `{{NOVEL_DIR}}`
 
 #### 3b-post. Supervisor Post-Write Pipeline (Writer 완료 후 Claude가 수행)
 
@@ -341,17 +345,31 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
       ```
       tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
-      완료 후: FIX_DONE chapter-{NN}
+      완료 후: FIX_DONE chapter-{NN} :: run={RUN_NONCE}
       ```
-   e. `FIX_DONE` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
+   e. `FIX_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
    f. **재수정 상한**: Writer fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
-6. **summary 갱신**: running-context, episode-log, character-tracker 등 — review 세션 수행
+6. **summary 갱신** — review 세션 수행. 아래 Required는 매화 갱신, Conditional+Logged는 해당 시에만 갱신하되 **판단 기록(updated/skipped)은 필수**.
+   - **Required**: `running-context.md`, `episode-log.md`, `character-tracker.md`
+     - `running-context.md`에는 반드시 `Immediate Carry-Forward` 또는 `직전 화 직결 상태` 섹션을 유지한다. 3~7개 bullet로 현재 위치/시간, 부상·자원 상태, 공개 정보와 비공개 정보, 이미 처리된 일과 아직 안 된 일을 기록한다.
+   - **Conditional+Logged** (각 항목마다 action-log에 `{파일}: updated N건` 또는 `{파일}: skipped (사유)` 기록):
+     - `dialogue-log.md`: 주요 캐릭터 대사 있으면 role-only 행 기록. 앵커 이탈 시 이탈 행. 대사 없으면 skipped.
+     - `foreshadowing.md`: 복선의 설치/암시/해소가 있을 때. 없으면 skipped.
+     - `promise-tracker.md`: 약속/복선의 설치/진행/해소가 있을 때. 없으면 skipped.
+     - `knowledge-map.md`: 캐릭터가 새 정보를 획득/전달/오해할 때, 또는 보고/경고/허락/소문/비밀 공유가 실제로 성립했거나 불발되어 다음 화 오프닝에 영향을 줄 때. 없으면 skipped.
+     - `relationship-log.md`: 첫 만남, 관계 변화, 호칭 변경이 있을 때. 없으면 skipped.
+     - `decision-log.md`: 프로젝트 수준 규칙 이탈이 있을 때. 없으면 skipped.
+     - `term-onboarding.md` (해당 프로젝트에 존재 시): 새 용어의 첫 등장/설명이 있을 때. 없으면 skipped.
+     - `hanja-glossary.md` (한자 사용 프로젝트만): 한글(漢字) 첫 표기가 있을 때. 없으면 skipped.
+     - `style-lexicon.md`: 어휘 치환이 채택됐을 때. 없으면 skipped.
+   - **`REVIEW_DONE` 게이트**: Required 3종 갱신 완료 + Conditional+Logged 전 항목의 updated/skipped 기록이 action-log에 있어야 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 출력 가능. 기록 누락 시 REVIEW_DONE 불가.
 7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행
 8. **EPISODE_META 삽입**: chapter 파일 끝에 append — review 세션 수행
 9. **action-log 갱신** — review 세션 수행
 10. **git commit**: chapter + summaries + EDITOR_FEEDBACK — review 세션 수행
-11. **완료 신호 출력**: review 세션은 마지막 줄에 반드시 `REVIEW_DONE chapter-{NN}` 출력
-12. **config.json 업데이트**: `REVIEW_DONE` 확인 후 supervisor가 직접 수행
+11. **완료 신호 출력**: review 세션은 마지막 줄에 반드시 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 출력
+12. **review 세션 context reset** (선택): `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 후 review 세션의 auto-compact가 불안정하거나 컨텍스트 오염이 확인될 때만 `/clear`를 전송한다. 기본값은 auto-compact 우선.
+13. **config.json 업데이트**: `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 supervisor가 직접 수행
 
 #### 3c. Plot Generation Prompt (when the arc's plot file doesn't exist)
 
@@ -410,6 +428,7 @@ Rules:
 - Send `Enter` separately; do not use double-Enter by default
 - Retry only one extra `Enter` before treating it as a state/error investigation case
 - Codex tmux 전송 확인은 `Working` 또는 새 응답 블록만 기준으로 본다. `Explored`, `Edited`, `Ran`은 화면 윗부분의 이전 작업 로그일 수 있다. Claude는 `⏺` 스피너 출현으로 판단한다.
+- `NO_START_SIGNAL` 또는 `NO_CLAUDE_START_SIGNAL` 이후에는 pane 전체가 아니라 **마지막 입력 프롬프트 줄이 현재 pane 바닥에 실제로 남아 있는지**를 먼저 본다. 오래된 prompt echo만 남아 있으면 추가 Enter를 보내지 않는다.
 - Apply this protocol to all prompt sends, `/clear`, `/why-check`, permission answers, and recovery commands
 
 ### 4. Supervision Loop
@@ -428,8 +447,8 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 | State | Detection Pattern | Action |
 |-------|-------------------|--------|
 | **Working** | Codex: `• Working (Ns)`, `• Explored`, `• Edited`, `• Ran` 등 진행 표시. Claude: `⏺` 스피너, `Reading`, `Editing`, `Running` 등 진행 표시 | Re-check after 2 minutes |
-| **Completed (WRITER_DONE)** | `WRITER_DONE chapter-{NN}.md` 출력 + 프롬프트 대기 (Codex: `›`, Claude: `>`) | **Post-write pipeline (3b-post) 시작** |
-| **Prompt ready without sentinel** | Codex: `›` 프롬프트 + `gpt-5.4` 표시. Claude: `>` 프롬프트 (WRITER_DONE 없이) | **완료로 즉시 간주하지 않는다.** timeout 이후 fallback 점검 대상으로만 본다 |
+| **Completed (WRITER_DONE)** | `WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}` 출력 + 프롬프트 대기 (Codex: `›`, Claude: `>`) | **Post-write pipeline (3b-post) 시작** |
+| **Prompt ready without sentinel** | Codex: `›` 프롬프트 + `gpt-5.4` 표시. Claude: `>` 프롬프트 (`WRITER_DONE ... :: run=...` 없이) | **완료로 즉시 간주하지 않는다.** timeout 이후 fallback 점검 대상으로만 본다 |
 | **Trust prompt** | `Do you trust the contents` + `Press enter to continue` (Codex 전용) | Enter 전송 |
 | **Error occurred** | `Error`, `FATAL`, `Permission denied` etc. | 분석 후 복구 |
 | **Infinite loop** | 같은 파일 반복 편집, 10분+ 진전 없음 | Esc로 중단 후 재지시 |
@@ -439,7 +458,7 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 To accurately determine "completed" state, verify all of the following:
 
-1. **WRITER_DONE sentinel**: send 직후 곧바로 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md" 420 2 200`으로 감시한다.
+1. **WRITER_DONE sentinel**: send 직후 곧바로 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 200`으로 감시한다.
    - 이 단계가 기본 경로다. 중간에 `sleep 300 && tmux capture-pane ...` 같은 장시간 대기는 넣지 않는다.
    - timeout일 때만 `tmux capture-pane` + `›` 프롬프트 + 파일 존재를 함께 확인한다.
 2. **Work artifact exists**: Chapter file exists (`ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`)
@@ -447,16 +466,20 @@ To accurately determine "completed" state, verify all of the following:
 
 > **batch-progress.log 관리**: supervisor가 3b-post 완료(commit까지 끝난 후)마다 기록한다. Writer가 아닌 supervisor의 책임.
 
-All conditions met → 다음 화 프롬프트. 파일 없으면 Writer 재지시.
+All conditions met → 3b-post(review + fix + summary + META) 진행. 파일 없으면 Writer 재지시.
+
+> **화별 사이클은 반드시 직렬이다.** 다음 화 Writer 프롬프트는 현재 화의 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 이후에만 전송한다. Writer와 Review를 병렬로 돌리면 fix 결과가 반영되지 않은 채 다음 화가 진행될 수 있다.
 `›` 프롬프트만 보였다는 이유로는 완료 처리하지 않는다. sentinel 없이 prompt ready면 fallback 조사 후에만 post-write로 넘어간다.
 
 #### 4c-2. Review Session Completion Verification
 
 review 세션도 writer와 마찬가지로 sentinel 기반으로 완료를 판정한다.
 
-- 화별 post-write: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "REVIEW_DONE chapter-{NN}" 300 2 200`
-- fix 재검증: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "RECHECK_DONE chapter-{NN}" 300 2 200`
-- 아크 경계 패키지: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "ARC_DONE {arc}" 3600 3 260`
+- 화별 post-write: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}" 300 2 200 1`
+- fix 재검증: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "RECHECK_DONE chapter-{NN} :: run={RUN_NONCE}" 300 2 200 1`
+- 아크 경계 패키지: `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}}-review "ARC_DONE {arc} :: run={RUN_NONCE}" 3600 3 260 1`
+
+> **ALLOW_EXISTING=1 필수**: review/recheck/arc sentinel은 supervisor가 wait 명령을 실행하기 전에 이미 출력됐을 수 있다. 마지막 인자 `1`을 빠뜨리면 이미 완료된 sentinel을 놓치고 false timeout에 빠진다.
 
 주의:
 - review 세션 프롬프트는 항상 마지막 줄에 해당 sentinel을 출력하라고 명시한다.
@@ -501,8 +524,9 @@ tmux send-keys -t {{SESSION}} Enter
 
 Wait 5 seconds, then send full prompt (3a).
 
-> **When to use CHUNK_SIZE = -1 (recommended)**: Claude Opus or any model with auto-compact. Auto-compact preserves important context while managing window size.
-> **When to use CHUNK_SIZE > 0**: Models without auto-compact (NIM proxy models, open-source models), or when context window is small (< 200K).
+> **When to use CHUNK_SIZE = -1 (recommended)**: auto-compact가 안정적으로 작동하는 모델. 기본값.
+> **When to use CHUNK_SIZE = 1**: auto-compact가 실제로 실패하거나, 화별 강제 리셋이 더 안정적이라는 근거가 있을 때만.
+> **When to use CHUNK_SIZE > 0**: auto-compact가 약하거나 컨텍스트 창이 작아 주기적 리셋이 필요한 모델.
 
 #### 5b. Arc Transition (Review 세션에 지시)
 

@@ -28,10 +28,14 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - 여러 FIX 항목이 있으면 줄번호 드리프트를 피하기 위해 **항상 아래 줄번호부터 위로** 적용한다.
 - summaries/*, EPISODE_META, git, config.json은 건드리지 않는다.
 - 완료 신호는 `FIX_DONE`만 쓴다. `WRITER_DONE`을 출력하지 않는다.
+- run nonce: `{RUN_NONCE}`
+- 완료 문자열 접두: `FIX_DONE chapter-{NN}`
+- 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
+- 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 중간에 다시 쓰지 말 것.
 
 [완료]
 - 파일 직접 수정 후 변경 요약 3줄 이하 출력.
-- FIX_DONE chapter-{NN}
+- 마지막 줄 exact sentinel 1회 출력
 ```
 
 ---
@@ -79,5 +83,7 @@ chapters/{arc}/chapter-{NN}.md의 {시작줄}~{끝줄}을 수정해줘.
 원문 앵커: "{짧은 원문 구절}"
 유지: {톤/리듬}
 금지: {범위 밖 수정, 새 설정}
-완료 후: FIX_DONE chapter-{NN} {시작줄}-{끝줄}
+- run nonce: `{RUN_NONCE}`
+- 완료 문자열 접두: `FIX_DONE chapter-{NN} {시작줄}-{끝줄}`
+- 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
 ```

@@ -12,7 +12,7 @@
 설명 기한: 첫 등장 + 3화 이내 (높음), 5화 이내 (중간), 무기한 (낮음)
 설명 완료: {N}화 또는 "미설명"
 
-writer가 새 용어를 도입할 때 기록한다.
+Review 세션이 후처리에서 새 용어 도입 여부를 확인하고 기록한다 (hybrid에서 writer는 summaries/* 수정 금지).
 supervisor가 periodic check에서 "미설명 + 기한 초과" 용어를 확인한다.
 Intentional Mysteries(§5.1)에 등록된 용어는 의도적 미설명으로 예외.
 -->

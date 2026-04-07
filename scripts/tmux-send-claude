@@ -43,12 +43,53 @@ extract_delta() {
 
 has_claude_response() {
   local pane="$1"
-  grep -Eq '^[[:space:]]*● ' <<<"${pane}"
+  grep -Eq '^[[:space:]]*(●|⏺|•) ' <<<"${pane}" || \
+    grep -Eq '\b(Reading|Editing|Running|Searching|Analyzing|Thinking|Planning|Inspecting|Applying|Compacting)\b' <<<"${pane}"
+}
+
+first_message_line() {
+  printf '%s\n' "${MESSAGE}" | sed -n '1p'
+}
+
+last_prompt_line() {
+  local pane="$1"
+  awk '
+    /^[[:space:]]*(❯|>|›)/ { line = $0 }
+    END { if (line != "") print line }
+  ' <<<"${pane}"
+}
+
+last_nonempty_line() {
+  local pane="$1"
+  awk '
+    NF { line = $0 }
+    END { if (line != "") print line }
+  ' <<<"${pane}"
 }
 
 message_still_waiting() {
   local pane="$1"
-  grep -Fq "❯ ${MESSAGE}" <<<"${pane}" || grep -Fq "❯ ${MESSAGE}" <<<"${pane}"
+  local first_line
+  local last_prompt
+  local last_nonempty
+  first_line="$(first_message_line)"
+  [[ -n "${first_line}" ]] || return 1
+  last_prompt="$(last_prompt_line "${pane}")"
+  [[ -n "${last_prompt}" ]] || return 1
+  last_nonempty="$(last_nonempty_line "${pane}")"
+
+  if ! [[ "${last_prompt}" == *"❯ ${first_line}" ]] && \
+     ! [[ "${last_prompt}" == *"❯ ${first_line}" ]] && \
+     ! [[ "${last_prompt}" == *"> ${first_line}" ]] && \
+     ! [[ "${last_prompt}" == *"› ${first_line}" ]]; then
+    return 1
+  fi
+
+  if [[ "${last_nonempty}" == *"Messages to be submitted after next tool call"* ]]; then
+    return 0
+  fi
+
+  [[ "${last_nonempty}" == "${last_prompt}" ]]
 }
 
 if ! capture_pane >/dev/null; then

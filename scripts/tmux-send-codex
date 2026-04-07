@@ -43,12 +43,56 @@ extract_delta() {
 
 has_working_marker() {
   local pane="$1"
-  grep -Fq "Working" <<<"${pane}"
+  grep -Eq '\b(Working|Explored|Edited|Ran|Reading|Searching|Planning|Analyzing|Applying|Patching)\b' <<<"${pane}"
 }
 
 has_response_block() {
   local pane="$1"
   grep -Eq '^[[:space:]]*• ' <<<"${pane}"
+}
+
+first_message_line() {
+  printf '%s\n' "${MESSAGE}" | sed -n '1p'
+}
+
+last_prompt_line() {
+  local pane="$1"
+  awk '
+    /^[[:space:]]*(❯|>|›)/ { line = $0 }
+    END { if (line != "") print line }
+  ' <<<"${pane}"
+}
+
+last_nonempty_line() {
+  local pane="$1"
+  awk '
+    NF { line = $0 }
+    END { if (line != "") print line }
+  ' <<<"${pane}"
+}
+
+message_still_waiting() {
+  local pane="$1"
+  local first_line
+  local last_prompt
+  local last_nonempty
+  first_line="$(first_message_line)"
+  [[ -n "${first_line}" ]] || return 1
+  last_prompt="$(last_prompt_line "${pane}")"
+  [[ -n "${last_prompt}" ]] || return 1
+  last_nonempty="$(last_nonempty_line "${pane}")"
+
+  if ! [[ "${last_prompt}" == *"› ${first_line}" ]] && \
+     ! [[ "${last_prompt}" == *"❯ ${first_line}" ]] && \
+     ! [[ "${last_prompt}" == *"> ${first_line}" ]]; then
+    return 1
+  fi
+
+  if [[ "${last_nonempty}" == *"Messages to be submitted after next tool call"* ]]; then
+    return 0
+  fi
+
+  [[ "${last_nonempty}" == "${last_prompt}" ]]
 }
 
 if ! capture_pane >/dev/null; then
@@ -72,6 +116,10 @@ if has_response_block "${delta}"; then
   echo "RESPONSE_CONFIRMED session=${SESSION}"
   exit 0
 fi
+if ! message_still_waiting "${pane}"; then
+  echo "PROMPT_DISAPPEARED session=${SESSION}"
+  exit 0
+fi
 
 tmux send-keys -t "${SESSION}" Enter
 sleep "${CONFIRM_SECONDS}"
@@ -83,6 +131,10 @@ if has_working_marker "${delta}"; then
 fi
 if has_response_block "${delta}"; then
   echo "RESPONSE_CONFIRMED_AFTER_RETRY session=${SESSION}"
+  exit 0
+fi
+if ! message_still_waiting "${pane}"; then
+  echo "PROMPT_DISAPPEARED_AFTER_RETRY session=${SESSION}"
   exit 0
 fi
 

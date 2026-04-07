@@ -4,15 +4,19 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  tmux-wait-sentinel SESSION SENTINEL [TIMEOUT_SECONDS] [POLL_SECONDS] [CAPTURE_LINES]
+  tmux-wait-sentinel SESSION SENTINEL [TIMEOUT_SECONDS] [POLL_SECONDS] [CAPTURE_LINES] [ALLOW_EXISTING]
 
 Waits until a tmux pane emits the given sentinel as a standalone line in new output,
 or until timeout.
+By default it ignores sentinel text that was already present in the pane at start time.
 Outputs a compact status line for supervisor scripts/prompts.
+Recommended sentinel form is an exact line with a run nonce, e.g.
+`WRITER_DONE chapter-05.md :: run=20260407-ep05-a1c9`.
 
 Examples:
-  scripts/tmux-wait-sentinel write-001 "WRITER_DONE chapter-05.md" 1800 2 200
-  scripts/tmux-wait-sentinel write-001 "FIX_DONE chapter-05" 600 1 120
+  scripts/tmux-wait-sentinel write-001 "WRITER_DONE chapter-05.md :: run=20260407-ep05-a1c9" 1800 2 200
+  scripts/tmux-wait-sentinel write-001 "FIX_DONE chapter-05 :: run=20260407-fix05-b13e" 600 1 120
+  scripts/tmux-wait-sentinel write-001-review "REVIEW_DONE chapter-05 :: run=20260407-review05-77ac" 30 1 200 1
 EOF
 }
 
@@ -31,6 +35,7 @@ SENTINEL="$2"
 TIMEOUT="${3:-1800}"
 POLL="${4:-2}"
 CAPTURE_LINES="${5:-200}"
+ALLOW_EXISTING="${6:-0}"
 
 deadline=$(( $(date +%s) + TIMEOUT ))
 
@@ -62,6 +67,16 @@ has_exact_sentinel_line() {
   while IFS= read -r line; do
     line="${line%$'\r'}"
     line="$(printf '%s' "${line}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    while true; do
+      case "${line}" in
+        "● "*) line="${line#??}" ;;
+        "• "*) line="${line#??}" ;;
+        "└ "*) line="${line#??}" ;;
+        "│ "*) line="${line#??}" ;;
+        *) break ;;
+      esac
+      line="$(printf '%s' "${line}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    done
     normalized_line="${line%.md}"
     if [[ "${line}" == "${SENTINEL}" || "${normalized_line}" == "${normalized_sentinel}" ]]; then
       return 0
@@ -75,10 +90,12 @@ if ! before_pane="$(capture_pane)"; then
   exit 3
 fi
 
-before_tail="$(tail_window "${before_pane}")"
-if has_exact_sentinel_line "${before_tail}"; then
-  echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=already_present"
-  exit 0
+if [[ "${ALLOW_EXISTING}" == "1" ]]; then
+  before_tail="$(tail_window "${before_pane}")"
+  if has_exact_sentinel_line "${before_tail}"; then
+    echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=already_present"
+    exit 0
+  fi
 fi
 
 echo "WAITING session=${SESSION} sentinel=${SENTINEL}"
@@ -101,10 +118,12 @@ while true; do
     exit 0
   fi
 
-  pane_tail="$(tail_window "${pane}")"
-  if has_exact_sentinel_line "${pane_tail}"; then
-    echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=tail_fallback"
-    exit 0
+  if [[ "${ALLOW_EXISTING}" == "1" ]]; then
+    pane_tail="$(tail_window "${pane}")"
+    if has_exact_sentinel_line "${pane_tail}"; then
+      echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=tail_fallback"
+      exit 0
+    fi
   fi
 
   sleep "${POLL}"

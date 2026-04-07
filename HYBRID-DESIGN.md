@@ -39,17 +39,21 @@
 |------|-----------|-------------|------|
 | Claude unified-reviewer | **핵심 검증자** | 핵심 검증자 (same-model 경고 적용) | 교차 검증 vs 동일 모델 |
 | Gemini (MCP) | **유지** | **유지** | 제3 모델의 시각 |
-| NIM (MCP) | **유지** | **유지** | 맞춤법 전담 |
+| NIM (MCP) | **유지** | **유지** | 맞춤법/문법 전담 (규칙형 교정) |
+| Proxy (local LLM) | **선택** | **선택** | 한국어 line-edit 전담 (번역투/결합/반복/과압축/읽힘). 로컬 모델 활용 |
 | GPT prose review | **제거** (집필 모델 동일) | **복원** (교차 검증) | 집필 모델과 다른 모델이 리뷰해야 효과 |
 | GPT naturalness | **유지** | **유지** | MCP 별도 세션 = writer와 독립 |
 
-> **codex mode 리뷰 체계**: GPT(집필) → Claude(검증) + Gemini(보조) + NIM(교정)
-> **claude mode 리뷰 체계**: Claude(집필) → Claude(검증, same-model 경고 적용) + GPT(교차 검증 복원) + Gemini(보조) + NIM(교정)
+> **codex mode 리뷰 체계**: GPT(집필) → Claude(검증) + Gemini(보조) + NIM(교정) + Proxy(자연성, 선택)
+> **claude mode 리뷰 체계**: Claude(집필) → Claude(검증, same-model 경고 적용) + GPT(교차 검증 복원) + Gemini(보조) + NIM(교정) + Proxy(자연성, 선택)
+>
+> **NIM vs Proxy**: NIM = 철자/문법/대사 맥락 (규칙형). Proxy = 번역투/결합/호응/반복 + line-level 읽힘(첫 문장, 장면 전환, 과압축) 감수. 둘 다 활성화 시 오류 유형별 우선순위 적용.
 >
 > CLAUDE.md 변경:
 > ```
 > gpt_feedback: false (prose review만 비활성)
 > gpt_naturalness: 유지 (MCP 별도 세션)
+> proxy_feedback: false (필요 시 true로 활성화)
 > ```
 
 ---
@@ -136,7 +140,7 @@ tmux send-keys -t {{SESSION}} Enter
 | 상태 | 패턴 | 조치 |
 |------|------|------|
 | 작업 중 | Codex: `• Working (Ns)` / Claude: `⏺`, `Reading`, `Editing` | 대기 |
-| 완료 | `WRITER_DONE chapter-{NN}.md` + `›` 프롬프트 | Post-write pipeline |
+| 완료 | `WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}` + `›` 프롬프트 | Post-write pipeline |
 | 완료 (sentinel 없음) | 세션 프롬프트만 보임 | chapter 파일 확인 후 진행 |
 | 오류 | `Error`, `Permission denied` | 분석 후 복구 |
 | 종료 | bash `$` 프롬프트 | writer runtime 재시작 |
@@ -144,7 +148,7 @@ tmux send-keys -t {{SESSION}} Enter
 ### 완료 후 검증
 ```bash
 # 1. sentinel 확인
-tmux capture-pane -t {{SESSION}} -p -S -5 | grep WRITER_DONE
+bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 200
 
 # 2. 파일 존재 확인
 ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md
@@ -223,8 +227,8 @@ patch_class = hold    → HOLD Transfer Routing (retro-fix / forward-fix / plot-
 - 집필 세션 = 수정 세션 (writer=fixer, 같은 tmux). 문체 일관성 보장
 
 ```
-Claude: "tmp/fix-specs/chapter-018.md 를 읽고 수정해줘. 완료 후 FIX_DONE"
-Writer: 파일 읽기 → 수정 → FIX_DONE chapter-018
+Claude: "tmp/fix-specs/chapter-018.md 를 읽고 수정해줘. run nonce는 20260407-fix18-a1c9 이다."
+Writer: 파일 읽기 → 수정 → FIX_DONE chapter-018 :: run=20260407-fix18-a1c9
 ```
 
 ---
