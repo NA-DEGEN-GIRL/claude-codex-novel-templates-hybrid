@@ -459,19 +459,25 @@ def _build_live_drafting_cues(
     goal_lines = [
         line.strip()
         for line in goals.splitlines()
-        if line.strip().startswith("- ")
+        if line.strip().startswith(
+            ("- 목표:", "- 훅 타입:", "- 핵심 장면:")
+        )
     ][:3]
+    if not goal_lines:
+        goal_lines = [
+            line.strip()
+            for line in goals.splitlines()
+            if line.strip().startswith("- ")
+        ][:3]
     if goal_lines:
         blocks.append("### 이번 화 기능\n\n" + "\n".join(goal_lines))
 
     if prev_anchor:
-        carry_lines = [
-            line.strip()
-            for line in prev_anchor.splitlines()
-            if line.strip().startswith("- ")
-        ][:2]
-        if carry_lines:
-            blocks.append("### 직전 화에서 바로 이어질 사실\n\n" + "\n".join(carry_lines))
+        excerpt = prev_anchor.split("### 직전 화 마지막 장면", 1)[-1].strip()
+        if excerpt:
+            paragraphs = [p.strip() for p in excerpt.split("\n\n") if p.strip()]
+            anchor_excerpt = "\n\n".join(paragraphs[:2])
+            blocks.append("### 직전 화 마지막 장면 압축\n\n" + anchor_excerpt)
 
     immediate_lines = _extract_live_cue_lines(
         running_context,
