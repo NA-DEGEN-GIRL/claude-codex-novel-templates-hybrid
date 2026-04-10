@@ -38,6 +38,12 @@ POLL="${4:-2}"
 CAPTURE_LINES="${5:-500}"
 ALLOW_EXISTING="${6:-0}"
 SENTINEL_FILE="${7:-}"
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EVENT_NOVEL_DIR="${NOVEL_EVENT_DIR:-${SCRIPT_ROOT}}"
+
+log_event() {
+  python3 "${SCRIPT_ROOT}/scripts/event-log.py" "${EVENT_NOVEL_DIR}" "$@" >/dev/null 2>&1 || true
+}
 
 deadline=$(( $(date +%s) + TIMEOUT ))
 
@@ -96,17 +102,28 @@ has_sentinel_file() {
 }
 
 if ! before_pane="$(capture_pane)"; then
+  log_event tmux_wait_sentinel_result "status=SESSION_MISSING" "session=${SESSION}" "sentinel=${SENTINEL}"
   echo "SESSION_MISSING session=${SESSION}"
   exit 3
 fi
 
+log_event tmux_wait_sentinel_start \
+  "session=${SESSION}" \
+  "sentinel=${SENTINEL}" \
+  "timeout=${TIMEOUT}" \
+  "poll=${POLL}" \
+  "capture_lines=${CAPTURE_LINES}" \
+  "allow_existing=${ALLOW_EXISTING}" \
+  "sentinel_file=${SENTINEL_FILE:-none}"
 if [[ "${ALLOW_EXISTING}" == "1" ]]; then
   before_tail="$(tail_window "${before_pane}")"
   if has_exact_sentinel_line "${before_tail}"; then
+    log_event tmux_wait_sentinel_result "status=SENTINEL_FOUND" "session=${SESSION}" "sentinel=${SENTINEL}" "mode=already_present"
     echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=already_present"
     exit 0
   fi
   if has_sentinel_file; then
+    log_event tmux_wait_sentinel_result "status=SENTINEL_FOUND" "session=${SESSION}" "sentinel=${SENTINEL}" "mode=file_present"
     echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=file_present"
     exit 0
   fi
@@ -117,22 +134,26 @@ echo "WAITING session=${SESSION} sentinel=${SENTINEL}"
 while true; do
   now=$(date +%s)
   if (( now >= deadline )); then
+    log_event tmux_wait_sentinel_result "status=TIMEOUT" "session=${SESSION}" "sentinel=${SENTINEL}"
     echo "TIMEOUT session=${SESSION} sentinel=${SENTINEL}"
     exit 2
   fi
 
   if ! pane="$(capture_pane)"; then
+    log_event tmux_wait_sentinel_result "status=SESSION_MISSING" "session=${SESSION}" "sentinel=${SENTINEL}"
     echo "SESSION_MISSING session=${SESSION}"
     exit 3
   fi
 
   delta="$(extract_delta "${before_pane}" "${pane}")"
   if has_exact_sentinel_line "${delta}"; then
+    log_event tmux_wait_sentinel_result "status=SENTINEL_FOUND" "session=${SESSION}" "sentinel=${SENTINEL}" "mode=delta"
     echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL}"
     exit 0
   fi
 
   if has_sentinel_file; then
+    log_event tmux_wait_sentinel_result "status=SENTINEL_FOUND" "session=${SESSION}" "sentinel=${SENTINEL}" "mode=file_fallback"
     echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=file_fallback"
     exit 0
   fi
@@ -140,6 +161,7 @@ while true; do
   if [[ "${ALLOW_EXISTING}" == "1" ]]; then
     pane_tail="$(tail_window "${pane}")"
     if has_exact_sentinel_line "${pane_tail}"; then
+      log_event tmux_wait_sentinel_result "status=SENTINEL_FOUND" "session=${SESSION}" "sentinel=${SENTINEL}" "mode=tail_fallback"
       echo "SENTINEL_FOUND session=${SESSION} sentinel=${SENTINEL} mode=tail_fallback"
       exit 0
     fi

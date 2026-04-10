@@ -26,6 +26,12 @@ SESSION="$1"
 MESSAGE="$2"
 CONFIRM_SECONDS="${3:-2}"
 CAPTURE_LINES="${4:-60}"
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EVENT_NOVEL_DIR="${NOVEL_EVENT_DIR:-${SCRIPT_ROOT}}"
+
+log_event() {
+  python3 "${SCRIPT_ROOT}/scripts/event-log.py" "${EVENT_NOVEL_DIR}" "$@" >/dev/null 2>&1 || true
+}
 
 capture_pane() {
   tmux capture-pane -t "${SESSION}" -p -S "-${CAPTURE_LINES}" 2>/dev/null
@@ -96,10 +102,16 @@ message_still_waiting() {
 }
 
 if ! capture_pane >/dev/null; then
+  log_event tmux_send_codex_result "status=SESSION_MISSING" "session=${SESSION}" "capture_lines=${CAPTURE_LINES}"
   echo "SESSION_MISSING session=${SESSION}"
   exit 3
 fi
 
+log_event tmux_send_codex_start \
+  "session=${SESSION}" \
+  "confirm_seconds=${CONFIRM_SECONDS}" \
+  "capture_lines=${CAPTURE_LINES}" \
+  "message_bytes=${#MESSAGE}"
 before_pane="$(capture_pane)"
 tmux send-keys -t "${SESSION}" -l "${MESSAGE}"
 sleep 3
@@ -109,14 +121,17 @@ sleep "${CONFIRM_SECONDS}"
 pane="$(capture_pane)"
 delta="$(extract_delta "${before_pane}" "${pane}")"
 if has_working_marker "${delta}"; then
+  log_event tmux_send_codex_result "status=WORKING_CONFIRMED" "session=${SESSION}"
   echo "WORKING_CONFIRMED session=${SESSION}"
   exit 0
 fi
 if has_response_block "${delta}"; then
+  log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED" "session=${SESSION}"
   echo "RESPONSE_CONFIRMED session=${SESSION}"
   exit 0
 fi
 if ! message_still_waiting "${pane}"; then
+  log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED" "session=${SESSION}"
   echo "PROMPT_DISAPPEARED session=${SESSION}"
   exit 0
 fi
@@ -126,17 +141,21 @@ sleep "${CONFIRM_SECONDS}"
 pane="$(capture_pane)"
 delta="$(extract_delta "${before_pane}" "${pane}")"
 if has_working_marker "${delta}"; then
+  log_event tmux_send_codex_result "status=WORKING_CONFIRMED_AFTER_RETRY" "session=${SESSION}"
   echo "WORKING_CONFIRMED_AFTER_RETRY session=${SESSION}"
   exit 0
 fi
 if has_response_block "${delta}"; then
+  log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED_AFTER_RETRY" "session=${SESSION}"
   echo "RESPONSE_CONFIRMED_AFTER_RETRY session=${SESSION}"
   exit 0
 fi
 if ! message_still_waiting "${pane}"; then
+  log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED_AFTER_RETRY" "session=${SESSION}"
   echo "PROMPT_DISAPPEARED_AFTER_RETRY session=${SESSION}"
   exit 0
 fi
 
+log_event tmux_send_codex_result "status=NO_START_SIGNAL" "session=${SESSION}"
 echo "NO_START_SIGNAL session=${SESSION}"
 exit 1
