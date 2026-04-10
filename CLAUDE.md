@@ -31,6 +31,8 @@
 - **proxy_feedback**: false  <!-- set true to enable local LLM proxy line-edit review (Korean naturalness + line-level readability) -->
 - **proxy_feedback_model**: "gemma4moe"
 - **writer_model**: codex  <!-- codex = Codex/GPT writer, claude = Claude writer. 모드에 따라 writer 프롬프트, tmux 전송 방식, gpt_feedback 기본값이 달라짐 -->
+- **prose_risk**: medium  <!-- low/medium/high. 높을수록 prose drift override를 더 쉽게 건다 -->
+- **emotion_risk**: medium  <!-- low/medium/high. 감정 전환 화수에서 standard/full 승격 근거로 사용 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
 
 ### 1.1 Core Promises
@@ -212,14 +214,14 @@ Arc boundary principle:
 
 ---
 
-## 4. File Reference Priority
+## 4. Document Authority & Precedence
 
-1. **This file (CLAUDE.md)** — highest priority
-2. **settings/ folder** — detailed rules
-3. **Previous episode text** — established facts
-4. **summaries/** — reference only, episode text takes precedence
-
-> Note: `settings/` is the shared literary/continuity layer across template variants. When `settings/` files provide more detailed or updated rules than this document's general principles, the settings file's specific rule takes precedence; this document only governs hybrid runtime behavior.
+1. **Episode text** — 이미 본문에 확정된 사실이 최우선이다. summaries/와 충돌하면 본문을 기준으로 summaries/를 고친다.
+2. **`settings/` folder** — 문체/캐릭터/연속성/정기 점검의 **세부 규칙 정본**이다. 같은 주제에서 CLAUDE.md의 일반 원칙과 충돌하면 `settings/`가 우선한다.
+3. **This file (`CLAUDE.md`)** — 프로젝트 수준 약속, 금지사항, 운영 기본값의 정본이다.
+4. **`batch-supervisor.md`** — hybrid 런타임 순서, sentinel, review gate, handoff의 정본이다. README보다 우선한다.
+5. **`README.md`** — 온보딩/개요 문서다. 런타임 절차나 세부 우선순위가 충돌하면 `CLAUDE.md`와 `batch-supervisor.md`를 따른다.
+6. **`summaries/`** — 압축 메모리다. 빠른 참조용이지만, 본문과 설정을 뒤집는 권한은 없다.
 
 ---
 

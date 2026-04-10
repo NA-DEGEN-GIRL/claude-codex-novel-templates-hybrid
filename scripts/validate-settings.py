@@ -40,7 +40,9 @@ def main(argv: list[str]) -> int:
     for needle in (
         "## 캐릭터 시트 형식",
         "- **말투**:",
+        "- **말 길이 경향**:",
         "- **금기/트리거**:",
+        "- **회피 반응**:",
         "- **대표 대사 2~3종**:",
     ):
         _require(characters, needle, "03-characters.md", failures)

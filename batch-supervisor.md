@@ -157,6 +157,8 @@ elif periodic_due (settings/07-periodic) → review_floor = standard
 else                                     → review_floor = continuity
 ```
 
+**Risk-axis override**: `CLAUDE.md` Project Overview의 `prose_risk` 또는 `emotion_risk`가 `high`이면, 새 아크 첫 3화와 감정 전환 화수는 `continuity`가 기본이어도 최소 `standard` 후보로 검토한다. 이 필드는 override 근거이지 writer prompt에 직접 넣는 규칙이 아니다.
+
 **Specialist trigger determination** (continuity review 완료 후):
 
 ```
@@ -352,6 +354,10 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
       ```
    e. `FIX_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
    f. **재수정 상한**: Writer fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
+   g. **resolution_threshold**:
+      - `resolved`: 재검증에서 `❌` 0건 + `HIGH` 0건
+      - `accepted_with_residuals`: `❌`는 사라졌고 `medium/low`만 남음 → action-log에 residual 기록 후 진행
+      - `escalate_hold`: `hold` 항목이 남았거나, 같은 결함이 1회 수정 후에도 반복되거나, `HIGH` 2건 이상 잔존 → 두 번째 fixer 호출 금지. 즉시 `hold_route` 분류
 6. **summary 갱신** — review 세션 수행. 아래 Required는 매화 갱신, Conditional+Logged는 해당 시에만 갱신하되 **판단 기록(updated/skipped)은 필수**.
    - **Required**: `running-context.md`, `episode-log.md`, `character-tracker.md`
      - `running-context.md`에는 반드시 `Immediate Carry-Forward` 또는 `직전 화 직결 상태` 섹션을 유지한다. 3~7개 bullet로 현재 위치/시간, 부상·자원 상태, 공개 정보와 비공개 정보, 이미 처리된 일과 아직 안 된 일을 기록한다.
@@ -605,6 +611,7 @@ When the episode number enters a new arc range:
 9. **F. 아크 마감** — review 세션에 지시:
    - Arc summary + character state reset
    - Unresolved thread triage
+   - **Voice Profile Freshness handoff**: unified-reviewer full 결과에 `Voice Profile Freshness` 경고가 있으면 `settings/01-style-guide.md` §0.3 대표 문단을 현재 아크의 실제 문단으로 교체하거나, 교체가 애매하면 `review-log.md`에 HOLD로 남기고 다음 아크 첫 화 전에 처리
 10. **새 아크 준비** — review 세션에 지시:
     - `plot/{arc}.md` 존재 확인 → 없으면 3c로 생성
     - `/oag-check plan` + `/why-check plan` → review 세션에서 실행
