@@ -5,3 +5,5 @@ image.png
 tmp/briefs/
 tmp/run-metadata/
 tmp/sentinels/
+tmp/*.md
+tmp/*.txt
