@@ -159,6 +159,10 @@ else                                     → review_floor = continuity
 
 **Risk-axis override**: `CLAUDE.md` Project Overview의 `prose_risk` 또는 `emotion_risk`가 `high`이면, 새 아크 첫 3화와 감정 전환 화수는 `continuity`가 기본이어도 최소 `standard` 후보로 검토한다. 이 필드는 override 근거이지 writer prompt에 직접 넣는 규칙이 아니다.
 
+**Open HOLD preflight**: 각 화 집필 프롬프트를 보내기 전에 `python3 {{NOVEL_DIR}}/scripts/check-open-holds.py --novel-dir {{NOVEL_DIR}} --current-episode {N} --fail-on-blocker`를 실행한다.
+- blocker HOLD가 있으면 현재 화 집필을 멈추고 사용자 또는 plot repair 경로로 보낸다.
+- overdue HOLD는 경고를 action-log와 running-context에 반영하고, 같은 화에서 자연 해소 불가능하면 `plot-repair` 또는 `user-escalation` 재분류를 검토한다.
+
 **Specialist trigger determination** (continuity review 완료 후):
 
 ```
@@ -368,6 +372,8 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
      - `knowledge-map.md`: 캐릭터가 새 정보를 획득/전달/오해할 때, 또는 보고/경고/허락/소문/비밀 공유가 실제로 성립했거나 불발되어 다음 화 오프닝에 영향을 줄 때. 없으면 skipped.
      - `relationship-log.md`: 첫 만남, 관계 변화, 호칭 변경이 있을 때. 없으면 skipped.
      - `decision-log.md`: 프로젝트 수준 규칙 이탈이 있을 때. 없으면 skipped.
+     - `desire-state.md`: 독자가 기다리는 것/불안해하는 것/이번 화에서 건드릴 것이 변했을 때. 없으면 skipped.
+     - `signature-moves.md`: 잘 먹힌 장면 운용 패턴 또는 과사용 패턴을 올릴 가치가 있을 때. 없으면 skipped.
      - `term-onboarding.md` (해당 프로젝트에 존재 시): 새 용어의 첫 등장/설명이 있을 때. 없으면 skipped.
      - `hanja-glossary.md` (한자 사용 프로젝트만): 한글(漢字) 첫 표기가 있을 때. 없으면 skipped.
      - `style-lexicon.md`: 어휘 치환이 채택됐을 때. 없으면 skipped.
@@ -655,7 +661,7 @@ When the episode number enters a new arc range:
 
 **만기 관리:**
 - `latest-safe-resolution` 설정 상한: **현재 화수 + 10화** 또는 **현재 아크 종료 전** (짧은 쪽 적용)
-- 매 화 집필 전, supervisor가 `review-log.md`의 open HOLD를 확인
+- 매 화 집필 전, supervisor가 `python3 {{NOVEL_DIR}}/scripts/check-open-holds.py --novel-dir {{NOVEL_DIR}} --current-episode {N}`로 open HOLD를 확인
 - `latest-safe-resolution` 화수를 넘기면 자동 승격:
   - `forward-fix` → `plot-repair` 또는 `user-escalation`
 - `blocker=yes`인 HOLD가 있으면 해당 아크 집필을 중단

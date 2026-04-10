@@ -26,6 +26,8 @@ def main(argv: list[str]) -> int:
     running_context = (
         novel_dir / "summaries" / "running-context.md"
     ).read_text(encoding="utf-8")
+    desire_state_path = novel_dir / "summaries" / "desire-state.md"
+    signature_moves_path = novel_dir / "summaries" / "signature-moves.md"
 
     failures: list[str] = []
 
@@ -50,8 +52,32 @@ def main(argv: list[str]) -> int:
     for needle in (
         "## Immediate Carry-Forward",
         "## 엔딩 훅 추적",
+        "## HOLD 경고",
     ):
         _require(running_context, needle, "summaries/running-context.md", failures)
+
+    if not desire_state_path.exists():
+        failures.append("summaries/desire-state.md: missing file")
+    else:
+        desire_state = desire_state_path.read_text(encoding="utf-8")
+        for needle in (
+            "## Current Desire",
+            "## Current Anxiety",
+            "## This Episode Touchpoints",
+        ):
+            _require(desire_state, needle, "summaries/desire-state.md", failures)
+
+    if not signature_moves_path.exists():
+        failures.append("summaries/signature-moves.md: missing file")
+    else:
+        signature_moves = signature_moves_path.read_text(encoding="utf-8")
+        for needle in (
+            "## Opening Moves",
+            "## Pressure Moves",
+            "## Landing Moves",
+            "## Overused Moves",
+        ):
+            _require(signature_moves, needle, "summaries/signature-moves.md", failures)
 
     if failures:
         for item in failures:

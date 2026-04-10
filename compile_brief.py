@@ -441,6 +441,90 @@ def _extract_recent_decisions(
     return rows[:limit]
 
 
+def _extract_running_context_hold_warnings(
+    running_context: str, limit: int = 4
+) -> list[str]:
+    """running-context의 HOLD 경고 섹션을 읽는다."""
+    return _extract_live_cue_lines(
+        running_context,
+        heading_pattern=r"## (?:HOLD 경고|Hold Warnings)\s*\n(.*?)(?=\n## |$)",
+        limit=limit,
+    )
+
+
+def _extract_open_holds(
+    review_log: str, limit: int = 3
+) -> list[dict[str, str]]:
+    """review-log의 open HOLD 항목을 cue용으로 추출한다."""
+    if not review_log:
+        return []
+
+    sections = re.split(r"(?=^### HOLD-)", review_log, flags=re.MULTILINE)
+    results: list[dict[str, str]] = []
+    for section in sections:
+        section = section.strip()
+        if not section.startswith("### HOLD-"):
+            continue
+        header_match = re.match(r"###\s+(HOLD-[A-Za-z0-9_-]+)", section)
+        if not header_match:
+            continue
+
+        hold: dict[str, str] = {"id": header_match.group(1)}
+        for line in section.splitlines()[1:]:
+            stripped = line.strip()
+            if not stripped.startswith("- ") or ":" not in stripped:
+                continue
+            key, value = stripped[2:].split(":", 1)
+            key = key.strip().lower()
+            normalized = {
+                "hold_route": "hold_route",
+                "scope": "scope",
+                "문제": "issue",
+                "target": "target",
+                "latest-safe-resolution": "latest_safe_resolution",
+                "status": "status",
+                "blocker": "blocker",
+            }.get(key, key)
+            hold[normalized] = value.strip()
+
+        if hold.get("status", "open").lower() == "resolved":
+            continue
+        results.append(hold)
+
+    return results[:limit]
+
+
+def _extract_desire_state(desire_state: str) -> list[str]:
+    """desire-state의 핵심 bullet을 뽑는다."""
+    sections = [
+        ("### 독자 기대", r"## (?:Current Desire|독자 기대)\s*\n(.*?)(?=\n## |$)", 2),
+        ("### 독자 불안", r"## (?:Current Anxiety|독자 불안)\s*\n(.*?)(?=\n## |$)", 2),
+        ("### 이번 화 터치포인트", r"## (?:This Episode Touchpoints|이번 화에서 건드릴 것)\s*\n(.*?)(?=\n## |$)", 2),
+    ]
+    blocks: list[str] = []
+    for title, pattern, limit in sections:
+        lines = _extract_live_cue_lines(desire_state, heading_pattern=pattern, limit=limit)
+        if lines:
+            blocks.append(title + "\n\n" + "\n".join(lines))
+    return blocks
+
+
+def _extract_signature_moves(signature_moves: str) -> list[str]:
+    """signature-moves의 핵심 bullet을 뽑는다."""
+    sections = [
+        ("### Opening Moves", r"## Opening Moves\s*\n(.*?)(?=\n## |$)", 2),
+        ("### Pressure Moves", r"## Pressure Moves\s*\n(.*?)(?=\n## |$)", 2),
+        ("### Landing Moves", r"## Landing Moves\s*\n(.*?)(?=\n## |$)", 2),
+        ("### Overused Moves", r"## Overused Moves\s*\n(.*?)(?=\n## |$)", 2),
+    ]
+    blocks: list[str] = []
+    for title, pattern, limit in sections:
+        lines = _extract_live_cue_lines(signature_moves, heading_pattern=pattern, limit=limit)
+        if lines:
+            blocks.append(title + "\n\n" + "\n".join(lines))
+    return blocks
+
+
 def _build_live_drafting_cues(
     *,
     goals: str,
@@ -452,6 +536,9 @@ def _build_live_drafting_cues(
     relationship_log: str,
     watchlist: str,
     decision_log: str,
+    review_log: str,
+    desire_state: str,
+    signature_moves: str,
 ) -> str:
     """집필 시작 전 빠르게 읽을 cue 묶음을 만든다."""
     blocks: list[str] = []
@@ -535,6 +622,30 @@ def _build_live_drafting_cues(
             + "|------|----------|------|-----------|\n"
             + "\n".join(recent_decisions)
         )
+
+    hold_warning_lines = _extract_running_context_hold_warnings(running_context)
+    open_holds = _extract_open_holds(review_log)
+    if hold_warning_lines or open_holds:
+        hold_blocks: list[str] = []
+        if hold_warning_lines:
+            hold_blocks.append("\n".join(hold_warning_lines))
+        if open_holds:
+            hold_blocks.append(
+                "\n".join(
+                    f"- {hold['id']}: {hold.get('issue', hold.get('target', '(문제 요약 없음)'))} "
+                    f"[{hold.get('hold_route', '?')} / 마감 {hold.get('latest_safe_resolution', '?')}]"
+                    for hold in open_holds
+                )
+            )
+        blocks.append("### OPEN HOLD 경고\n\n" + "\n\n".join(hold_blocks))
+
+    desire_blocks = _extract_desire_state(desire_state)
+    if desire_blocks:
+        blocks.append("### Desire State\n\n" + "\n\n".join(desire_blocks))
+
+    signature_blocks = _extract_signature_moves(signature_moves)
+    if signature_blocks:
+        blocks.append("### Signature Moves\n\n" + "\n\n".join(signature_blocks))
 
     return "\n\n".join(blocks)
 
@@ -1409,9 +1520,23 @@ def _extract_style_rules(content: str) -> str:
         r"## 1\. 시점.*?\n(.*?)(?=\n## \d|$)", content, re.DOTALL
     )
     if pov_match:
-        # 코드블록 제거
         text = re.sub(r"```.*?```", "", pov_match.group(1), flags=re.DOTALL)
-        parts.append("**시점**: " + text.strip()[:300])
+        pov_lines: list[str] = []
+        for raw_line in text.splitlines():
+            stripped = raw_line.strip()
+            if stripped.startswith("###"):
+                break
+            if not stripped:
+                continue
+            if stripped.startswith("- **시점**:"):
+                value = stripped.split(":", 1)[1].strip()
+                if value:
+                    pov_lines.append(f"- {value}")
+                continue
+            if stripped.startswith("- "):
+                pov_lines.append(stripped)
+        if pov_lines:
+            parts.append("### 시점\n\n" + "\n".join(pov_lines[:4]))
 
     # 문장 리듬 기본 원칙 (lean: "우선 원칙", legacy: "기본 원칙")
     rhythm_match = re.search(
@@ -1420,7 +1545,17 @@ def _extract_style_rules(content: str) -> str:
         re.DOTALL,
     )
     if rhythm_match:
-        parts.append("**문장 리듬**: " + rhythm_match.group(1).strip()[:300])
+        rhythm_lines: list[str] = []
+        for raw_line in rhythm_match.group(1).splitlines():
+            stripped = raw_line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("- "):
+                rhythm_lines.append(stripped)
+            else:
+                rhythm_lines.append(f"- {stripped}")
+        if rhythm_lines:
+            parts.append("### 우선 원칙\n\n" + "\n".join(rhythm_lines[:5]))
 
     return "\n\n".join(parts)
 
@@ -1688,6 +1823,21 @@ def _compile_brief(
         summaries / "style-lexicon.md",
         "style-lexicon",
     )
+    review_log = _safe_read_logged(
+        novel_dir,
+        summaries / "review-log.md",
+        "review-log",
+    )
+    desire_state = _safe_read_logged(
+        novel_dir,
+        summaries / "desire-state.md",
+        "desire-state",
+    )
+    signature_moves = _safe_read_logged(
+        novel_dir,
+        summaries / "signature-moves.md",
+        "signature-moves",
+    )
     decision_log = _safe_read_logged(
         novel_dir,
         summaries / "decision-log.md",
@@ -1726,6 +1876,9 @@ def _compile_brief(
         relationship_log=relationship_log,
         watchlist=watchlist,
         decision_log=decision_log,
+        review_log=review_log,
+        desire_state=desire_state,
+        signature_moves=signature_moves,
     )
     if live_cues:
         sections.append(f"## Live Drafting Cues\n\n{live_cues}")

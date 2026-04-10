@@ -77,6 +77,8 @@
 │   ├── character-tracker.md
 │   ├── dialogue-log.md    ← Character voice drift + role lock tracking
 │   ├── decision-log.md    ← Project-level deviation recording
+│   ├── desire-state.md    ← Reader desire/anxiety live field (optional but recommended)
+│   ├── signature-moves.md ← Project-specific scene-winning patterns / overused moves
 │   └── (+ promise/knowledge/relationship/feedback logs)
 └── .claude/agents/        ← Agents (writer, unified-reviewer, etc.)
 ```
@@ -186,6 +188,9 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
    - Conditional+Logged (해당 시 갱신, 아닐 때도 skipped 사유 기록 필수): `promise-tracker.md`, `knowledge-map.md`, `relationship-log.md`, `foreshadowing.md`, `decision-log.md`, `term-onboarding.md`(해당 프로젝트), `hanja-glossary.md`(한자 사용 프로젝트)
      - `knowledge-map.md`: 새 정보를 배운 경우뿐 아니라, 보고/경고/허락/소문/비밀 공유/오해가 실제로 성립했거나 불발된 경우에도 갱신 대상이다. `/clear` 여부와 무관하게 다음 화 오프닝에 영향을 주면 skipped하면 안 된다.
    - Conditional+Logged: `dialogue-log.md` — 의미 있는 대사가 있으면 대화 기능 태그를 기록 (role-only 행). 톤 델타/관계톤/지향은 앵커에서 이탈한 경우만 기록 (이탈 행). 원문 복붙 금지. 3화 이상 반복된 패턴은 `03-characters.md`로 승격 검토. **갱신 여부와 무관하게 판단 기록 필수**: action-log에 `dialogue-log: updated N건` 또는 `dialogue-log: skipped (사유)` 기록. 사유 없는 skip은 후처리 미완료로 간주.
+   - Experimental live fields: `desire-state.md`, `signature-moves.md`
+     - `desire-state.md`: 독자가 기다리는 것/불안해하는 것/이번 화에서 건드릴 것에 의미 있는 변화가 있을 때 갱신
+     - `signature-moves.md`: 3화 이상 반복되는 잘 먹히는 장면 운용 패턴 또는 과사용 패턴이 보일 때 갱신
 2. **Insert EPISODE_META**: Review 세션이 chapter 파일 끝에 append. Set `date` to today `"YYYY-MM-DD"`.
 3. **Update feedback log**: Record 3.3 results in `editor-feedback-log.md`.
 4. **Git commit**: After episode completion (manuscript + summaries). Message: `{소설명} {N}~{M}화 집필`. Push only on user request.

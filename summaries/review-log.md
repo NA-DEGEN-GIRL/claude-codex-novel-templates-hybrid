@@ -10,3 +10,16 @@
 - 외부: ✅{n}/📌{n}/⏭️{n}
 - 판정: {통과/수정필요}
 -->
+
+<!-- HOLD 형식:
+### HOLD-001
+- hold_route: forward-fix
+- scope: current-arc
+- 출처: unified-reviewer / 12화
+- 문제: 동기는 약한데 행동은 이미 밀어붙인 상태라 보상 장면 필요
+- 보상 계획: 14화에서 서린의 선행 맥락을 짧게 제시
+- target: plot/arc-01.md 14화
+- latest-safe-resolution: 16화
+- status: open
+- blocker: no
+-->
