@@ -137,6 +137,7 @@ def make_novel(tmp_path: Path) -> Path:
             - **동기**:
             - **금기/트리거**:
             - **회피 반응**:
+            - **대화 대비축**:
             - **대표 대사 2~3종**:
 
             ### 서린
@@ -146,6 +147,7 @@ def make_novel(tmp_path: Path) -> Path:
             - **동기**: 봉투의 주인을 먼저 찾아 선수를 친다.
             - **금기/트리거**: 가족 얘기가 나오면 얼굴이 굳는다.
             - **회피 반응**: 질문이 깊어지면 되묻거나 걷는 속도를 높인다.
+            - **대화 대비축**: 이도 앞에서는 짧게 자르고, 장터 사람들 앞에서는 더 무심하게 흘린다.
             - **대표 대사 2~3종**:
               1. "늦었어. 그래도 아직 끝난 건 아니야." — 압박 속 판단
               2. "그 말은 지금 들을 값어치가 없어." — 거절
@@ -157,6 +159,7 @@ def make_novel(tmp_path: Path) -> Path:
             - **동기**: 서린이 숨기는 것을 확인해 피해를 막는다.
             - **금기/트리거**: 거짓말 냄새를 맡으면 물러서지 않는다.
             - **회피 반응**: 확증이 없으면 단정 대신 질문을 누적한다.
+            - **대화 대비축**: 서린에게는 존대를 유지하지만, 경비병 앞에서는 더 짧고 건조해진다.
             - **대표 대사 2~3종**:
               1. "지금 숨기면 더 커집니다." — 추궁
               2. "확인만 하겠습니다." — 경계 섞인 존대
@@ -206,6 +209,9 @@ def make_novel(tmp_path: Path) -> Path:
             | 화 | 훅 타입 | 실제 훅 | 회수 예정 |
             |----|--------|---------|-----------|
             | 1 | 추궁 | 서린이 발소리를 듣고도 돌아보지 못한다 | 2 |
+
+            ## HOLD 경고
+            - HOLD-001: 4화 전 해소 필요. 서린이 왜 관군보다 먼저 움직이는지 감정 근거를 보상한다.
         """,
         "summaries/character-tracker.md": """
             ### 서린
@@ -285,6 +291,42 @@ def make_novel(tmp_path: Path) -> Path:
             |------|------|------|------|
             | 흑쇄문 | 미설명 | 3화 | 2화 전에 맥락 필요 |
         """,
+        "summaries/review-log.md": """
+            ### HOLD-001
+            - hold_route: forward-fix
+            - scope: current-arc
+            - 출처: unified-reviewer / 1화
+            - 문제: 서린이 왜 관군보다 먼저 봉투를 처리하려 하는지 감정적 근거가 약하다.
+            - 보상 계획: 2~4화 안에서 가족 관련 압박을 짧게 드러낸다.
+            - target: plot/prologue.md 2~4화
+            - latest-safe-resolution: 4화
+            - status: open
+            - blocker: no
+        """,
+        "summaries/desire-state.md": """
+            ## Current Desire
+            - 독자는 서린이 봉투를 열지 못하는 이유를 빨리 알고 싶어 한다.
+            - 이도가 언제 봉투의 인장을 직접 보게 되는지 기다린다.
+
+            ## Current Anxiety
+            - 관군보다 늦으면 봉투가 사라질 수 있다는 불안이 있다.
+
+            ## This Episode Touchpoints
+            - 이번 화 안에 서린이 왜 시간을 벌어야 하는지 감정 단서를 최소 1개는 건드린다.
+        """,
+        "summaries/signature-moves.md": """
+            ## Opening Moves
+            - 설명보다 손동작과 걸음 변화로 장면을 붙잡는다.
+
+            ## Pressure Moves
+            - 질문-회피-재질문 구조에서 호칭과 말 길이를 바꿔 압박을 올린다.
+
+            ## Landing Moves
+            - 사건을 닫지 않고 인물 판단 하나만 더 밀어 다음 화 클릭 욕구를 남긴다.
+
+            ## Overused Moves
+            - 매 화 마지막을 같은 신체 반응으로 닫지 않는다.
+        """,
         "chapters/prologue/chapter-01.md": """
             # 1화 - 검은 봉투
 
@@ -356,6 +398,10 @@ def test_extract_style_rules_includes_current_voice_profile(tmp_path: Path) -> N
     result = compile_brief._extract_style_rules(style)
     assert "### Voice Profile" in result
     assert "장면의 선명한 이해" in result
+    assert "### 시점" in result
+    assert "- 3인칭 제한 시점" in result
+    assert "### 우선 원칙" in result
+    assert "**시점**: - **시점**:" not in result
 
 
 def test_notation_rules_falls_back_to_claude_for_premodern(tmp_path: Path) -> None:
@@ -407,6 +453,15 @@ def test_ending_hook_tracking_is_emitted_in_live_cues(tmp_path: Path) -> None:
     assert "## 이번 화 목표" in brief
     assert brief.index("## Live Drafting Cues") < brief.index("## 이번 화 목표")
     assert "### 최근 엔딩 훅 추적" in brief
+
+
+def test_open_hold_and_live_fields_are_emitted_in_live_cues(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    brief = compile_brief._compile_brief(str(novel_dir), 2)
+    assert "### OPEN HOLD 경고" in brief
+    assert "HOLD-001" in brief
+    assert "### Desire State" in brief
+    assert "### Signature Moves" in brief
 
 
 def test_validate_settings_script_passes_fixture(tmp_path: Path) -> None:

@@ -17,6 +17,8 @@
 | `0f60ee8` | `Add compile_brief contract tests and validator` | `tests/test_compile_brief.py`, `tests/golden/brief-ep2.md`, `validate-settings.py`, parser drift fix |
 | `f6b43e5` | `Split drafting surface from review surface` | `Live Drafting Cues` 정제, writer prompt의 `Drafting Surface / Hard Rules / Review Surface` 분리, style guide writer/reviewer view 명시 |
 | `e883a87` | `Close handoffs and clarify authority rules` | `resolution_threshold`, `Voice Profile Freshness` handoff, `settings/03-characters.md` pragmatic field 보강, `CLAUDE.md` / `README.md` 권위 정리 |
+| `9f64d74` | `Add runtime helper instrumentation and operations scripts` | `tmux-send-*` / `tmux-wait-sentinel` 이벤트 로깅, `check-open-holds.py`, `summarize-runtime-metrics.py`, `suggest-voice-profile-refresh.py` |
+| `e70e930` | `Extend live cues with HOLD and live field support` | `compile_brief` HOLD 경고 / live fields, `desire-state.md`, `signature-moves.md`, `batch-supervisor` preflight, validator 확장 |
 
 ## Patch Summary
 
@@ -74,6 +76,50 @@
 - `README.md`
   - 온보딩 문서라는 점과 runtime authority 경계 명시
 
+### 5. Runtime Observability / HOLD Operations
+
+- `scripts/tmux-send-claude`
+- `scripts/tmux-send-codex`
+- `scripts/tmux-wait-sentinel`
+  - helper 시작/결과를 모두 `events.jsonl`에 기록
+  - supervisor가 `SESSION_MISSING`, `WORKING_CONFIRMED`, `CLAUDE_RESPONSE_CONFIRMED`, `SENTINEL_FOUND`, `TIMEOUT`를 런타임 지표로 집계 가능
+- `scripts/check-open-holds.py`
+  - `review-log.md`의 `HOLD-*` 블록을 파싱해 overdue / blocker를 기계적으로 판정
+  - `--fail-on-overdue`, `--fail-on-blocker`, `--format json|markdown|line` 지원
+- `scripts/summarize-runtime-metrics.py`
+  - `events.jsonl`을 읽어 read error, review gate, tmux helper 결과, brief size를 요약
+- `scripts/suggest-voice-profile-refresh.py`
+  - 최근 화 본문에서 §0.3 후보 문단을 점수화해 추출
+
+### 6. Live Drafting Cues / Live Fields
+
+- `compile_brief.py`
+  - `running-context.md`의 `## HOLD 경고`를 집필 cue로 승격
+  - `review-log.md`의 open HOLD를 `### OPEN HOLD 경고`로 노출
+  - `summaries/desire-state.md`를 `### Desire State`로 노출
+  - `summaries/signature-moves.md`를 `### Signature Moves`로 노출
+  - `settings/01-style-guide.md` parser를 정리해 `### 시점` / `### 우선 원칙`이 중복 없이 나오도록 수정
+- `summaries/desire-state.md`
+  - `Current Desire / Current Anxiety / This Episode Touchpoints` 템플릿 추가
+- `summaries/signature-moves.md`
+  - `Opening / Pressure / Landing / Overused Moves` 템플릿 추가
+- `batch-supervisor.md`
+  - 화별 집필 전 `check-open-holds.py` preflight 추가
+  - conditional summary 갱신 대상으로 `desire-state.md`, `signature-moves.md` 추가
+
+### 7. Second-Wave Tests
+
+- `tests/test_compile_brief.py`
+  - live fields/HOLD cue 노출 검증
+  - style parser 중복 회귀 검증 (`### 시점`, `### 우선 원칙`)
+- `tests/test_runtime_helpers.py`
+  - `check-open-holds.py`
+  - `summarize-runtime-metrics.py`
+  - `suggest-voice-profile-refresh.py`
+  - tmux helper smoke test (sandbox에서는 socket 제한 시 skip)
+- `tests/golden/brief-ep2.md`
+  - HOLD/live fields/정리된 style parser 결과 반영
+
 ## Verification
 
 실행한 검증:
@@ -83,6 +129,8 @@ python3 -m py_compile compile_brief.py scripts/event-log.py scripts/verify-revie
 pytest -q tests/test_compile_brief.py
 python3 scripts/validate-settings.py --novel-dir /root/novel/claude-codex-novel-templates-hybrid
 python3 compile_brief.py /root/novel/claude-codex-novel-templates-hybrid 1
+python3 -m py_compile scripts/check-open-holds.py scripts/summarize-runtime-metrics.py scripts/suggest-voice-profile-refresh.py tests/test_runtime_helpers.py
+pytest -q tests/test_compile_brief.py tests/test_runtime_helpers.py
 ```
 
 확인 결과:
@@ -92,9 +140,17 @@ python3 compile_brief.py /root/novel/claude-codex-novel-templates-hybrid 1
 - `compile_brief.py` smoke run:
   - `tmp/briefs/chapter-01.md` 생성 확인
   - `tmp/run-metadata/events.jsonl` 생성 확인
+- second-wave `pytest`: `15 passed, 3 skipped`
+  - skip 이유: sandbox 내부에서는 tmux socket 생성이 차단될 수 있어 helper smoke를 조건부 skip
+- escalated tmux smoke:
+  - `tmux-send-claude` → `CLAUDE_RESPONSE_CONFIRMED`
+  - `tmux-send-codex` → `WORKING_CONFIRMED`
+  - `tmux-wait-sentinel` → `SENTINEL_FOUND mode=file_fallback`
+  - 세 helper 모두 `events.jsonl` 기록 확인
 
 ## Notes
 
 - prompt 파일과 `batch-supervisor.md`에는 이미 존재하던 로컬 변경이 있었고, 해당 변경을 되돌리지 않고 이번 패치에 흡수했다.
 - `tmp/briefs/`, `tmp/run-metadata/`, `tmp/sentinels/`, `.pytest_cache/`는 `.gitignore`에 추가했다.
 - 구현 범위는 pilot 이전까지다. 실제 연재 파일럿/지표 측정은 별도 운영 단계로 남는다.
+- second-wave부터는 `IMPROVEMENT-REPORT-V2.md`를 실행 명세, `CODEX-TEMPLATE-IMPROVEMENT-REPORT.md`를 범위 가드레일로 사용했다.
