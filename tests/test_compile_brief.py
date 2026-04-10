@@ -1,0 +1,426 @@
+from __future__ import annotations
+
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+import compile_brief
+
+
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(textwrap.dedent(content).strip() + "\n", encoding="utf-8")
+
+
+def make_novel(tmp_path: Path) -> Path:
+    novel_dir = tmp_path / "mini-novel"
+
+    files = {
+        "CLAUDE.md": """
+            # Mini Test Novel - Writing Constitution
+
+            ## 1. Project Overview
+            - **Title**: Mini Test Novel
+
+            ## 3. Writing Workflow
+            - 비현대 배경: 아라비아 숫자 금지
+            - 소수점 금지
+            - 3일→사흘, 7일→이레, 10일→열흘, 15일→보름
+
+            ## 5. Prohibitions
+            1. **캐릭터 급변 금지**: 감정 점프를 금지한다.
+            2. **오프스크린 완료 금지**: 보고/허락/안심을 이미 끝난 일처럼 쓰지 않는다.
+
+            ### 5.1 Intentional Mysteries
+            | 비밀 | 공개 예정 시점 | 왜 숨기는가 |
+            |------|---------------|-------------|
+            | 칠흑서고의 열쇠 주인 | 4화 | 추궁 동력을 유지하기 위해 |
+
+            ### 8.1 호칭/어투 매트릭스
+            | 화자 | 대상 | 호칭 | 어투 |
+            |------|------|------|------|
+            | 서린 | 이도 | 이도 | 반말 |
+            | 이도 | 서린 | 서린 | 짧은 존대 |
+        """,
+        "plot/prologue.md": """
+            ## 1화: 검은 봉투
+            - 등장인물: 서린, 이도
+            - 목표: 서린이 피 묻은 봉투를 숨긴 채 남문 시장으로 빠진다.
+            - 훅 타입: 질문
+            - 핵심 장면: 이도가 봉투를 보지 못한 채 서린의 뒤를 밟는다.
+
+            ## 2화: 골목의 추궁
+            - 등장인물: 서린, 이도
+            - 목표: 이도가 봉투의 출처를 캐묻고, 서린은 시간을 번다.
+            - 훅 타입: 추궁
+            - 핵심 장면: 시장 골목에서 봉투와 인장을 두고 정면 충돌한다.
+        """,
+        "plot/foreshadowing.md": """
+            ## 활성 복선 (미회수)
+            ### F001. 검은 밀랍 인장
+            - **설치**: 1화
+            - **내용**: 봉투 안쪽의 밀랍 인장이 칠흑서고와 연결된다.
+            - **1화 진행**: 서린이 인장을 감춘다.
+
+            ## 회수 완료
+            | ID | 내용 | 회수 화 |
+            |----|------|--------|
+            | F099 | 오래된 빚 | 1화 |
+        """,
+        "settings/01-style-guide.md": """
+            # 문체 가이드
+
+            ## 0. Voice Profile (이 소설의 목소리)
+
+            ### 0.1 서술 온도 (Emotional Temperature)
+            **이 소설의 서술 온도**: 눌린 불안을 직접 이름 붙이지 않고 행동과 침묵으로 누수시킨다.
+
+            ### 0.2 보이스 우선순위
+            1. 장면의 선명한 이해
+            2. 관계의 압력 유지
+            3. 절제된 감정 여운
+
+            ### 0.3 대표 문단 (Representative Prose)
+            #### 문단 A — 긴장
+            > 서린은 대답 대신 봉투 끝을 더 안쪽으로 밀어 넣었다. 손등의 상처가 다시 벌어졌지만, 그보다 먼저 흔들리면 끝이라는 계산이 앞섰다.
+
+            #### 문단 B — 일상
+            > 장터는 해가 기울수록 더 시끄러워졌고, 사람들의 발걸음은 오히려 빨라졌다. 서린은 그 소란을 방패처럼 쓰기로 했다.
+
+            ### 0.4 문체 계약
+            - 첫 문장과 장면 전환 첫 문장은 멋을 부리기보다 상황을 바로 붙잡는다.
+            - 감정은 설명보다 압력으로 남긴다.
+
+            ### 0.5 허용 이탈 유형
+            - 위기/전투: 더 짧고 즉각적인 문장
+
+            ### 0.6 피해야 할 설계
+            - 낯선 결합으로 무게를 가장하지 않는다.
+
+            ### 0.7 피해야 할 평균체
+            - 설명 문장으로 긴장을 봉합하는 습관
+
+            ### 0.8 Conflict Resolution Priority
+            1. 장면 이해의 명료성
+            2. 인물 반응과 대사의 자연스러움
+            3. 작품의 고유 보이스
+
+            ## 1. 시점
+            - **시점**: 3인칭 제한 시점
+
+            ### 우선 원칙
+            - 한 장면에서는 한 판단축만 밀어 붙인다.
+        """,
+        "settings/02-episode-structure.md": """
+            ## 4. 분량 가이드
+
+            | 구간 | 목표 |
+            |------|------|
+            | 오프닝 | 20% |
+            | 충돌 | 60% |
+            | 엔딩 훅 | 20% |
+        """,
+        "settings/03-characters.md": """
+            # 캐릭터 마스터시트
+
+            ## 캐릭터 시트 형식
+
+            ### [캐릭터명]
+            - **성격**:
+            - **말투**:
+            - **말 길이 경향**:
+            - **동기**:
+            - **금기/트리거**:
+            - **회피 반응**:
+            - **대표 대사 2~3종**:
+
+            ### 서린
+            - **성격**: 계산적, 예민함
+            - **말투**: 짧게 끊고 사실부터 말한다.
+            - **말 길이 경향**: 필요 이상 길어지지 않는다.
+            - **동기**: 봉투의 주인을 먼저 찾아 선수를 친다.
+            - **금기/트리거**: 가족 얘기가 나오면 얼굴이 굳는다.
+            - **회피 반응**: 질문이 깊어지면 되묻거나 걷는 속도를 높인다.
+            - **대표 대사 2~3종**:
+              1. "늦었어. 그래도 아직 끝난 건 아니야." — 압박 속 판단
+              2. "그 말은 지금 들을 값어치가 없어." — 거절
+
+            ### 이도
+            - **성격**: 집요함, 신중함
+            - **말투**: 짧은 존대와 단정한 어미를 쓴다.
+            - **말 길이 경향**: 확인 전에는 짧고, 의심이 커지면 길어진다.
+            - **동기**: 서린이 숨기는 것을 확인해 피해를 막는다.
+            - **금기/트리거**: 거짓말 냄새를 맡으면 물러서지 않는다.
+            - **회피 반응**: 확증이 없으면 단정 대신 질문을 누적한다.
+            - **대표 대사 2~3종**:
+              1. "지금 숨기면 더 커집니다." — 추궁
+              2. "확인만 하겠습니다." — 경계 섞인 존대
+        """,
+        "settings/04-worldbuilding.md": """
+            - 시대: 전근대 시장 도시
+        """,
+        "settings/05-continuity.md": """
+            ### Continuity Invariants
+            | 항목 | 규칙 |
+            |------|------|
+            | 봉투 상태 | 서린만 인장을 직접 봤다 |
+
+            ### Key Timeline Markers
+            | 시점 | 사건 |
+            |------|------|
+            | 1화 해 질 녘 | 봉투 획득 |
+        """,
+        "summaries/running-context.md": """
+            ## 현재 상태
+            - 위치: 남문 시장 골목
+            - 시간: 해 질 녘
+            - 긴장: 이도의 추궁이 가까워지고 있다.
+
+            ## Immediate Carry-Forward
+            - 서린은 피 묻은 봉투를 소매 안에 감췄다.
+            - 이도는 봉투 안쪽 인장을 아직 보지 못했다.
+            - 서린은 관군에게 아직 신고하지 않았다.
+
+            ## 전체 흐름 압축
+            ### 1화
+            - 서린이 낡은 봉투를 받았다.
+            - 골목으로 빠지기 직전 이도의 발소리를 들었다.
+
+            ## 캐릭터 최종 상태
+            | 캐릭터 | 상태 |
+            |--------|------|
+            | 서린 | 봉투를 숨긴 채 골목 안쪽으로 물러섰다 |
+            | 이도 | 봉투의 존재만 눈치챈 상태다 |
+
+            ## 복선 최종 상태
+            | 복선 | 상태 | 비고 |
+            |------|------|------|
+            | 검은 밀랍 인장 | 활성 | 주인이 아직 드러나지 않았다 |
+
+            ## 엔딩 훅 추적 (최근 5화)
+            | 화 | 훅 타입 | 실제 훅 | 회수 예정 |
+            |----|--------|---------|-----------|
+            | 1 | 추궁 | 서린이 발소리를 듣고도 돌아보지 못한다 | 2 |
+        """,
+        "summaries/character-tracker.md": """
+            ### 서린
+            - **현재 위치**: 남문 시장 골목
+            - **상태**: 봉투를 숨김
+            - **부상**: 손등 얕은 베임
+            - **핵심 동기**: 열쇠 주인을 먼저 찾는다
+            - **미해결**: 이도에게 어디까지 말할지 못 정함
+
+            ### 이도
+            - **현재 위치**: 남문 시장 초입
+            - **상태**: 서린을 의심 중
+            - **부상**: 없음
+            - **핵심 동기**: 봉투 출처를 확인한다
+            - **미해결**: 서린이 무엇을 숨기는지 확증이 없다
+        """,
+        "summaries/knowledge-map.md": """
+            | 정보 | 서린 | 이도 | 비고 |
+            |------|------|------|------|
+            | 검은 밀랍 인장의 모양 | O(1화) | X | 서린만 확인 |
+            | 관군 내부 내통자 소문 | X | O(1화) | 시장 경비 쪽 소문 |
+            | 서고 열쇠 주인의 실명 | X | X | 비밀 |
+        """,
+        "summaries/relationship-log.md": """
+            ## 관계 매트릭스
+            | A\\B | 서린 | 이도 |
+            |------|------|------|
+            | 서린 | - | 경계 속 협력 |
+            | 이도 | 시장 동료 | - |
+
+            ## 만남 로그
+            | 화 | A | B | 유형 | 맥락 | 결과 |
+            |----|---|---|------|------|------|
+            | 1 | 서린 | 이도 | 갈등 | 봉투를 두고 골목에서 맞섰다 | 겉으론 협력, 속으로는 경계 |
+        """,
+        "summaries/promise-tracker.md": """
+            ## 활성 약속
+            | ID | 당사자 | 내용 | 투하 | 예정회수 | 우선순위 | 상세 |
+            |----|--------|------|------|----------|----------|------|
+            | P001 | 서린 → 이도 | 해 지기 전에 봉투 출처를 확인한다 | 1화 | 3화 | high | **1화** 서린이 확인을 미뤘다 |
+        """,
+        "summaries/episode-log.md": """
+            | 화 | 제목 | 요약 |
+            |----|------|------|
+            | 1 | 검은 봉투 | 서린이 봉투를 숨긴 채 남문 시장 골목으로 빠지고, 이도가 그 뒤를 밟는다. |
+        """,
+        "summaries/dialogue-log.md": """
+            | 화 | 캐릭터 | 대화 기능 | 톤 델타 | 관계톤 | 지향 |
+            |----|--------|----------|---------|--------|------|
+            | 1 | 서린 | 추궁자 | 문장 단축, 주어 탈락 | 이도=반말+압박 | 숨기는 쪽이 먼저 묻는다 |
+            | 1 | 이도 | 회피자 | — | — | — |
+        """,
+        "summaries/decision-log.md": """
+            | 규칙 | 적용 범위 | 이유 | 종료 조건 |
+            |------|----------|------|-----------|
+            | 초반 설명 절제 | 1~3화 | 봉투의 의미를 독자도 함께 추적하게 하기 위해 | 4화에서 출처 공개 |
+        """,
+        "summaries/repetition-watchlist.md": """
+            ## 감시 중 (WATCH)
+            | ID | 유형 | 패턴 | 현재 빈도 | 허용 한도 | 비고 |
+            |----|------|------|-----------|-----------|------|
+            | R001 | WATCH | 손끝이 굳었다 | 3 | 2 | 서린 반응 과다 |
+            | R002 | HIGH | 숨을 삼켰다 | 4 | 2 | 이도 반응 과다 |
+
+            ## 해결
+            | ID | 유형 | 패턴 | 현재 빈도 | 허용 한도 | 비고 |
+            |----|------|------|-----------|-----------|------|
+            | R003 | LOW | 시선이 흔들렸다 | 1 | 3 | 허용 범위 |
+        """,
+        "summaries/style-lexicon.md": """
+            | 패턴 | 치환 |
+            |------|------|
+            | 목 안쪽이 식었다 | 목 안이 먼저 말랐다 → 오프닝 읽힘 개선 |
+        """,
+        "summaries/term-onboarding.md": """
+            | 용어 | 상태 | 기한 | 비고 |
+            |------|------|------|------|
+            | 흑쇄문 | 미설명 | 3화 | 2화 전에 맥락 필요 |
+        """,
+        "chapters/prologue/chapter-01.md": """
+            # 1화 - 검은 봉투
+
+            서린은 골목 입구에서 한 번 숨을 고르고 봉투를 소매 안으로 밀어 넣었다.
+            피 냄새가 아직 남아 있었지만, 지금 돌아보면 끝이라는 생각이 먼저 들었다.
+
+            ***
+
+            발소리가 가까워졌다.
+            서린은 돌아보지 않은 채 걸음을 옮겼다.
+
+            ---
+            ### EPISODE_META
+            ```yaml
+            characters_appeared:
+              - 서린
+              - 이도
+            ```
+        """,
+    }
+
+    for relative, content in files.items():
+        _write(novel_dir / relative, content)
+
+    return novel_dir
+
+
+def test_compile_brief_matches_golden_snapshot(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    brief = compile_brief._compile_brief(str(novel_dir), 2)
+    golden = (
+        Path(__file__).resolve().parent / "golden" / "brief-ep2.md"
+    ).read_text(encoding="utf-8").rstrip("\n")
+    assert brief == golden
+
+
+def test_compile_brief_writes_snapshot_and_events(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    compile_brief._compile_brief(str(novel_dir), 2)
+
+    snapshot = novel_dir / "tmp" / "briefs" / "chapter-02.md"
+    events = novel_dir / "tmp" / "run-metadata" / "events.jsonl"
+
+    assert snapshot.exists()
+    assert events.exists()
+    assert "compile_brief_complete" in events.read_text(encoding="utf-8")
+
+
+def test_extract_style_rules_skips_placeholder_voice_profile() -> None:
+    content = textwrap.dedent(
+        """
+        ## 0. Voice Profile
+        ### 0.1 서술 온도
+        **이 소설의 서술 온도**: {{EMOTIONAL_TEMPERATURE}}
+
+        ## 1. 시점
+        - **시점**: 3인칭
+        """
+    )
+    result = compile_brief._extract_style_rules(content)
+    assert "### Voice Profile" not in result
+
+
+def test_extract_style_rules_includes_current_voice_profile(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    style = (novel_dir / "settings" / "01-style-guide.md").read_text(
+        encoding="utf-8"
+    )
+    result = compile_brief._extract_style_rules(style)
+    assert "### Voice Profile" in result
+    assert "장면의 선명한 이해" in result
+
+
+def test_notation_rules_falls_back_to_claude_for_premodern(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    claude_md = (novel_dir / "CLAUDE.md").read_text(encoding="utf-8")
+    result = compile_brief._extract_notation_rules("", claude_md)
+    assert "아라비아 숫자 금지" in result
+    assert "소수점 금지" in result
+
+
+def test_notation_rules_modern_skips_premodern_rules(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    claude_md = (novel_dir / "CLAUDE.md").read_text(encoding="utf-8")
+    result = compile_brief._extract_notation_rules("- 시대: 현대 도시", claude_md)
+    assert "현대/SF 배경" in result
+    assert "아라비아 숫자 금지" not in result
+
+
+def test_decision_log_without_rows_is_omitted(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    (novel_dir / "summaries" / "decision-log.md").write_text(
+        "| 규칙 | 적용 범위 | 이유 | 종료 조건 |\n|------|----------|------|-----------|\n",
+        encoding="utf-8",
+    )
+
+    brief = compile_brief._compile_brief(str(novel_dir), 2)
+    assert "### 유지 중인 규칙 이탈" not in brief
+    assert "### 프로젝트 규칙 이탈" not in brief
+
+
+def test_watchlist_only_includes_watch_and_high(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    brief = compile_brief._compile_brief(str(novel_dir), 2)
+    assert "R001" in brief
+    assert "R002" in brief
+    assert "R003" not in brief
+
+
+def test_episode_one_without_previous_anchor_does_not_emit_anchor(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    brief = compile_brief._compile_brief(str(novel_dir), 1)
+    assert "## 직전 화 직결 앵커" not in brief
+
+
+def test_ending_hook_tracking_is_emitted_in_live_cues(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    brief = compile_brief._compile_brief(str(novel_dir), 2)
+    assert "## Live Drafting Cues" in brief
+    assert "## 이번 화 목표" in brief
+    assert brief.index("## Live Drafting Cues") < brief.index("## 이번 화 목표")
+    assert "### 최근 엔딩 훅 추적" in brief
+
+
+def test_validate_settings_script_passes_fixture(tmp_path: Path) -> None:
+    novel_dir = make_novel(tmp_path)
+    repo_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            "python3",
+            str(repo_root / "scripts" / "validate-settings.py"),
+            "--novel-dir",
+            str(novel_dir),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

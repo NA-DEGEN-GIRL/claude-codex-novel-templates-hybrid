@@ -352,6 +352,8 @@ def _extract_ending_hook_tracking(running_context: str) -> str:
     if len(rows) < 3:
         return ""
 
+    if len(rows) <= 7:
+        return "\n".join(rows)
     return "\n".join(rows[:2] + rows[-5:])
 
 
@@ -1163,13 +1165,16 @@ def _filter_dialogue_log(
 
     # 캐릭터 필터
     include_all = not characters
-    matched_chars: set[str] = set()
+    matched_chars: list[str] = []
+    seen_chars: set[str] = set()
 
     for row in rows:
         char = row["character"]
         if not include_all and not any(c in char for c in characters):
             continue
-        matched_chars.add(char)
+        if char not in seen_chars:
+            seen_chars.add(char)
+            matched_chars.append(char)
 
     # 각 캐릭터별: 이탈 행 우선, role-only 보조. 캐릭터당 최대 2행.
     result_lines: list[str] = []
@@ -1332,7 +1337,7 @@ def _extract_claude_md_rules(content: str) -> str:
     # §5.1 Intentional Mysteries — 테이블 전체를 추출
     # 의도적 미스터리를 브리프에 포함해야 작가가 플롯 홀로 오인하지 않는다
     mystery_match = re.search(
-        r"### 5\.1\s*(?:Intentional Mysteries|의도적 미스터리|의도적 비밀).*?\n(.*?)(?=\n## \d|\n### 5\.2|\n---\n|$)",
+        r"### 5\.1\s*(?:Intentional Mysteries|의도적 미스터리|의도적 비밀).*?\n(.*?)(?=\n## \d|\n### \d|\n---\n|$)",
         content,
         re.DOTALL,
     )
@@ -1433,9 +1438,21 @@ def _extract_notation_rules(
             era_desc = era_match.group(1).strip()[:100]
             rules.append(f"- 세계관: {era_desc}")
 
-        modern_keywords = ["현대", "SF", "미래", "21세기", "20세기", "근대", "sci-fi", "science fiction", "cyberpunk"]
+        premodern_keywords = ["전근대", "사극", "무협", "조선", "고려"]
+        modern_keywords = [
+            "현대",
+            "sf",
+            "미래",
+            "21세기",
+            "20세기",
+            "sci-fi",
+            "science fiction",
+            "cyberpunk",
+        ]
         wb_lower = worldbuilding.lower()
-        if any(kw.lower() in wb_lower for kw in modern_keywords):
+        if any(kw in wb_lower for kw in premodern_keywords):
+            is_modern = False
+        elif any(kw in wb_lower for kw in modern_keywords):
             is_modern = True
 
     # CLAUDE.md에서 비현대 숫자 표기 규칙 — 비현대 배경에서만 주입
