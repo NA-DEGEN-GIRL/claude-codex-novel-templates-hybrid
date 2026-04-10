@@ -313,10 +313,13 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 **전송 순서**:
 1. writer_model에 맞는 writer prompt 파일의 Chunk Start 코드 블록을 읽는다
 2. 변수를 치환한다
-3. `tmux send-keys -t {{SESSION}} -l '...'` + `sleep` + `tmux send-keys -t {{SESSION}} Enter` (§3d 프로토콜)
-4. 전송 직후 **즉시** `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 200`로 들어간다.
+3. writer_model에 맞는 send helper를 사용한다. codex mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} 'command text' 2 60`, claude mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}} 'command text' 2 80`을 기본으로 쓴다.
+4. **send helper 성공 신호를 먼저 확인한다.** `WORKING_CONFIRMED*`, `RESPONSE_CONFIRMED*`, `PROMPT_DISAPPEARED*` 중 하나가 나와야 "전송 성공"으로 본다.
+5. 그 다음에만 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 500 0 "{{NOVEL_DIR}}/tmp/sentinels/chapter-{NN}.done"`로 들어간다.
    - 장시간 고정 `sleep`으로 먼저 기다리지 않는다.
-   - `tmux capture-pane` 수동 확인은 **timeout 이후 fallback**으로만 쓴다.
+   - `tmux capture-pane` 수동 확인은 **send helper가 `NO_START_SIGNAL`을 낸 경우**와 **sentinel timeout 이후 fallback**에서만 쓴다.
+   - **중요**: `tmux-wait-sentinel` 대기에 들어갔다고 해서 writer가 시작된 것은 아니다. 시작 확인은 send helper가 담당한다.
+   - writer는 chapter 저장 후 exact sentinel을 `tmp/sentinels/chapter-{NN}.done`에도 남긴다. pane delta와 sentinel file 둘 다 fallback으로 사용한다.
 
 #### 3b. Continuation Prompt — Writer (previous episode context loaded)
 
@@ -362,14 +365,15 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
      - `term-onboarding.md` (해당 프로젝트에 존재 시): 새 용어의 첫 등장/설명이 있을 때. 없으면 skipped.
      - `hanja-glossary.md` (한자 사용 프로젝트만): 한글(漢字) 첫 표기가 있을 때. 없으면 skipped.
      - `style-lexicon.md`: 어휘 치환이 채택됐을 때. 없으면 skipped.
-   - **`REVIEW_DONE` 게이트**: Required 3종 갱신 완료 + Conditional+Logged 전 항목의 updated/skipped 기록이 action-log에 있어야 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 출력 가능. 기록 누락 시 REVIEW_DONE 불가.
+   - **`REVIEW_DONE` 게이트**: Required 3종 갱신 완료 + Conditional+Logged 전 항목의 updated/skipped 기록이 action-log에 있어야 한다. `python3 {{NOVEL_DIR}}/scripts/verify-review-done.py --novel-dir {{NOVEL_DIR}} --episode {N}`가 통과하지 않으면 REVIEW_DONE 불가.
 7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행
 8. **EPISODE_META 삽입**: chapter 파일 끝에 append — review 세션 수행
 9. **action-log 갱신** — review 세션 수행
-10. **git commit**: chapter + summaries + EDITOR_FEEDBACK — review 세션 수행
-11. **완료 신호 출력**: review 세션은 마지막 줄에 반드시 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 출력
-12. **review 세션 context reset** (선택): `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 후 review 세션의 auto-compact가 불안정하거나 컨텍스트 오염이 확인될 때만 `/clear`를 전송한다. 기본값은 auto-compact 우선.
-13. **config.json 업데이트**: `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 supervisor가 직접 수행
+10. **git add + REVIEW_DONE helper**: review 세션이 chapter + summaries + EDITOR_FEEDBACK를 stage한 뒤 `python3 {{NOVEL_DIR}}/scripts/verify-review-done.py --novel-dir {{NOVEL_DIR}} --episode {N}`를 실행한다. 실패 시 commit 금지.
+11. **git commit**: helper 통과 후에만 수행 — review 세션 수행
+12. **완료 신호 출력**: review 세션은 마지막 줄에 반드시 `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 출력
+13. **review 세션 context reset** (선택): `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 후 review 세션의 auto-compact가 불안정하거나 컨텍스트 오염이 확인될 때만 `/clear`를 전송한다. 기본값은 auto-compact 우선.
+14. **config.json 업데이트**: `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 supervisor가 직접 수행
 
 #### 3c. Plot Generation Prompt (when the arc's plot file doesn't exist)
 
@@ -402,6 +406,8 @@ tmux send-keys -t {{SESSION}} Enter
 bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} 'command text' 2 60
 ```
 
+이 명령이 `WORKING_CONFIRMED*`, `RESPONSE_CONFIRMED*`, `PROMPT_DISAPPEARED*` 중 하나를 반환해야만 "프롬프트가 실제 제출되었다"고 본다. `NO_START_SIGNAL`이면 아직 시작되지 않은 것으로 본다.
+
 Then verify shortly after sending:
 
 ```bash
@@ -413,6 +419,8 @@ Interpretation:
 
 - **Started correctly**: Codex — `Working`이 보이거나 새 응답 블록(`• ...`)이 붙는다. Claude — `⏺` 스피너 또는 `Reading`/`Editing` 등 진행 표시가 보인다
 - **Enter likely failed**: 진행 표시가 2초 안에 보이지 않는다
+
+> **금지 오판**: `WRITER_DONE ...` sentinel을 기다리기 시작했다는 이유만으로 "Writer가 작업을 시작했다"라고 말하지 않는다. sentinel wait는 완료 감시일 뿐이고, 시작 여부는 send helper 결과와 pane 하단 prompt 상태로 판정한다.
 
 If Enter likely failed, resend only Enter once:
 
@@ -458,9 +466,11 @@ tmux capture-pane -t {{SESSION}} -p -S -50
 
 To accurately determine "completed" state, verify all of the following:
 
-1. **WRITER_DONE sentinel**: send 직후 곧바로 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 200`으로 감시한다.
+1. **WRITER_DONE sentinel**: send 직후 곧바로 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 500 0 "{{NOVEL_DIR}}/tmp/sentinels/chapter-{NN}.done"`으로 감시한다.
+   - 전제 조건: 직전에 사용한 send helper가 성공 신호를 반환했어야 한다.
+   - `NO_START_SIGNAL` 직후 곧바로 sentinel wait만 걸고 "시작됨"으로 간주하면 안 된다.
    - 이 단계가 기본 경로다. 중간에 `sleep 300 && tmux capture-pane ...` 같은 장시간 대기는 넣지 않는다.
-   - timeout일 때만 `tmux capture-pane` + `›` 프롬프트 + 파일 존재를 함께 확인한다.
+   - timeout일 때만 `tmux capture-pane` + `›` 프롬프트 + chapter 파일 + sentinel file 존재를 함께 확인한다.
 2. **Work artifact exists**: Chapter file exists (`ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`)
 3. **Progress log 기록**: supervisor가 직접 `echo "EP {N} DONE $(date +%H:%M)" >> {{NOVEL_DIR}}/summaries/batch-progress.log` 실행.
 

@@ -44,7 +44,7 @@ extract_delta() {
 has_claude_response() {
   local pane="$1"
   grep -Eq '^[[:space:]]*(●|⏺|•) ' <<<"${pane}" || \
-    grep -Eq '\b(Reading|Editing|Running|Searching|Analyzing|Thinking|Planning|Inspecting|Applying|Compacting)\b' <<<"${pane}"
+    grep -Eq '\b(Reading|Editing|Running|Searching|Analyzing|Thinking|Planning|Inspecting|Applying)\b' <<<"${pane}"
 }
 
 first_message_line() {

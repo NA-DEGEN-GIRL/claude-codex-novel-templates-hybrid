@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 image.png
+.pytest_cache/
+tmp/briefs/
+tmp/run-metadata/
+tmp/sentinels/

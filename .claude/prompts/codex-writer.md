@@ -21,9 +21,11 @@
 - MCP는 직접 호출한다. `scripts/*` wrapper를 기본 경로로 쓰지 않는다.
 
 [집필 전 메모 — 짧게]
+- `compile_brief`의 `Live Drafting Cues`를 먼저 훑고 아래 5개만 정리
 - 이번 화의 기능 1줄
+- 오프닝에서 바로 이어질 사실 2~4개
+- 이번 화에서 가장 강하게 밀 보이스/관계 압력 1~2개
 - 주요 장면 3~5개
-- 이번 화의 감정 앵커 1개
 - 이번 화의 엔딩 훅 1개
 
 [작성 규칙]
@@ -37,6 +39,8 @@
 - 전투/위기 장면에서는 감상적 압축보다 행동의 선명도를 우선한다. 숫자를 세는 듯한 문장, 결과만 요약하는 문장, 몸으로 바로 그려지지 않는 문장은 피한다.
 - 인물 둘 이상 장면에서는 대사가 상황, 관계, 숨은 의도 중 최소 하나를 직접 운반해야 한다.
 - 같은 공간의 이름 있는 인물을 투명인간처럼 지우지 않는다.
+- 본문과 대사에서 `1화에서`, `3화에서`, `프롤로그에서`, `에필로그에서`, `1부에서` 같은 메타 참조를 쓰지 않는다.
+- 과거 사건은 화수/부/프롤로그 같은 메타 단위가 아니라 날짜, 장소, 사건명, 인물 기억으로만 지칭한다.
 - 비현대 배경이면 외래어/아라비아 숫자를 쓰지 않는다.
 
 [초안 후 자기점검 — 짧게]
@@ -58,6 +62,7 @@
 [완료]
 - run nonce: `{RUN_NONCE}`
 - 완료 문자열 접두: `WRITER_DONE chapter-{NN}.md`
+- chapter 저장 후 `mkdir -p tmp/sentinels && printf '%s\n' "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" > tmp/sentinels/chapter-{NN}.done` 실행
 - 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
 - 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 계획/메모/자기점검/중간 보고/오류 설명에 다시 쓰지 말 것.
 ```
@@ -71,11 +76,12 @@
 - `compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})` 먼저 호출.
 - plot/{arc}.md와 직전 화 마지막 2~3문단을 다시 확인.
 - 파일명: chapters/{arc}/chapter-{NN}.md
-- 이번 화 기능, 주요 장면, 감정 앵커, 엔딩 훅을 짧게 정리하고 집필.
+- `Live Drafting Cues`를 먼저 읽고, 이번 화 기능/직결 사실/보이스 압력/주요 장면/엔딩 훅만 짧게 정리하고 집필.
 - 잘 쓰려 하기보다 잘 읽히게 쓴다. 첫 문장, 전투 문장, 장면 전환 문장을 특히 평이하고 선명하게 유지한다.
 - 초안 후 분량 확인 + 기능 수행/반복 설명/결합 자연성/전투 선명도/공간 공유 인물만 짧게 점검.
 - run nonce: `{RUN_NONCE}`
 - 완료 문자열 접두: `WRITER_DONE chapter-{NN}.md`
+- chapter 저장 후 `mkdir -p tmp/sentinels && printf '%s\n' "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" > tmp/sentinels/chapter-{NN}.done` 실행
 - 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
 - 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 중간에 다시 쓰지 말 것.
 ```

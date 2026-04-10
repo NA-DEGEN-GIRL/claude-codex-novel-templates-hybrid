@@ -12,10 +12,12 @@ compile_brief — 소설 집필용 압축 브리프 생성기
 
 from __future__ import annotations
 
+import json
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 
 # ─── File I/O ──────────────────────────────────────────────
@@ -25,8 +27,114 @@ def _safe_read(path: str | Path) -> str:
     """파일을 읽되, 없거나 권한이 없으면 빈 문자열을 반환한다."""
     try:
         return Path(path).read_text(encoding="utf-8")
-    except (FileNotFoundError, PermissionError, OSError):
+    except (FileNotFoundError, PermissionError, UnicodeDecodeError, OSError):
         return ""
+
+
+def _utc_now() -> str:
+    """런타임 로그용 UTC 타임스탬프를 반환한다."""
+    return (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def _append_runtime_line(path: Path, line: str) -> None:
+    """런타임 로그 라인을 append한다."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line.rstrip("\n") + "\n")
+
+
+def _append_runtime_event(
+    novel_dir: str | Path,
+    event: str,
+    **payload: Any,
+) -> None:
+    """tmp/run-metadata/events.jsonl에 이벤트를 기록한다."""
+    event_path = Path(novel_dir) / "tmp" / "run-metadata" / "events.jsonl"
+    record = {"ts": _utc_now(), "event": event, **payload}
+    _append_runtime_line(
+        event_path,
+        json.dumps(record, ensure_ascii=False, sort_keys=True),
+    )
+
+
+def _relative_to_novel(
+    novel_dir: str | Path,
+    path: str | Path,
+) -> str:
+    """프로젝트 루트 기준 상대경로를 반환한다."""
+    novel_path = Path(novel_dir).resolve()
+    target = Path(path).resolve()
+    try:
+        return str(target.relative_to(novel_path))
+    except ValueError:
+        return str(path)
+
+
+def _safe_read_logged(
+    novel_dir: str | Path,
+    path: str | Path,
+    label: str,
+    *,
+    required: bool = False,
+) -> str:
+    """프로젝트 파일을 읽고 실패를 런타임 로그에 남긴다."""
+    target = Path(path)
+    try:
+        return target.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        if required:
+            rel_path = _relative_to_novel(novel_dir, target)
+            _append_runtime_line(
+                Path(novel_dir) / "tmp" / "run-metadata" / "read-errors.log",
+                f"{_utc_now()} missing label={label} path={rel_path}",
+            )
+            _append_runtime_event(
+                novel_dir,
+                "read_missing",
+                label=label,
+                path=rel_path,
+            )
+        return ""
+    except (PermissionError, UnicodeDecodeError, OSError) as exc:
+        rel_path = _relative_to_novel(novel_dir, target)
+        _append_runtime_line(
+            Path(novel_dir) / "tmp" / "run-metadata" / "read-errors.log",
+            f"{_utc_now()} error label={label} path={rel_path} detail={type(exc).__name__}: {exc}",
+        )
+        _append_runtime_event(
+            novel_dir,
+            "read_error",
+            label=label,
+            path=rel_path,
+            error_type=type(exc).__name__,
+            detail=str(exc),
+        )
+        return ""
+
+
+def _write_brief_snapshot(
+    novel_dir: str | Path,
+    episode_number: int,
+    brief: str,
+) -> Path:
+    """compile_brief 결과 스냅샷을 tmp/briefs에 저장한다."""
+    snapshot = (
+        Path(novel_dir) / "tmp" / "briefs" / f"chapter-{episode_number:02d}.md"
+    )
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text(brief, encoding="utf-8")
+    _append_runtime_event(
+        novel_dir,
+        "brief_snapshot_written",
+        episode=episode_number,
+        path=_relative_to_novel(novel_dir, snapshot),
+        size_bytes=len(brief.encode("utf-8")),
+    )
+    return snapshot
 
 
 def _clean_character_name(name: str) -> str:
@@ -219,6 +327,208 @@ def _extract_previous_episode_anchor(
         "- 보고/허락/안심/소문 확산/관아 전달/관계 변화는 본문에 보이지 않았으면 아직 발생하지 않은 것으로 본다.",
     ]
     return "\n".join(rules) + "\n\n### 직전 화 마지막 장면\n\n" + excerpt
+
+
+def _extract_ending_hook_tracking(running_context: str) -> str:
+    """running-context의 엔딩 훅 추적 테이블을 압축 추출한다."""
+    if not running_context:
+        return ""
+
+    match = re.search(
+        r"## (?:엔딩 훅 추적(?:\s*\(최근 \d+화\))?|Ending Hook Tracking)\s*\n(.*?)(?=\n## |$)",
+        running_context,
+        re.DOTALL,
+    )
+    if not match:
+        return ""
+
+    rows: list[str] = []
+    for line in match.group(1).strip().splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "{{" in stripped:
+            continue
+        rows.append(stripped)
+
+    if len(rows) < 3:
+        return ""
+
+    return "\n".join(rows[:2] + rows[-5:])
+
+
+def _extract_live_cue_lines(
+    text: str,
+    *,
+    heading_pattern: str,
+    limit: int,
+) -> list[str]:
+    """지정된 헤더 아래 bullet/table line을 cue용으로 뽑는다."""
+    if not text:
+        return []
+
+    match = re.search(heading_pattern, text, re.DOTALL)
+    if not match:
+        return []
+
+    lines: list[str] = []
+    for raw in match.group(1).strip().splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        if stripped.startswith(("- ", "* ", "|", ">")):
+            lines.append(stripped)
+    return lines[:limit]
+
+
+def _extract_voice_priority(style_guide: str) -> list[str]:
+    """Voice Profile 우선순위 3개를 추출한다."""
+    if not style_guide:
+        return []
+
+    match = re.search(
+        r"### 0\.2 보이스 우선순위\s*\n(.*?)(?=\n### 0\.3|\n## 1\.|$)",
+        style_guide,
+        re.DOTALL,
+    )
+    if not match:
+        return []
+
+    priorities: list[str] = []
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if re.match(r"\d+\.", stripped):
+            priorities.append(re.sub(r"^\d+\.\s*", "", stripped))
+    return priorities[:3]
+
+
+def _extract_lexicon_rows(style_lexicon: str, limit: int = 4) -> list[str]:
+    """style-lexicon의 데이터 행을 추출한다."""
+    rows: list[str] = []
+    for line in style_lexicon.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|") and "→" in stripped:
+            rows.append(stripped)
+    return rows[:limit]
+
+
+def _extract_recent_repetition_rows(
+    watchlist: str, limit: int = 4
+) -> list[str]:
+    """WATCH/HIGH watchlist 행만 추출한다."""
+    rows: list[str] = []
+    for line in watchlist.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or stripped.startswith("| ID"):
+            continue
+        if "WATCH" in stripped or "HIGH" in stripped:
+            rows.append(stripped)
+    return rows[:limit]
+
+
+def _extract_recent_decisions(
+    decision_log: str, limit: int = 3
+) -> list[str]:
+    """decision-log 데이터 행을 cue용으로 추출한다."""
+    rows: list[str] = []
+    for line in decision_log.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "규칙" in stripped:
+            continue
+        if set(stripped) <= {"|", "-", " "}:
+            continue
+        rows.append(stripped)
+    return rows[:limit]
+
+
+def _build_live_drafting_cues(
+    *,
+    goals: str,
+    prev_anchor: str,
+    running_context: str,
+    style_guide: str,
+    style_lexicon: str,
+    dialogue_log: str,
+    relationship_log: str,
+    watchlist: str,
+    decision_log: str,
+) -> str:
+    """집필 시작 전 빠르게 읽을 cue 묶음을 만든다."""
+    blocks: list[str] = []
+
+    goal_lines = [
+        line.strip()
+        for line in goals.splitlines()
+        if line.strip().startswith("- ")
+    ][:3]
+    if goal_lines:
+        blocks.append("### 이번 화 기능\n\n" + "\n".join(goal_lines))
+
+    if prev_anchor:
+        carry_lines = [
+            line.strip()
+            for line in prev_anchor.splitlines()
+            if line.strip().startswith("- ")
+        ][:2]
+        if carry_lines:
+            blocks.append("### 직전 화에서 바로 이어질 사실\n\n" + "\n".join(carry_lines))
+
+    immediate_lines = _extract_live_cue_lines(
+        running_context,
+        heading_pattern=r"## (?:직전 화 직결 상태|Immediate Carry-Forward|Carry-Forward)\s*\n(.*?)(?=\n## |$)",
+        limit=5,
+    )
+    if immediate_lines:
+        blocks.append("### 오프닝에서 놓치면 안 되는 상태\n\n" + "\n".join(immediate_lines))
+
+    hook_table = _extract_ending_hook_tracking(running_context)
+    if hook_table:
+        blocks.append("### 최근 엔딩 훅 추적\n\n" + hook_table)
+
+    priorities = _extract_voice_priority(style_guide)
+    if priorities:
+        blocks.append(
+            "### 이번 화 보이스 우선순위\n\n"
+            + "\n".join(f"- {line}" for line in priorities)
+        )
+
+    lexicon_rows = _extract_lexicon_rows(style_lexicon)
+    if lexicon_rows:
+        blocks.append(
+            "### 최근 채택 어휘 치환\n\n"
+            + "| 패턴 | 치환 |\n|------|------|\n"
+            + "\n".join(lexicon_rows)
+        )
+
+    dialogue_rows = [
+        line.strip()
+        for line in dialogue_log.splitlines()
+        if line.strip().startswith("|") and not line.strip().startswith("|----")
+    ][:4]
+    if len(dialogue_rows) > 1:
+        blocks.append("### 대사 운용 경고\n\n" + "\n".join(dialogue_rows))
+
+    turning_points = _extract_relationship_turning_points(relationship_log)
+    if turning_points:
+        blocks.append(turning_points)
+
+    recent_repetition = _extract_recent_repetition_rows(watchlist)
+    if recent_repetition:
+        blocks.append(
+            "### 반복 패턴 주의\n\n"
+            + "| ID | 유형 | 패턴 | 현재 빈도 | 허용 한도 | 비고 |\n"
+            + "|----|----|------|---------|---------|------|\n"
+            + "\n".join(recent_repetition)
+        )
+
+    recent_decisions = _extract_recent_decisions(decision_log)
+    if recent_decisions:
+        blocks.append(
+            "### 유지 중인 규칙 이탈\n\n"
+            + "| 규칙 | 적용 범위 | 이유 | 종료 조건 |\n"
+            + "|------|----------|------|-----------|\n"
+            + "\n".join(recent_decisions)
+        )
+
+    return "\n\n".join(blocks)
 
 
 # ─── Parsers ───────────────────────────────────────────────
@@ -1267,6 +1577,11 @@ def _compile_brief(
     """
     novel_path = Path(novel_dir)
     summaries = novel_path / "summaries"
+    _append_runtime_event(
+        novel_dir,
+        "compile_brief_start",
+        episode=episode_number,
+    )
 
     # ── 등장인물 결정 ──
     char_confidence = "high"
@@ -1289,17 +1604,75 @@ def _compile_brief(
                 char_confidence = "fallback"
 
     # ── 파일 읽기 ──
-    running_context = _safe_read(summaries / "running-context.md")
-    character_tracker = _safe_read(summaries / "character-tracker.md")
-    knowledge_map = _safe_read(summaries / "knowledge-map.md")
-    relationship_log = _safe_read(summaries / "relationship-log.md")
-    promise_tracker = _safe_read(summaries / "promise-tracker.md")
-    foreshadowing = _safe_read(novel_path / "plot" / "foreshadowing.md")
-    episode_log = _safe_read(summaries / "episode-log.md")
-    dialogue_log = _safe_read(summaries / "dialogue-log.md")
-    claude_md = _safe_read(novel_path / "CLAUDE.md")
-    style_guide = _safe_read(
-        novel_path / "settings" / "01-style-guide.md"
+    running_context = _safe_read_logged(
+        novel_dir,
+        summaries / "running-context.md",
+        "running-context",
+        required=True,
+    )
+    character_tracker = _safe_read_logged(
+        novel_dir,
+        summaries / "character-tracker.md",
+        "character-tracker",
+        required=True,
+    )
+    knowledge_map = _safe_read_logged(
+        novel_dir,
+        summaries / "knowledge-map.md",
+        "knowledge-map",
+    )
+    relationship_log = _safe_read_logged(
+        novel_dir,
+        summaries / "relationship-log.md",
+        "relationship-log",
+    )
+    promise_tracker = _safe_read_logged(
+        novel_dir,
+        summaries / "promise-tracker.md",
+        "promise-tracker",
+    )
+    foreshadowing = _safe_read_logged(
+        novel_dir,
+        novel_path / "plot" / "foreshadowing.md",
+        "foreshadowing",
+    )
+    episode_log = _safe_read_logged(
+        novel_dir,
+        summaries / "episode-log.md",
+        "episode-log",
+        required=True,
+    )
+    dialogue_log = _safe_read_logged(
+        novel_dir,
+        summaries / "dialogue-log.md",
+        "dialogue-log",
+    )
+    claude_md = _safe_read_logged(
+        novel_dir,
+        novel_path / "CLAUDE.md",
+        "claude-md",
+        required=True,
+    )
+    style_guide = _safe_read_logged(
+        novel_dir,
+        novel_path / "settings" / "01-style-guide.md",
+        "style-guide",
+        required=True,
+    )
+    style_lexicon = _safe_read_logged(
+        novel_dir,
+        summaries / "style-lexicon.md",
+        "style-lexicon",
+    )
+    decision_log = _safe_read_logged(
+        novel_dir,
+        summaries / "decision-log.md",
+        "decision-log",
+    )
+    watchlist = _safe_read_logged(
+        novel_dir,
+        summaries / "repetition-watchlist.md",
+        "repetition-watchlist",
     )
 
     # ── 각 섹션 생성 ──
@@ -1317,12 +1690,26 @@ def _compile_brief(
         f"{confidence_label.get(char_confidence, '')}"
     )
 
-    # 1. 이번 화 목표
     goals = _extract_episode_goals(novel_dir, episode_number)
+    prev_anchor = _extract_previous_episode_anchor(novel_dir, episode_number)
+    live_cues = _build_live_drafting_cues(
+        goals=goals,
+        prev_anchor=prev_anchor,
+        running_context=running_context,
+        style_guide=style_guide,
+        style_lexicon=style_lexicon,
+        dialogue_log=dialogue_log,
+        relationship_log=relationship_log,
+        watchlist=watchlist,
+        decision_log=decision_log,
+    )
+    if live_cues:
+        sections.append(f"## Live Drafting Cues\n\n{live_cues}")
+
+    # 1. 이번 화 목표
     sections.append(f"## 이번 화 목표\n\n{goals}")
 
     # 1.5. 직전 화 오프닝 앵커 (/clear 여부와 무관하게 중요)
-    prev_anchor = _extract_previous_episode_anchor(novel_dir, episode_number)
     if prev_anchor:
         sections.append(f"## 직전 화 직결 앵커\n\n{prev_anchor}")
 
@@ -1471,7 +1858,6 @@ def _compile_brief(
     if turning_points:
         global_parts.append(turning_points)
     # 프로젝트 단위 의도적 규칙 이탈 기록
-    decision_log = _safe_read(summaries / "decision-log.md")
     if decision_log:
         # 테이블 행이 있는 경우만 포함 (빈 템플릿 제외)
         table_rows = [
@@ -1568,7 +1954,6 @@ def _compile_brief(
             sections.append("## 분량/구조\n\n" + table_match.group(1).strip())
 
     # 11. 어휘 치환 사전 (style-lexicon — 작고 전역적이므로 전체 포함)
-    style_lexicon = _safe_read(summaries / "style-lexicon.md")
     if style_lexicon:
         # 데이터 행이 있는 경우만 포함 (빈 템플릿 제외)
         data_rows = [
@@ -1579,7 +1964,6 @@ def _compile_brief(
             sections.append(f"## 어휘 치환 사전\n\n{style_lexicon.strip()}")
 
     # 12. 반복 패턴 감시 목록 (repetition-watchlist — WATCH/HIGH만 압축)
-    watchlist = _safe_read(summaries / "repetition-watchlist.md")
     if watchlist:
         watch_lines = []
         in_watch_section = False
@@ -1602,7 +1986,11 @@ def _compile_brief(
             )
 
     # 14. 용어 온보딩 경고 (미설명 + 기한 임박/초과만)
-    term_onboarding = _safe_read(summaries / "term-onboarding.md")
+    term_onboarding = _safe_read_logged(
+        novel_dir,
+        summaries / "term-onboarding.md",
+        "term-onboarding",
+    )
     if term_onboarding:
         overdue_lines = []
         for line in term_onboarding.splitlines():
@@ -1625,7 +2013,15 @@ def _compile_brief(
     )
     sections.insert(1, header_line)
 
-    return "\n\n".join(sections)
+    final_brief = "\n\n".join(sections)
+    _write_brief_snapshot(novel_dir, episode_number, final_brief)
+    _append_runtime_event(
+        novel_dir,
+        "compile_brief_complete",
+        episode=episode_number,
+        size_bytes=len(final_brief.encode("utf-8")),
+    )
+    return final_brief
 
 
 def _estimate_source_size(novel_dir: str) -> float:
