@@ -117,6 +117,7 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
 - **If session exists**: Capture the screen to assess current state and continue
 - Writer가 집필과 fix-spec 수정을 모두 같은 세션에서 수행 (writer = fixer).
 - Writer 프롬프트 전송: codex mode → `tmux-send-codex`, claude mode → `tmux-send-claude`.
+- writer 장문 프롬프트는 pane에 직접 paste하지 말고 `tmp/run-prompts/*.txt`에 저장한 뒤, 세션에는 `그 파일을 읽고 그대로 수행해` 같은 짧은 pointer prompt만 보내는 것을 기본값으로 삼는다.
 
 **Review 세션** (Claude Code — 리뷰/검증/후처리):
 - tmux session name: `{{SESSION}}-review` (예: `write-001-review`)
@@ -128,7 +129,7 @@ Supervise batch writing for the {{NOVEL_ID}} novel. Follow these rules.
   - 화별 post-write 완료 후: `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}`
   - fix 재검증 완료 후: `RECHECK_DONE chapter-{NN} :: run={RUN_NONCE}`
   - 아크 경계 패키지 완료 후: `ARC_DONE {arc} :: run={RUN_NONCE}`
-- review 세션 프롬프트 전송은 기본적으로 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}}-review '...' 2 80`을 사용한다.
+- review 세션 프롬프트도 기본적으로 `tmp/run-prompts/*.txt`에 장문을 저장하고, `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}}-review '...' 2 80` 또는 codex mode일 때 `tmux-send-codex`로 짧은 pointer prompt만 보낸다.
 
 > **3세션 필수**: supervisor는 tmux 관리에 집중하고, 리뷰/후처리는 반드시 Review 세션에서 수행한다. context 분리로 안정적 운영을 보장.
 
@@ -319,9 +320,10 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 **전송 순서**:
 1. writer_model에 맞는 writer prompt 파일의 Chunk Start 코드 블록을 읽는다
 2. 변수를 치환한다
-3. writer_model에 맞는 send helper를 사용한다. codex mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} 'command text' 2 60`, claude mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}} 'command text' 2 80`을 기본으로 쓴다.
-4. **send helper 성공 신호를 먼저 확인한다.** `WORKING_CONFIRMED*`, `RESPONSE_CONFIRMED*`, `PROMPT_DISAPPEARED*` 중 하나가 나와야 "전송 성공"으로 본다.
-5. 그 다음에만 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 500 0 "{{NOVEL_DIR}}/tmp/sentinels/chapter-{NN}.done"`로 들어간다.
+3. 장문 prompt는 먼저 `tmp/run-prompts/*.txt`에 저장한다.
+4. writer_model에 맞는 send helper를 사용한다. codex mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} "\`{{NOVEL_DIR}}/tmp/run-prompts/ep-{NN}-writer.txt\`를 읽고 그대로 수행해. sentinel은 파일에 적힌 exact 문자열만 마지막 줄에 출력해." 2 60`, claude mode는 `bash {{NOVEL_DIR}}/scripts/tmux-send-claude {{SESSION}} "\`{{NOVEL_DIR}}/tmp/run-prompts/ep-{NN}-writer.txt\`를 읽고 그대로 수행해. sentinel은 파일에 적힌 exact 문자열만 마지막 줄에 출력해." 2 80`을 기본으로 쓴다.
+5. **send helper 성공 신호를 먼저 확인한다.** `WORKING_CONFIRMED*`, `RESPONSE_CONFIRMED*`, `PROMPT_DISAPPEARED*` 중 하나가 나와야 "전송 성공"으로 본다.
+6. 그 다음에만 `bash {{NOVEL_DIR}}/scripts/tmux-wait-sentinel {{SESSION}} "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}" 420 2 500 0 "{{NOVEL_DIR}}/tmp/sentinels/chapter-{NN}.done"`로 들어간다.
    - 장시간 고정 `sleep`으로 먼저 기다리지 않는다.
    - `tmux capture-pane` 수동 확인은 **send helper가 `NO_START_SIGNAL`을 낸 경우**와 **sentinel timeout 이후 fallback**에서만 쓴다.
    - **중요**: `tmux-wait-sentinel` 대기에 들어갔다고 해서 writer가 시작된 것은 아니다. 시작 확인은 send helper가 담당한다.
@@ -398,12 +400,17 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 
 #### 3d. Command Send Protocol (Important)
 
-Do not rely on a single `tmux send-keys ... Enter` call for prompts or recovery commands. `Enter` may occasionally fail to register, leaving the command text pasted but not executed.
+Do not rely on a single long paste into the pane. `Enter` may occasionally fail to register, leaving the command text pasted but not executed.
+
+**기본 원칙**:
+- 장문 writer/review/fix prompt는 `tmp/run-prompts/*.txt`에 저장한다.
+- 세션에는 그 파일을 읽고 수행하라고 지시하는 **짧은 pointer prompt**만 전송한다.
+- codex mode에서는 `tmux-send-codex`가 pointer prompt 제출 뒤 입력창에 텍스트가 남아 있으면 3초 간격으로 최대 4회까지 `Enter`를 더 보낸다.
 
 Always send commands in this order:
 
 ```bash
-tmux send-keys -t {{SESSION}} -l 'command text'
+tmux send-keys -t {{SESSION}} -l 'short pointer prompt'
 sleep 3          # Codex: 즉시 Enter = 줄바꿈, 3초 후 Enter = 메시지 전송
 tmux send-keys -t {{SESSION}} Enter
 ```
@@ -415,7 +422,7 @@ tmux send-keys -t {{SESSION}} Enter
 **Codex 전용 권장 방식**:
 
 ```bash
-bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} 'command text' 2 60
+bash {{NOVEL_DIR}}/scripts/tmux-send-codex {{SESSION}} "\`{{NOVEL_DIR}}/tmp/run-prompts/ep-{NN}-writer.txt\`를 읽고 그대로 수행해. sentinel은 파일에 적힌 exact 문자열만 마지막 줄에 출력해." 2 60
 ```
 
 이 명령이 `WORKING_CONFIRMED*`, `RESPONSE_CONFIRMED*`, `PROMPT_DISAPPEARED*` 중 하나를 반환해야만 "프롬프트가 실제 제출되었다"고 본다. `NO_START_SIGNAL`이면 아직 시작되지 않은 것으로 본다.

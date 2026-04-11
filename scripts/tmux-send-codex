@@ -8,7 +8,8 @@ Usage:
 
 Sends a prompt to a Codex tmux session, waits 3 seconds, presses Enter,
 then checks whether `Working` appears within the confirm window.
-If not, it sends Enter once more and checks again.
+If the prompt is still waiting in the input area, it sends Enter again
+every 3 seconds for a few more attempts before giving up.
 EOF
 }
 
@@ -26,6 +27,7 @@ SESSION="$1"
 MESSAGE="$2"
 CONFIRM_SECONDS="${3:-2}"
 CAPTURE_LINES="${4:-60}"
+MAX_EXTRA_ENTER_ATTEMPTS="${TMUX_SEND_MAX_EXTRA_ENTER_ATTEMPTS:-4}"
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EVENT_NOVEL_DIR="${NOVEL_EVENT_DIR:-${SCRIPT_ROOT}}"
 
@@ -111,51 +113,58 @@ log_event tmux_send_codex_start \
   "session=${SESSION}" \
   "confirm_seconds=${CONFIRM_SECONDS}" \
   "capture_lines=${CAPTURE_LINES}" \
+  "max_extra_enter_attempts=${MAX_EXTRA_ENTER_ATTEMPTS}" \
   "message_bytes=${#MESSAGE}"
 before_pane="$(capture_pane)"
 tmux send-keys -t "${SESSION}" -l "${MESSAGE}"
 sleep 3
-tmux send-keys -t "${SESSION}" Enter
-sleep "${CONFIRM_SECONDS}"
 
-pane="$(capture_pane)"
-delta="$(extract_delta "${before_pane}" "${pane}")"
-if has_working_marker "${delta}"; then
-  log_event tmux_send_codex_result "status=WORKING_CONFIRMED" "session=${SESSION}"
-  echo "WORKING_CONFIRMED session=${SESSION}"
-  exit 0
-fi
-if has_response_block "${delta}"; then
-  log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED" "session=${SESSION}"
-  echo "RESPONSE_CONFIRMED session=${SESSION}"
-  exit 0
-fi
-if ! message_still_waiting "${pane}"; then
-  log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED" "session=${SESSION}"
-  echo "PROMPT_DISAPPEARED session=${SESSION}"
-  exit 0
-fi
+attempt=0
+while true; do
+  tmux send-keys -t "${SESSION}" Enter
+  sleep "${CONFIRM_SECONDS}"
 
-tmux send-keys -t "${SESSION}" Enter
-sleep "${CONFIRM_SECONDS}"
-pane="$(capture_pane)"
-delta="$(extract_delta "${before_pane}" "${pane}")"
-if has_working_marker "${delta}"; then
-  log_event tmux_send_codex_result "status=WORKING_CONFIRMED_AFTER_RETRY" "session=${SESSION}"
-  echo "WORKING_CONFIRMED_AFTER_RETRY session=${SESSION}"
-  exit 0
-fi
-if has_response_block "${delta}"; then
-  log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED_AFTER_RETRY" "session=${SESSION}"
-  echo "RESPONSE_CONFIRMED_AFTER_RETRY session=${SESSION}"
-  exit 0
-fi
-if ! message_still_waiting "${pane}"; then
-  log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED_AFTER_RETRY" "session=${SESSION}"
-  echo "PROMPT_DISAPPEARED_AFTER_RETRY session=${SESSION}"
-  exit 0
-fi
+  pane="$(capture_pane)"
+  delta="$(extract_delta "${before_pane}" "${pane}")"
+  if has_working_marker "${delta}"; then
+    if (( attempt == 0 )); then
+      log_event tmux_send_codex_result "status=WORKING_CONFIRMED" "session=${SESSION}"
+      echo "WORKING_CONFIRMED session=${SESSION}"
+    else
+      log_event tmux_send_codex_result "status=WORKING_CONFIRMED_AFTER_EXTRA_ENTERS" "session=${SESSION}" "extra_enters=${attempt}"
+      echo "WORKING_CONFIRMED_AFTER_EXTRA_ENTERS session=${SESSION} extra_enters=${attempt}"
+    fi
+    exit 0
+  fi
+  if has_response_block "${delta}"; then
+    if (( attempt == 0 )); then
+      log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED" "session=${SESSION}"
+      echo "RESPONSE_CONFIRMED session=${SESSION}"
+    else
+      log_event tmux_send_codex_result "status=RESPONSE_CONFIRMED_AFTER_EXTRA_ENTERS" "session=${SESSION}" "extra_enters=${attempt}"
+      echo "RESPONSE_CONFIRMED_AFTER_EXTRA_ENTERS session=${SESSION} extra_enters=${attempt}"
+    fi
+    exit 0
+  fi
+  if ! message_still_waiting "${pane}"; then
+    if (( attempt == 0 )); then
+      log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED" "session=${SESSION}"
+      echo "PROMPT_DISAPPEARED session=${SESSION}"
+    else
+      log_event tmux_send_codex_result "status=PROMPT_DISAPPEARED_AFTER_EXTRA_ENTERS" "session=${SESSION}" "extra_enters=${attempt}"
+      echo "PROMPT_DISAPPEARED_AFTER_EXTRA_ENTERS session=${SESSION} extra_enters=${attempt}"
+    fi
+    exit 0
+  fi
 
-log_event tmux_send_codex_result "status=NO_START_SIGNAL" "session=${SESSION}"
-echo "NO_START_SIGNAL session=${SESSION}"
+  if (( attempt >= MAX_EXTRA_ENTER_ATTEMPTS )); then
+    break
+  fi
+
+  attempt=$((attempt + 1))
+  sleep 3
+done
+
+log_event tmux_send_codex_result "status=NO_START_SIGNAL" "session=${SESSION}" "extra_enters=${attempt}"
+echo "NO_START_SIGNAL session=${SESSION} extra_enters=${attempt}"
 exit 1
