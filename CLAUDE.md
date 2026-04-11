@@ -172,11 +172,12 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 2. **GPT** (`gpt_feedback`): prose/dialogue/emotion → `EDITOR_FEEDBACK_gpt.md`. codex mode에서는 false 권장 (집필 모델과 동일), claude mode에서는 true 권장 (교차 검증)
 3. **NIM** (`nim_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_nim.md`
 4. **Ollama** (`ollama_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_ollama.md`
-5. **Proxy** (`proxy_feedback`): Korean line-edit quality (번역투/어색한 결합/반복/호응/과압축/서술 register 흔들림) → `EDITOR_FEEDBACK_proxy.md`. 로컬 LLM(Gemma4 등)을 활용한 한국어 자연스러움 전담 감수.
+5. **Proxy** (`proxy_feedback`): Korean line-edit quality (번역투/어색한 결합/반복/호응/과압축/서술 register 흔들림) → `EDITOR_FEEDBACK_proxy.md`. 로컬 LLM(Gemma4 등)을 활용한 한국어 자연스러움 1차 감수.
+6. **GPT naturalness** (`review_episode(..., sources="gpt_naturalness")`): 빠른 장면의 즉시 장면화, 대상 지시의 표면 읽힘, 수정안 오염 여부를 2차로 확인 → `EDITOR_FEEDBACK_gpt_naturalness_<chapter>.md`. proxy 결과가 애매하거나, 전투/군중/추격 장면에서 누가 어디서 무엇을 했는지 첫 읽기에 바로 안 그려질 때 우선 사용.
 
 > All sources false → skip external review. Individual source failure → skip that source only, log it.
 >
-> **오류 유형별 우선순위**: 철자/띄어쓰기/문장부호 → NIM/Ollama 우선. 번역투/결합 자연성/호응/반복/과압축 문장/장면 첫 문장 읽힘 → Proxy 우선. 충돌 시 unified reviewer가 판정.
+> **오류 유형별 우선순위**: 철자/띄어쓰기/문장부호 → NIM/Ollama 우선. 번역투/결합 자연성/호응/반복/과압축 문장/장면 첫 문장 읽힘 → Proxy 우선. 전투/군중/추격처럼 빠른 장면의 즉시 장면화 실패, 대상 지시가 로그처럼 읽히는 문제, 수정안까지 원문 골격에 묶이는 문제 → `gpt_naturalness`를 2차 우선 경로로 사용. 충돌 시 unified reviewer가 판정.
 
 ### 3.4 Post-Processing (Hybrid: Supervisor가 수행)
 

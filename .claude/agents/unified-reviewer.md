@@ -178,7 +178,9 @@ Evaluate when `EDITOR_FEEDBACK_*.md` files exist.
 - **GPT**: codex mode에서는 비활성 권장 (집필 모델과 동일). claude mode에서는 활성 권장 (교차 검증). `gpt_feedback` 설정에 따름
 - **NIM/Ollama**: 철자/띄어쓰기/문장부호/대사 맥락 전담 → 규칙형 교정 항목은 이 소스 우선
 - **Proxy**: 번역투/어색한 결합/주술 호응/문단 내 반복 + 과압축 문장 + 첫 문장/장면 전환/문단 말미의 읽힘 문제 전담 → 한국어 자연스러움 항목은 이 소스 우선. 대사·사투리·시대어 관련은 proxy가 아닌 설정 파일 기준으로 판정
+- **GPT naturalness**: 전투/군중/추격처럼 빠른 장면에서 누가 어디서 무엇을 했는지 첫 읽기에 바로 안 그려지는 문제, 대상 지시가 로그처럼 읽히는 문제, 수정안까지 어색한 골격을 끌고 가는 문제를 2차 확인하는 경로. proxy 결과가 애매하거나 surface 읽힘 문제가 남아 보이면 `review_episode(..., sources="gpt_naturalness")` 결과를 추가로 읽고 판정한다.
 - NIM/Ollama와 Proxy가 같은 문장을 지적한 경우: 철자/문법 → NIM 우선, 자연스러움/번역투/읽힘/과압축 → Proxy 우선. 판단 애매 시 reviewer가 직접 결정
+- Proxy와 GPT naturalness가 같은 장면을 지적한 경우: 일반 결합/번역투/과압축 → Proxy 우선, 빠른 장면 즉시 장면화/대상 지시/로그화 → GPT naturalness 우선. 판단 애매 시 reviewer가 직접 본문과 두 결과 파일을 대조해 결정
 
 **Special rule**: Meta-reference flagging (in-text mention of "X화") → Treat as Critical Error, immediately ✅ adopt.
 
