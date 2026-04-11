@@ -94,7 +94,7 @@
 1. **Call `compile_brief` MCP tool**: Generates a compressed brief (~4-15KB) from project files (~300KB+). compile_brief를 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프에 `직전 화 직결 앵커`가 있으면 현재 화 오프닝의 1차 기준으로 사용한다.
    - Fallback if unavailable: `summaries/running-context.md` → relevant arc plot → `plot/foreshadowing.md` → `summaries/character-tracker.md`.
 2. **Read the previous episode's last scene**: 최소 2~3문단, 가능하면 마지막 장면 전체 또는 마지막 8~12문단을 읽어 hook connection + opening carry-forward facts를 확인한다.
-3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue.
+3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue. 대화 위계가 중요하면 `§8.1 호칭/어투 매트릭스`까지 함께 확인한다.
 4. **Check continuity anchors when needed**: If this episode contains flashbacks, explicit elapsed time, deadlines, travel time, injuries, recovery periods, age-sensitive recall, or carry-forward promises, read `settings/05-continuity.md` directly instead of relying on memory alone.
 5. **Check editor feedback**: Reference `EDITOR_FEEDBACK_*.md` if unprocessed feedback exists.
 
@@ -141,7 +141,7 @@
    - `hanja_lookup`, `hanja_search`, `hanja_meaning`, `hanja_verify`
 9. **Hanja notation**: Show reading + Hanja only on first appearance (e.g., 내공(內功), 대사헌(大司憲) — genre-dependent). Korean-only thereafter. Ref: `summaries/hanja-glossary.md`. Exception: re-appearance after 30+ episodes, homophone disambiguation.
 10. **Use `novel-naming` MCP** for spelling variants, title consistency, faction/skill naming drift, and alias normalization when proper nouns start proliferating.
-11. **Dialogue anchor rule**: `settings/03-characters.md`의 대표 대사는 복붙용 문장이 아니다. 어휘 선택, 높낮이, 위계감, 판단 방식을 읽고, 실제 장면에 맞게 변주한다.
+11. **Dialogue anchor rule**: `settings/03-characters.md`의 대표 대사는 복붙용 문장이 아니다. 어휘 선택, 높낮이, 위계감, 판단 방식을 읽고, 실제 장면에 맞게 변주한다. 기본 캐릭터 톤보다 화자-청자 위계와 관계 register를 먼저 맞춘다.
 12. **Use era-appropriate units and terminology.** Refer to `settings/04-worldbuilding.md` for your novel's setting.
    - Modern/SF: Modern units, loanwords, and Arabic numerals are natural. No conversion needed.
    - Pre-modern/historical: metric → traditional units, loanwords → Sino-Korean/native Korean. Use `unit_convert`.
@@ -335,6 +335,8 @@ intentional_deviations:  # (optional) record deliberate rule deviations for THIS
 | **{{CHAR_C}}** | {{존/반+호칭}} | {{존/반+호칭}} | — |
 
 > 미등록 조합 기본값: {{DEFAULT_RULE}}
+> 필수 명시 조합: 부모/가족, 연장자/사부/상급자, 동년배/친한 사이, 아랫사람/후배, 적대자/대치 대상.
+> 미등록 조합 기본값은 진짜 주변 인물에만 쓰고, 작품에서 반복될 관계축은 표에 직접 적는다.
 
 ### 8.2 상황별 어투 전환
 
@@ -350,11 +352,13 @@ intentional_deviations:  # (optional) record deliberate rule deviations for THIS
 
 ### 8.4 어투 원칙
 
-1. **어투 변화는 사건에 의해서만 발생**: 설명 없는 갑작스러운 전환 금지.
-2. **감정 극단 시 일시적 이탈 허용**: 장면 종료 후 원래로 복귀.
-3. **공적/사적 구분**: 같은 쌍이라도 상황에 따라 다를 수 있다.
-4. **어투 역행 금지**: 반말→존댓말 전환은 특수 사건(배신, 관계 단절 등) 필요.
-5. **대화는 정보 전달만을 위해 존재하지 않는다**: 대부분의 대화 교환은 정보 전달 외에 최소 하나의 기능(캐릭터 성격 노출, 관계 변화, 서브텍스트, 유머)을 수행해야 한다. 일상적 정보 전달(가격, 길 안내 등)은 예외.
+1. **기본 톤보다 관계 위계 우선**: "무뚝뚝함", "다정함" 같은 캐릭터 총평보다 화자-청자 관계와 위계가 먼저다.
+2. **부모/연장자/사부 예외 없음**: 과묵한 인물이라도 부모, 연장자, 사부, 상급자 앞에서는 관계가 읽히는 표면 register를 남긴다. 말수가 적다고 기계적 반말을 허용하지 않는다.
+3. **어투 변화는 사건에 의해서만 발생**: 설명 없는 갑작스러운 전환 금지.
+4. **감정 극단 시 일시적 이탈 허용**: 장면 종료 후 원래로 복귀.
+5. **공적/사적 구분**: 같은 쌍이라도 상황에 따라 다를 수 있다.
+6. **어투 역행 금지**: 반말→존댓말 전환은 특수 사건(배신, 관계 단절 등) 필요.
+7. **대화는 정보 전달만을 위해 존재하지 않는다**: 대부분의 대화 교환은 정보 전달 외에 최소 하나의 기능(캐릭터 성격 노출, 관계 변화, 서브텍스트, 유머)을 수행해야 한다. 일상적 정보 전달(가격, 길 안내 등)은 예외.
 
 ---
 
