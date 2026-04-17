@@ -17,7 +17,7 @@
 | 2 | Voice preservation | ✅ | [phase-2-voice-preservation.md](phase-2-voice-preservation.md) |
 | 3 | Role consolidation | ✅ | [phase-3-role-consolidation.md](phase-3-role-consolidation.md) |
 | 4 | Genre profiles | ✅ | [phase-4-genre-profiles.md](phase-4-genre-profiles.md) |
-| 5 | Drift automation | 🔄 | [phase-5-drift-automation.md](phase-5-drift-automation.md) |
+| 5 | Drift automation | ✅ | [phase-5-drift-automation.md](phase-5-drift-automation.md) |
 
 **범례**: ✅ 완료 · 🔄 진행중 · ⏳ 대기
 

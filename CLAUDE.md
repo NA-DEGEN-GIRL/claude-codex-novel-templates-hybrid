@@ -95,7 +95,7 @@
 
 ### 3.1 Preparation (Prep)
 
-1. **Call `compile_brief` MCP tool**: Generates a compressed brief (~4-15KB) from project files (~300KB+). compile_brief를 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프에 `직전 화 직결 앵커`가 있으면 현재 화 오프닝의 1차 기준으로 사용한다.
+1. **Call `compile_brief` via `novel-editor` MCP server**: Generates a compressed brief (~4-15KB) from project files (~300KB+). `compile_brief`는 이 템플릿에 포함된 Python 스크립트(`compile_brief.py`)를 `novel-editor` MCP 서버가 tool로 노출한다. 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프에 `직전 화 직결 앵커`가 있으면 현재 화 오프닝의 1차 기준으로 사용한다.
    - Fallback if unavailable: `summaries/running-context.md` → relevant arc plot → `plot/foreshadowing.md` → `summaries/character-tracker.md`.
 2. **Read the previous episode's last scene**: 최소 2~3문단, 가능하면 마지막 장면 전체 또는 마지막 8~12문단을 읽어 hook connection + opening carry-forward facts를 확인한다.
 3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue. 대화 위계가 중요하면 `§8.1 호칭/어투 매트릭스`까지 함께 확인한다.
@@ -263,8 +263,8 @@ Arc boundary principle:
 **MCP servers vs standalone tools**:
 
 - **MCP servers** (native MCP protocol, tool calls): `novel-calc`, `novel-hanja`, `novel-naming`, `novel-editor`, `novelai-image`.
-- **Standalone Python scripts** (not MCP): `compile_brief.py`, `scripts/*.py`.
-- `compile_brief`는 **helper script**. "MCP tool"로 부르지 말 것.
+- **Standalone Python scripts** (not MCP, `/scripts/*.py`): `validate-settings.py`, `validate-docs.py`, `event-log.py`, `check-open-holds.py`, `summarize-runtime-metrics.py`, `suggest-voice-profile-refresh.py`, `verify-review-done.py`.
+- **Template-bundled script exposed via MCP**: `compile_brief.py`는 이 템플릿에 포함된 스크립트이며, `novel-editor` MCP 서버가 이를 `compile_brief` tool로 노출한다. 호출 시 "via `novel-editor` MCP" 또는 "`compile_brief` tool" 표기 권장. "MCP 서버 이름"으로 오인하지 말 것.
 
 ---
 
