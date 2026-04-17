@@ -11,25 +11,46 @@ def _require(text: str, needle: str, label: str, failures: list[str]) -> None:
         failures.append(f"{label}: missing `{needle}`")
 
 
+def _safe_read(path: Path, label: str, failures: list[str]) -> str:
+    """파일이 없거나 읽기 실패 시 failures 로그에 기록하고 빈 문자열 반환.
+
+    supervisor 배치가 Python traceback으로 hard-stop 하지 않도록 방어.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        failures.append(f"{label}: missing file ({path})")
+        return ""
+    except OSError as exc:
+        failures.append(f"{label}: read error ({exc})")
+        return ""
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--novel-dir", required=True)
     args = parser.parse_args(argv[1:])
 
     novel_dir = Path(args.novel_dir)
-    style_guide = (novel_dir / "settings" / "01-style-guide.md").read_text(
-        encoding="utf-8"
+    failures: list[str] = []
+
+    style_guide = _safe_read(
+        novel_dir / "settings" / "01-style-guide.md",
+        "01-style-guide.md",
+        failures,
     )
-    characters = (novel_dir / "settings" / "03-characters.md").read_text(
-        encoding="utf-8"
+    characters = _safe_read(
+        novel_dir / "settings" / "03-characters.md",
+        "03-characters.md",
+        failures,
     )
-    running_context = (
-        novel_dir / "summaries" / "running-context.md"
-    ).read_text(encoding="utf-8")
+    running_context = _safe_read(
+        novel_dir / "summaries" / "running-context.md",
+        "summaries/running-context.md",
+        failures,
+    )
     desire_state_path = novel_dir / "summaries" / "desire-state.md"
     signature_moves_path = novel_dir / "summaries" / "signature-moves.md"
-
-    failures: list[str] = []
 
     for needle in (
         "## 0. Voice Profile",

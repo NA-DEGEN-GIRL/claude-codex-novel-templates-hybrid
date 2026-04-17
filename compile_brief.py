@@ -599,11 +599,18 @@ def _build_live_drafting_cues(
         if line.strip().startswith("|") and not line.strip().startswith("|----")
     ][:4]
     if len(dialogue_rows) > 1:
-        blocks.append("### 대사 운용 경고\n\n" + "\n".join(dialogue_rows))
+        # 첫 줄이 헤더이면 구분선을 삽입하여 올바른 마크다운 테이블 형태로 출력.
+        header = dialogue_rows[0]
+        body_rows = dialogue_rows[1:]
+        col_count = max(1, len([c for c in header.split("|") if c.strip()]))
+        separator = "|" + "|".join([" --- "] * col_count) + "|"
+        blocks.append(
+            "### 대사 운용 경고\n\n"
+            + "\n".join([header, separator] + body_rows)
+        )
 
-    turning_points = _extract_relationship_turning_points(relationship_log)
-    if turning_points:
-        blocks.append(turning_points)
+    # 관계 전환점은 ## 전역 컨텍스트에만 출력 (중복 방지).
+    # 이전에는 Live Cues와 전역 컨텍스트에 동일 내용이 두 번 노출되었음.
 
     recent_repetition = _extract_recent_repetition_rows(watchlist)
     if recent_repetition:
@@ -1050,13 +1057,13 @@ def _filter_promise_tracker(content: str) -> str:
         if len(cols) < 4:
             continue
 
+        # Schema (빈 문자열 제거 후): [ID, 당사자, 내용, 투하, 예정회수, 우선순위, 상세]
         pid = cols[0]
         parties = cols[1]
         desc = cols[2]
-        # 상세에서 최근 진전만 (마지막 100자)
-        detail = cols[-1] if len(cols) > 5 else ""
-        status = cols[4] if len(cols) > 4 else ""
-        priority = cols[5] if len(cols) > 5 else ""
+        due = cols[4] if len(cols) > 4 else ""       # 예정회수 (상태가 아님 — 과거 버그 수정)
+        priority = cols[5] if len(cols) > 5 else ""  # 우선순위
+        detail = cols[-1] if len(cols) > 5 else ""   # 상세
 
         # 최근 진전 추출
         latest = ""
@@ -1067,9 +1074,17 @@ def _filter_promise_tracker(content: str) -> str:
             if progress:
                 latest = f" (최근: {progress[-1]})"
 
+        # 우선순위/예정회수를 명확히 라벨링 (이전에는 '예정회수'를 '상태'로 오표시했음).
+        label_parts = []
+        if priority:
+            label_parts.append(priority)
+        if due:
+            label_parts.append(f"마감 {due}")
+        label = f" [{' / '.join(label_parts)}]" if label_parts else ""
+
         result.append(
             f"- **{pid}** {parties}: {desc[:80]}"
-            f" [{status}]{latest}"
+            f"{label}{latest}"
         )
 
     return "\n".join(result) if result else "(활성 약속 없음)"
@@ -1685,6 +1700,7 @@ def _extract_relationship_turning_points(content: str) -> str:
     """relationship-log에서 관계 전환점을 추출한다.
 
     '반전', '단절', '화해', '배신', '고백', '결별' 등의 키워드가 있는 항목.
+    출력에는 원본 테이블의 헤더+구분선을 포함하여 올바른 마크다운 테이블을 보장한다.
     """
     if not content:
         return ""
@@ -1692,13 +1708,33 @@ def _extract_relationship_turning_points(content: str) -> str:
     turning_keywords = ["반전", "단절", "화해", "배신", "고백", "결별",
                         "전환", "변화", "갈등", "결렬"]
     lines = content.splitlines()
-    result: list[str] = []
 
-    for line in lines:
-        if not line.startswith("|"):
+    # 원본 테이블의 헤더와 구분선 찾기 (첫 번째 | 줄 + 그 다음 구분선)
+    header_row: str = ""
+    separator_row: str = ""
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("|"):
             continue
+        is_separator = all(c in "-| " for c in stripped)
+        if is_separator:
+            continue
+        # 이 줄이 헤더 후보. 다음 pipe 줄이 구분선이면 확정.
+        if i + 1 < len(lines):
+            next_stripped = lines[i + 1].strip()
+            if next_stripped.startswith("|") and all(c in "-| " for c in next_stripped):
+                header_row = stripped
+                separator_row = next_stripped
+                break
+
+    result: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        if stripped == header_row or all(c in "-| " for c in stripped):
+            continue  # 헤더/구분선 중복 방지
         if any(kw in line for kw in turning_keywords):
-            # 200자 제한
             if len(line) > 200:
                 result.append(line[:200] + "...")
             else:
@@ -1706,7 +1742,10 @@ def _extract_relationship_turning_points(content: str) -> str:
 
     if not result:
         return ""
-    return "### 관계 전환점\n\n" + "\n".join(result[-5:])
+
+    tail = result[-5:]
+    body = [header_row, separator_row] + tail if header_row else tail
+    return "### 관계 전환점\n\n" + "\n".join(body)
 
 
 # ─── Main Compiler ─────────────────────────────────────────
@@ -2175,22 +2214,32 @@ def _compile_brief(
             if stripped.startswith("|") and "미설명" in stripped:
                 overdue_lines.append(stripped)
         if overdue_lines:
+            # 원본 테이블의 헤더/구분선 포함 (없으면 기본 헤더 제공).
+            default_header = "| 용어 | 첫 등장 | 설명 완료 | 설명 기한 | 위험도 | 비고 |"
+            default_sep = "|------|--------|----------|----------|--------|------|"
             sections.append(
                 "## 용어 온보딩 경고\n\n"
+                + default_header + "\n"
+                + default_sep + "\n"
                 + "\n".join(overdue_lines[:10])
             )
 
-    brief = "\n\n".join(sections)
-
-    # 최종 크기 체크 (정보성)
-    size_kb = len(brief.encode("utf-8")) / 1024
+    # 최종 크기 체크 (정보성).
+    # 헤더 라인을 sections에 삽입한 뒤 크기를 계산해야 보고가 정확하다.
+    # 이전 구현은 삽입 전 크기를 계산해 약간 낮은 값을 보고하는 버그가 있었음.
+    size_placeholder = "__BRIEF_SIZE_PLACEHOLDER__"
     header_line = (
-        f"> 브리프 크기: {size_kb:.1f}KB | "
+        f"> 브리프 크기: {size_placeholder}KB | "
         f"원본 합계: ~{_estimate_source_size(novel_dir):.0f}KB"
     )
     sections.insert(1, header_line)
 
     final_brief = "\n\n".join(sections)
+    # 실제 크기 (placeholder 포함)로 계산 → placeholder 치환.
+    actual_size_kb = len(final_brief.encode("utf-8")) / 1024
+    final_brief = final_brief.replace(
+        size_placeholder, f"{actual_size_kb:.1f}"
+    )
     _write_brief_snapshot(novel_dir, episode_number, final_brief)
     _append_runtime_event(
         novel_dir,
@@ -2202,18 +2251,36 @@ def _compile_brief(
 
 
 def _estimate_source_size(novel_dir: str) -> float:
-    """소스 파일들의 대략적인 합산 크기를 KB로 반환한다."""
+    """소스 파일들의 대략적인 합산 크기를 KB로 반환한다.
+
+    compile_brief가 실제로 읽는 파일 중 주요 것들을 포함.
+    사용자가 "왜 brief가 11KB인가"를 디버깅할 때 참고할 수치.
+    """
     total = 0
     paths = [
+        # 핵심 summaries
         "summaries/running-context.md",
         "summaries/character-tracker.md",
         "summaries/knowledge-map.md",
         "summaries/relationship-log.md",
         "summaries/promise-tracker.md",
         "summaries/episode-log.md",
+        "summaries/dialogue-log.md",
+        "summaries/decision-log.md",
+        "summaries/review-log.md",
+        "summaries/style-lexicon.md",
+        "summaries/repetition-watchlist.md",
+        "summaries/desire-state.md",
+        "summaries/signature-moves.md",
+        "summaries/term-onboarding.md",
+        # plot
         "plot/foreshadowing.md",
+        # project rules
         "CLAUDE.md",
         "settings/01-style-guide.md",
+        "settings/03-characters.md",
+        "settings/04-worldbuilding.md",
+        "settings/05-continuity.md",
     ]
     for p in paths:
         full = Path(novel_dir) / p

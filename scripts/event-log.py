@@ -16,6 +16,11 @@ def _usage() -> int:
 
 
 def _coerce(value: str):
+    """payload 값을 JSON 호환 타입으로 변환.
+
+    bool / null / int / float / string 순서로 시도.
+    float 추가 (이전에는 float 값이 그대로 string이 되는 버그).
+    """
     lowered = value.lower()
     if lowered in {"true", "false"}:
         return lowered == "true"
@@ -24,7 +29,12 @@ def _coerce(value: str):
     try:
         return int(value)
     except ValueError:
-        return value
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
 
 
 def main(argv: list[str]) -> int:

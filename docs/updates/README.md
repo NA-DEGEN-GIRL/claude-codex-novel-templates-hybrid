@@ -13,8 +13,8 @@
 | Phase | 주제 | 상태 | 파일 |
 |-------|------|------|------|
 | 0 | Cleanup & reorg | ✅ | [phase-0-cleanup.md](phase-0-cleanup.md) |
-| 1 | Hot path optimization | 🔄 | [phase-1-hot-path.md](phase-1-hot-path.md) |
-| 2 | Voice preservation | ⏳ | [phase-2-voice-preservation.md](phase-2-voice-preservation.md) |
+| 1 | Hot path optimization | ✅ | [phase-1-hot-path.md](phase-1-hot-path.md) |
+| 2 | Voice preservation | 🔄 | [phase-2-voice-preservation.md](phase-2-voice-preservation.md) |
 | 3 | Role consolidation | ⏳ | [phase-3-role-consolidation.md](phase-3-role-consolidation.md) |
 | 4 | Genre profiles | ⏳ | [phase-4-genre-profiles.md](phase-4-genre-profiles.md) |
 | 5 | Drift automation | ⏳ | [phase-5-drift-automation.md](phase-5-drift-automation.md) |
