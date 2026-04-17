@@ -36,6 +36,7 @@
 - **prose_risk**: medium  <!-- low/medium/high. 높을수록 prose drift override를 더 쉽게 건다 -->
 - **emotion_risk**: medium  <!-- low/medium/high. 감정 전환 화수에서 standard/full 승격 근거로 사용 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
+- **profile**: wuxia  <!-- 장르 프리셋 (Phase 4 genre profiles, 2026-04-17). 값: wuxia | modern | game-fantasy | regression | romance. 상세: settings/profiles/README.md. 각 profile이 시대/Hanja/수사/대화 위계 기본값을 미리 잡아준다. -->
 
 ### 1.1 Core Promises
 
@@ -70,7 +71,8 @@
 │   ├── 05-continuity.md
 │   ├── 06-humor-guide.md       (optional)
 │   ├── 07-periodic.md
-│   └── 08-illustration.md
+│   ├── 08-illustration.md
+│   └── profiles/               ← 장르 프리셋 (Phase 4): wuxia/modern/game-fantasy/regression/romance
 ├── chapters/              ← Episode manuscripts
 ├── plot/                  ← Plot / foreshadowing
 ├── summaries/             ← Per-episode summaries
