@@ -1,5 +1,7 @@
 # Claude Writer Prompt Template
 
+> **🏷️ 모드 라벨 (Phase 3 role consolidation, 2026-04-17)**: 이 파일은 `writer_model: claude` 전용. `writer_model: codex`에는 `codex-writer.md`를 사용. supervisor가 잘못 선택하면 tmux 세션 제어 명령(Enter 타이밍, sentinel 매칭)이 어긋나 runtime 실패.
+>
 > 이 파일은 batch-supervisor가 Claude writer tmux 세션에 전송하는 기본 집필 프롬프트 템플릿이다.
 > writer는 **장면을 분명하고 자연하게 쓰는 것**에 집중한다. 세밀한 감사는 review 단계가 맡는다.
 >

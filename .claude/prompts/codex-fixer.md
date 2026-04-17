@@ -1,5 +1,7 @@
 # Codex Fixer Prompt Template
 
+> **🏷️ 모드 라벨 (Phase 3 role consolidation, 2026-04-17)**: 이 파일은 `writer_model: codex` 전용. `claude`에는 `claude-fixer.md`.
+>
 > Claude supervisor가 진단한 문제를 Codex(GPT 5.4)가 문체를 유지하며 수정한다.
 > Claude는 fix-spec 파일을 생성하고, Codex는 그 파일을 읽고 수정만 수행한다.
 >
