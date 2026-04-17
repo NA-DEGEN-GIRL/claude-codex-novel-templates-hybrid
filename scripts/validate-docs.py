@@ -129,9 +129,16 @@ def check_orphan_references(report: Report) -> None:
         if d.exists():
             target_files.extend(sorted(d.glob("*.md")))
 
-    link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-    # 상대경로 백틱 참조 (경로 구분자가 반드시 있어야 함)
-    backtick_re = re.compile(r"`([^`\s]+/[^`\s]+\.(?:md|py|json))`")
+    # link_re: 마크다운 링크. newline은 유효한 경로가 아니므로 제외 (Phase 8 fix).
+    link_re = re.compile(r"\[[^\]]*\]\(([^)\n]+)\)")
+    # 상대경로 백틱 참조 — 확장자 화이트리스트 확장 (Phase 8):
+    # md, py, json, sh, yml, yaml, txt, toml, jsonl, cfg, ini, csv + case-insensitive.
+    # no-extension 스크립트도 scripts/ 접두 포함하면 인정.
+    backtick_re = re.compile(
+        r"`([^`\s]+/[^`\s]+(?:\.(?:md|py|json|sh|yml|yaml|txt|toml|jsonl|cfg|ini|csv)"
+        r"|scripts/[A-Za-z0-9_.-]+))`",
+        re.IGNORECASE,
+    )
 
     for f in target_files:
         if not f.exists():
@@ -171,6 +178,9 @@ def check_orphan_references(report: Report) -> None:
             ref = match.group(1)
             if ref.startswith(("http://", "https://", "/")):
                 continue
+            # ~/ 홈 디렉토리 경로 — 템플릿 외부
+            if ref.startswith("~"):
+                continue
             # tmp/, chapters/, summaries/ 처럼 프로젝트 런타임 경로는 스킵
             # (템플릿이 아니라 생성된 프로젝트 내 경로)
             if ref.startswith(("tmp/", "chapters/", "summaries/", "plot/")):
@@ -209,15 +219,18 @@ def check_orphan_references(report: Report) -> None:
 
 
 def check_sentinel_consistency(report: Report) -> None:
-    """WRITER_DONE / FIX_DONE / REVIEW_DONE 표기가 Spec Canon과 일치하는가."""
-    # CLAUDE.md §4.1에서 정의된 canonical 포맷 (literal text 검사)
+    """WRITER_DONE / FIX_DONE / REVIEW_DONE 표기가 Spec Canon과 일치하는가.
+
+    Phase 8 강화 (2026-04-17):
+    - canonical 패턴에 `:: run=` suffix 필수화 (이전: prefix만 검사).
+    - referential filter에서 '등', '/' 제거 (너무 관대). 대신 중립 referential 단어만.
+    """
     canonical_strings = {
         "WRITER_DONE": "WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}",
         "FIX_DONE": "FIX_DONE chapter-{NN} :: run={RUN_NONCE}",
         "REVIEW_DONE": "REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}",
     }
 
-    # 검색 대상
     scan_dirs = [
         TEMPLATE_ROOT / ".claude" / "prompts",
         TEMPLATE_ROOT / ".claude" / "agents",
@@ -232,6 +245,24 @@ def check_sentinel_consistency(report: Report) -> None:
         if d.exists():
             scan_files.extend(sorted(d.glob("*.md")))
 
+    # referential phrase: "sentinel", "접두", "감지" 등 — 중립 단어만.
+    # 이전의 "등", "/", "출력", "쓴다"는 너무 관대해서 실제 drift도 면제 → 제거.
+    REFERENTIAL_PHRASES = [
+        "sentinel",  # "WRITER_DONE sentinel"
+        "접두",       # "완료 문자열 접두"
+        "감지",       # "supervisor가 감지"
+        "대기",       # "WRITER_DONE 대기"
+        "파싱",       # "sentinel 파싱"
+        "정의",       # "sentinel 정의"
+        "참조",       # "§4.1 참조"
+        "형식",       # "WRITER_DONE 형식은"
+        "매칭",       # "exact string 매칭"
+        "exact",
+        "helper",    # "REVIEW_DONE helper" (batch-supervisor)
+        "신호",       # "완료 신호는 FIX_DONE만" (fixer)
+        "이름",
+    ]
+
     for f in scan_files:
         if not f.exists():
             continue
@@ -239,49 +270,31 @@ def check_sentinel_consistency(report: Report) -> None:
         for sentinel, canonical in canonical_strings.items():
             if sentinel not in text:
                 continue
-            # 이 파일에서 sentinel 표기가 등장하는 줄 찾기
             for lineno, line in enumerate(text.splitlines(), 1):
                 if sentinel not in line:
                     continue
-                # 코드블록/예시 줄만 검사할 수 있으나, 단순화를 위해
-                # canonical string이 그 줄 어딘가에 있는지만 본다.
-                # "chapter-{NN}" (WRITER_DONE) 또는 without 확장자 (FIX_DONE/REVIEW_DONE).
-                # 관대한 허용: 전체 canonical 포함 또는 placeholder 형태
-                canonical_prefix = canonical.split(" ::")[0]  # "WRITER_DONE chapter-{NN}.md"
-                # 이 줄에 canonical_prefix 또는 해당 포맷의 regex 매칭이 있는지
-                # 허용 placeholder: {NN}, NN, XX, YY, ZZ, 또는 실제 숫자
-                pattern = (
+                # Canonical 패턴 full match: prefix + " :: run=" suffix (Phase 8 강화).
+                # 허용 placeholder: {NN}, NN, XX, YY, ZZ, 실제 숫자
+                # {RUN_NONCE} 또는 literal run nonce 허용.
+                full_pattern = (
                     sentinel
                     + r"\s+chapter-(?:\{NN\}|NN|XX|YY|ZZ|\d+)"
                     + (r"\.md" if sentinel == "WRITER_DONE" else r"(?:\.md)?")
+                    + r"(?:\s+(?:\d+-\d+|\{[^}]+\}))?"  # optional line range like {start}-{end}
+                    + r"\s*::\s*run=(?:\{RUN_NONCE\}|[A-Za-z0-9_.-]+|\.\.\.)?"
                 )
-                if re.search(pattern, line):
+                if re.search(full_pattern, line):
                     continue
-                # 예외: "WRITER_DONE sentinel을 감지한다" 같은 referential 줄
-                if any(
-                    phrase in line
-                    for phrase in [
-                        "sentinel",
-                        "접두",
-                        "감지",
-                        "지시",
-                        "대기",
-                        "출력",
-                        "쓴다",
-                        "형식",
-                        "등",
-                        "파싱",
-                        "정의",
-                        "참조",
-                        "생성",
-                        "삽입",
-                        "세션 출력",
-                        "사이클",
-                        "/",  # "WRITER_DONE / FIX_DONE" 같은 diagram entry
-                    ]
-                ):
+                # 백틱으로 감싸인 단순 sentinel 이름 언급은 referential
+                # (예: "완료 신호는 `FIX_DONE`만 쓴다")
+                # 백틱 안이 sentinel 이름만 있고 canonical 형태가 아니면 단순 언급.
+                backtick_only = re.search(rf"`{sentinel}`(?!\s+chapter)", line)
+                if backtick_only:
                     continue
-                # ASCII 다이어그램 줄 (│, ├, └, ─, ▼, → 등 박스 문자 포함)
+                # Referential 줄 (중립 단어만) — drift 탐지 목적이므로 엄격하게.
+                if any(phrase in line for phrase in REFERENTIAL_PHRASES):
+                    continue
+                # ASCII 다이어그램 줄 (박스 문자 포함) — referential이 맞음.
                 if any(c in line for c in "│├└─▼▲→↓↑┌┐┘├┤┬┴┼"):
                     continue
                 report.warn(
@@ -332,30 +345,53 @@ def check_mcp_server_names(report: Report) -> None:
         TEMPLATE_ROOT / "HYBRID-DESIGN.md",
         TEMPLATE_ROOT / "batch-supervisor.md",
     ]
+    # Phase 8 로직 버그 수정 (2026-04-17):
+    # 이전 코드는 "MCP 도구/server" 경로로 트리거된 뒤 inner check가
+    # "MCP tool" 조건만 써서 다른 분기를 항상 continue로 빠져나감.
+    # 정답: trigger된 phrase가 무엇이든 compile_brief와 잘못된 계층 서술이 공존하면 warn,
+    # 단 "novel-editor MCP의 compile_brief" 같은 명확한 소속 표현은 면책.
+    MCP_CLAIM_PATTERNS = [
+        # compile_brief를 "MCP tool/server/서버"로 직접 지시하는 표현 — 드리프트.
+        # 단, "novel-editor MCP의 compile_brief" 같은 명확한 소속 표현은 negative lookahead.
+        re.compile(r"compile_brief[^\n]*?MCP\s+(?:tool|server|서버)", re.IGNORECASE),
+        re.compile(r"`compile_brief`[^\n]*?MCP\s+도구"),
+    ]
+    EXEMPT_PATTERNS = [
+        # "novel-editor MCP의 compile_brief tool" 같은 올바른 소속 표현
+        re.compile(r"novel-editor[^\n]*?compile_brief"),
+        # "compile_brief는 ... MCP 서버가 아니라" 같은 부정 표현
+        re.compile(r"compile_brief[^\n]*?(?:아니라|not)[^\n]*?MCP"),
+        # validate-docs 자체나 drift-policy 문서 등에서 "MCP tool"로 부르지 말 것 같은 지시
+        re.compile(r"\"MCP\s+tool\"[^\n]*?(?:부르지|call it)"),
+    ]
+
     for f in scan_files:
         if not f.exists():
             continue
         text = f.read_text(encoding="utf-8", errors="replace")
         for lineno, line in enumerate(text.splitlines(), 1):
-            # compile_brief + MCP tool/server 동시 출현
-            if "compile_brief" in line and (
-                "MCP tool" in line or "MCP 도구" in line or "MCP server" in line
-            ):
-                # 예외: "novel-editor MCP의 compile_brief" 같은 정상 표현
-                if "novel-editor" in line and (
-                    "compile_brief" in line and "MCP tool" not in line
-                ):
-                    continue
-                if re.search(r"compile_brief.*MCP\s+(?:tool|서버|server)", line):
-                    report.warn(
-                        "mcp_naming",
-                        f"{f.relative_to(TEMPLATE_ROOT)}:{lineno}",
-                        "compile_brief is standalone script, not MCP tool",
-                    )
+            if "compile_brief" not in line:
+                continue
+            # 드리프트 패턴이 있는가?
+            drift = any(p.search(line) for p in MCP_CLAIM_PATTERNS)
+            if not drift:
+                continue
+            # 면책 표현이 있는가?
+            exempt = any(p.search(line) for p in EXEMPT_PATTERNS)
+            if exempt:
+                continue
+            report.warn(
+                "mcp_naming",
+                f"{f.relative_to(TEMPLATE_ROOT)}:{lineno}",
+                "compile_brief is novel-editor's tool, not a standalone MCP server",
+            )
 
 
 def check_phase_docs(report: Report) -> None:
-    """docs/updates/phase-N-*.md 파일의 필수 섹션 존재 확인."""
+    """docs/updates/phase-N-*.md 파일의 필수 섹션 + Commit sha 존재 확인.
+
+    Phase 8 강화 (2026-04-17): `**Commit**: (추가 후 기록)` placeholder 잔존 시 FAIL.
+    """
     updates_dir = TEMPLATE_ROOT / "docs" / "updates"
     if not updates_dir.exists():
         report.info("phase_docs", "docs/updates", "directory does not exist")
@@ -366,6 +402,9 @@ def check_phase_docs(report: Report) -> None:
         report.info("phase_docs", "docs/updates", "no phase-*.md files found")
         return
 
+    placeholder_pattern = re.compile(r"\*\*Commit\*\*:\s*\(추가 후 기록\)")
+    sha_pattern = re.compile(r"\*\*Commit\*\*:\s*`[0-9a-f]{7,40}`")
+
     for f in phase_files:
         text = f.read_text(encoding="utf-8", errors="replace")
         for section in PHASE_DOC_REQUIRED_SECTIONS:
@@ -375,6 +414,19 @@ def check_phase_docs(report: Report) -> None:
                     f"{f.relative_to(TEMPLATE_ROOT)}",
                     f"missing required section: {section}",
                 )
+        # Commit sha 확인
+        if placeholder_pattern.search(text):
+            report.fail(
+                "phase_docs",
+                f"{f.relative_to(TEMPLATE_ROOT)}",
+                "Commit sha still placeholder '(추가 후 기록)' — 실제 git sha로 채워야 함",
+            )
+        elif not sha_pattern.search(text) and "**Commit**" in text:
+            report.warn(
+                "phase_docs",
+                f"{f.relative_to(TEMPLATE_ROOT)}",
+                "Commit field exists but doesn't match `<sha>` format",
+            )
 
 
 def check_claude_md_fields(report: Report) -> None:
@@ -402,6 +454,78 @@ def check_claude_md_fields(report: Report) -> None:
 # ─── Main ──────────────────────────────────────────────────
 
 
+def check_profile_value(report: Report) -> None:
+    """`CLAUDE.md §1 profile:` 값이 합법적 syntax 인가 (Phase 8 신규, 2026-04-17).
+
+    Legal values:
+    - 단일: wuxia | modern | game-fantasy | romance
+    - 병용: regression+wuxia | regression+modern | regression+game-fantasy | regression+romance
+    """
+    claude = TEMPLATE_ROOT / "CLAUDE.md"
+    if not claude.exists():
+        return
+    text = claude.read_text(encoding="utf-8")
+
+    base_profiles = {"wuxia", "modern", "game-fantasy", "romance"}
+    legal_values = base_profiles | {f"regression+{b}" for b in base_profiles}
+
+    # profile 필드 탐색: "- **profile**: X" 형태
+    match = re.search(
+        r"^\s*-\s*\*\*profile\*\*:\s*([A-Za-z0-9+_-]+)",
+        text,
+        flags=re.MULTILINE,
+    )
+    if not match:
+        # 필드가 없으면 claude_md check가 별도로 잡음
+        return
+
+    value = match.group(1).strip()
+    # 템플릿 placeholder인 경우 skip
+    if value.startswith("{{") or value == "wuxia":
+        # wuxia는 기본값. 템플릿 자체는 wuxia로 둠
+        return
+    if value not in legal_values:
+        report.fail(
+            "profile_value",
+            "CLAUDE.md",
+            f"profile value '{value}' not in legal set: {sorted(legal_values)}",
+        )
+
+
+def check_writer_hold_threshold(report: Report) -> None:
+    """style-lexicon.md의 [WRITER-HOLD] 태그 누적 감지 (Phase 8 신규).
+
+    같은 표현에 대해 [WRITER-HOLD]가 3회 이상 누적되면 §5.1A 정식 승격 제안.
+    Phase 7 Writer Dissent 경로의 후속 모니터링.
+
+    Note: 템플릿 레포 자체에는 style-lexicon이 없으므로 주로 INFO로 emit.
+    개별 소설 프로젝트에서 이 스크립트를 실행할 때 유효.
+    """
+    lexicon = TEMPLATE_ROOT / "summaries" / "style-lexicon.md"
+    if not lexicon.exists():
+        return
+    text = lexicon.read_text(encoding="utf-8")
+    hold_lines = [ln for ln in text.splitlines() if "[WRITER-HOLD]" in ln]
+    if not hold_lines:
+        return
+    # 같은 원 표현의 HOLD 빈도 카운트
+    from collections import Counter
+    counter: Counter = Counter()
+    for ln in hold_lines:
+        # "| {원 표현} | ..." 형식에서 원 표현 추출
+        parts = [p.strip() for p in ln.split("|")]
+        if len(parts) >= 2:
+            expr = parts[1].split(" → ")[0].strip() if " → " in parts[1] else parts[1]
+            counter[expr] += 1
+    for expr, count in counter.items():
+        if count >= 3:
+            report.warn(
+                "writer_hold",
+                "summaries/style-lexicon.md",
+                f"'{expr}' has {count} WRITER-HOLD entries — consider §5.1A promotion",
+            )
+
+
 CHECKS = {
     "orphan": check_orphan_references,
     "sentinel": check_sentinel_consistency,
@@ -409,6 +533,8 @@ CHECKS = {
     "mcp_naming": check_mcp_server_names,
     "phase_docs": check_phase_docs,
     "claude_md": check_claude_md_fields,
+    "profile_value": check_profile_value,
+    "writer_hold": check_writer_hold_threshold,
 }
 
 

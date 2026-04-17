@@ -1,7 +1,7 @@
 # Phase 7: Profile + WRITER-HOLD Runtime
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `3b66c6e`
 
 ## Rationale
 

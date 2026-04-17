@@ -1,7 +1,7 @@
 # Phase 6: Critical Correctness Fixes
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `69b9b51`
 
 ## Rationale
 

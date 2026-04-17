@@ -12,16 +12,18 @@
 
 ## 자동 검증 체크 목록
 
-`scripts/validate-docs.py`가 수행하는 6종 체크:
+`scripts/validate-docs.py`가 수행하는 8종 체크 (Phase 8 확장, 2026-04-17):
 
-| Check | 내용 | FAIL 조건 |
+| Check | 내용 | FAIL/WARN 조건 |
 |-------|------|----------|
-| `orphan` | 문서 간 파일 참조가 실제 경로와 일치 | 마크다운 링크가 존재하지 않는 파일 가리킴 (placeholder 제외) |
-| `sentinel` | WRITER_DONE / FIX_DONE / REVIEW_DONE 표기 | 본문에서 sentinel이 언급되지만 canonical 포맷과 다름 (diagram/referential 제외) |
-| `writer_model` | prompt 파일의 mode 라벨 일관성 | `claude-writer.md`가 `writer_model: claude` 라벨이 없음, 또는 반대 경우 |
-| `mcp_naming` | `compile_brief`가 올바르게 기술됨 | `compile_brief`를 "MCP 서버 이름"처럼 기술 (정확히는 novel-editor MCP의 tool) |
-| `phase_docs` | `docs/updates/phase-*.md` 필수 섹션 | Rationale/Changes/Rollback/Validation/Dependencies/Known Issues/References 중 하나라도 없음 |
-| `claude_md` | CLAUDE.md의 phase별 필수 블록 | §4.1 Spec Canon, §5.1A Style Deviations, §1 profile 필드 누락 |
+| `orphan` | 문서 간 파일 참조가 실제 경로와 일치 | 마크다운 링크가 존재하지 않는 파일 가리킴. Phase 8: placeholder/`{{var}}`/`~/...`/wildcard 스킵. 확장자 whitelist 확장 (md/py/json/sh/yml/yaml/txt/toml/jsonl/cfg/ini/csv) |
+| `sentinel` | WRITER_DONE / FIX_DONE / REVIEW_DONE 표기 | Phase 8: canonical 패턴에 `:: run=` suffix 필수. referential 필터에서 '등'/'/'/`출력` 제거 (너무 관대했음). 백틱 감싼 단순 이름 언급은 면책 |
+| `writer_model` | prompt 파일의 mode 라벨 일관성 | `claude-writer.md`에 `writer_model: claude` 라벨 없음 (또는 반대) |
+| `mcp_naming` | `compile_brief`가 올바르게 기술됨 | Phase 8: 로직 버그 수정 — 이전에는 "MCP 도구"/"MCP server" 경로가 항상 continue로 skip됐음. `compile_brief`를 "MCP 서버"로 기술하고 면책 표현(`novel-editor MCP의 compile_brief`, `~가 아니라`)이 없으면 WARN |
+| `phase_docs` | `docs/updates/phase-*.md` 필수 섹션 + Commit sha | Rationale/Changes/Rollback/Validation/Dependencies/Known Issues/References 중 하나라도 없음. Phase 8 추가: `**Commit**: (추가 후 기록)` placeholder 잔존 시 FAIL |
+| `claude_md` | CLAUDE.md의 phase별 필수 블록 | §4.1 Spec Canon 누락 시 FAIL, §5.1A/§1 profile 누락 시 WARN |
+| `profile_value` (Phase 8 신규) | CLAUDE.md §1 `profile:` 값이 legal syntax | `wuxia \| modern \| game-fantasy \| romance \| regression+{base}` 외 값 시 FAIL. 기본값 `wuxia`는 언제나 legal |
+| `writer_hold` (Phase 8 신규) | style-lexicon의 WRITER-HOLD 태그 누적 | 같은 원 표현에 3회 이상 [WRITER-HOLD] 누적 시 WARN (§5.1A 승격 제안) |
 
 ## 사용법
 

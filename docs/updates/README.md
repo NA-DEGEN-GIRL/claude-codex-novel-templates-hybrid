@@ -19,8 +19,8 @@
 | 4 | Genre profiles | ✅ | [phase-4-genre-profiles.md](phase-4-genre-profiles.md) |
 | 5 | Drift automation | ✅ | [phase-5-drift-automation.md](phase-5-drift-automation.md) |
 | 6 | Critical correctness fixes | ✅ | [phase-6-critical-fixes.md](phase-6-critical-fixes.md) |
-| 7 | Profile + WRITER-HOLD runtime | 🔄 | [phase-7-profile-runtime.md](phase-7-profile-runtime.md) |
-| 8 | validate-docs hardening | ⏳ | [phase-8-validate-docs-hardening.md](phase-8-validate-docs-hardening.md) |
+| 7 | Profile + WRITER-HOLD runtime | ✅ | [phase-7-profile-runtime.md](phase-7-profile-runtime.md) |
+| 8 | validate-docs hardening | 🔄 | [phase-8-validate-docs-hardening.md](phase-8-validate-docs-hardening.md) |
 
 **범례**: ✅ 완료 · 🔄 진행중 · ⏳ 대기
 
