@@ -18,6 +18,13 @@ You are a **series line editor** who tracks patterns across episodes. Repetition
 - 단순 횟수가 아니라 **정규화 지표**(10화당 빈도, 몇 화에 퍼졌는지, 몇 POV에 퍼졌는지)로 판단한다.
 - **수정 원칙은 "없애기"가 아니라 "분산과 재배치"**다. 반복 제거에 과몰입하면 캐릭터 보이스까지 날아간다.
 
+**면책 우선 체크 (Phase 2 voice preservation, 2026-04-17)**: 반복 발견 시 아래를 먼저 확인, 하나라도 매칭되면 면책.
+1. `CLAUDE.md §5.1A Intentional Style Deviations` 등록 항목
+2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
+3. `summaries/decision-log.md`의 의도적 반복 등록
+4. 특정 캐릭터 시그니처 대사로 `settings/03-characters.md` "대표 대사"에 명시됨
+5. 특정 관계/장면에서만 반복되는 교환 패턴 (관계 정점 장면 면책)
+
 ---
 
 ## 입력

@@ -22,14 +22,16 @@
 - **Keywords**: {{KEYWORDS}}
 - **Target Audience**: {{TARGET_AUDIENCE}}
 - **One-line Summary**: {{ONE_LINE_SUMMARY}}
-- **gemini_feedback**: true  <!-- set false to disable Gemini review -->
-- **nim_feedback**: true  <!-- set true to enable NIM proofreading -->
+- **gemini_feedback**: false  <!-- set true to enable Gemini review. Phase 2 (2026-04-17): 기본값 false로 변경 — 평탄화 방지. 필요 화수에 opt-in. -->
+- **nim_feedback**: false  <!-- set true to enable NIM proofreading. Phase 2: 기본값 false로 변경. -->
 - **nim_feedback_model**: "openai/gpt-oss-120b"
 - **ollama_feedback**: false  <!-- set true to enable Ollama proofreading -->
 - **ollama_feedback_model**: "gpt-oss:120b"
-- **gpt_feedback**: false  <!-- codex mode: false (집필 모델과 동일). claude mode: true 권장 (교차 검증) -->
-- **proxy_feedback**: false  <!-- set true to enable local LLM proxy line-edit review (Korean naturalness + line-level readability) -->
+- **gpt_feedback**: false  <!-- codex mode: false (집필 모델과 동일). claude mode: true 권장 (교차 검증). -->
+- **proxy_feedback**: true  <!-- 기본 ON: 한국어 line-edit(번역투/결합 자연성) 1차 감수. 로컬 LLM이라 비용·지연 낮음. Phase 2: 기본값 true로 변경. -->
 - **proxy_feedback_model**: "gemma4moe"
+
+> **External feedback 운영 원칙** (Phase 2 voice preservation): 매 화 5~6개 외부 감사를 돌리면 서로 다른 방향의 지적이 누적되어 writer 개성이 **평균적 표준 한국어**로 수렴한다. 기본값은 proxy(한국어 line-edit)만 ON. gemini/nim/gpt는 **특정 화수(아크 경계, 교차 검증 필요 시, full mode 승격 시)**에만 opt-in으로 활성화. 개별 프로젝트에서 장르/작가 스타일에 맞게 재조정 가능.
 - **writer_model**: codex  <!-- codex = Codex/GPT writer, claude = Claude writer. 모드에 따라 writer 프롬프트, tmux 전송 방식, gpt_feedback 기본값이 달라짐 -->
 - **prose_risk**: medium  <!-- low/medium/high. 높을수록 prose drift override를 더 쉽게 건다 -->
 - **emotion_risk**: medium  <!-- low/medium/high. 감정 전환 화수에서 standard/full 승격 근거로 사용 -->
@@ -291,6 +293,23 @@ Arc boundary principle:
 | {{MYSTERY_1}} | {{아크/화수}} | {{서사적 이유}} |
 
 > 이 목록에 없는 설명 누락은 실수로 간주한다.
+
+### 5.1A Intentional Style Deviations (의도적 문체 이탈)
+
+> `style consistency`, `naturalness`, `repetition`, `unified-reviewer` B1 리뷰 시 아래 등록 항목은 **먼저 참조**하고, 해당하면 드리프트 판정에서 면책한다.
+> 등록은 **의도적 문체 선택**만 대상. 드리프트/실수는 등록 금지.
+> Phase 2 (2026-04-17) voice preservation 도입.
+
+| 항목 | 적용 범위 | 허용 변화 | 서사적 이유 |
+|------|----------|----------|-----------|
+| {{STYLE_DEV_1}} | {{아크/화수/장면}} | {{예: 단문 급증, 비유 밀도 상승, 반복어 허용, 번역투 풍자}} | {{왜 필요한가}} |
+
+**판정 원칙**:
+- 등록 없는 변화는 기본적으로 드리프트 의심 신호로 본다.
+- 등록된 변화라도 실제 장면 기능이 약하면 면책하지 않는다.
+- 변화는 장면이 끝난 뒤 기본 보이스로 복귀해야 한다.
+
+**Writer dissent 경로**: Writer가 리뷰어의 style 지적을 받아들일 수 없을 때, 해당 표현을 `summaries/style-lexicon.md`에 `[WRITER-HOLD: 사유]` 태그로 등록하면 이후 리뷰에서 자동 면책된다. 단, 3회 이상 HOLD 누적 시 이 §5.1A 표로 정식 승격 검토.
 
 ### 5.2 AI Execution Guardrails (Process Constraints)
 

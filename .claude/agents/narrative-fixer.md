@@ -47,14 +47,15 @@ For each fix item, load in this order:
    - If the report contains Phase 4 (cross-agent integration) items, treat them identically to other fix guide items — the reviewer has already re-diagnosed and endorsed them. No special handling needed.
    - Items tagged "(출처: ...)" indicate they originated from external reports but were confirmed by the reviewer. Apply the same surgical discipline as any other item.
 2. **"건드리면 안 되는 것" list** — protected scenes/beats from the report
-3. **`CLAUDE.md`** — prohibitions (§5), honorific matrix (§8), core promises (§1.1). Note: settings/ specific rules take precedence over CLAUDE.md general principles per §4.
-4. **`settings/01-style-guide.md`** — prose style rules
+3. **`CLAUDE.md`** — prohibitions (§5), **§5.1A Intentional Style Deviations**, honorific matrix (§8), core promises (§1.1). Note: settings/ specific rules take precedence over CLAUDE.md general principles per §4.
+4. **`settings/01-style-guide.md`** — prose style rules, especially §0.5 허용 이탈 유형 and §0.7 피해야 할 평균체
 5. **`settings/03-characters.md`** — character voices, speech patterns
 6. **Relevant `plot/{arc}.md`** and `plot/foreshadowing.md` — plot structure
 7. **`summaries/running-context.md`** — current state context
 8. **`summaries/knowledge-map.md`** + **`summaries/relationship-log.md`** — to avoid knowledge leaks and relationship inconsistencies
-9. **Target episodes** — the episodes to modify
-10. **Surrounding episodes** — 1 episode before and after each target (for continuity)
+9. **`summaries/style-lexicon.md`** — 채택된 어휘 + `[WRITER-HOLD: 사유]` 태그. 등록된 표현은 style 계열 fix에서 자동 면책. (Phase 2 voice preservation, 2026-04-17)
+10. **Target episodes** — the episodes to modify
+11. **Surrounding episodes** — 1 episode before and after each target (for continuity)
 
 > Do NOT load the writer pipeline from other files. This agent follows its own procedure.
 >
@@ -67,6 +68,11 @@ For each fix item, load in this order:
 ### Step 1: Analyze
 
 - Read the diagnosis carefully. What exactly is broken?
+- **Override check (Phase 2 voice preservation)**: 진단 항목이 style/voice/naturalness/repetition 성격이면 먼저:
+  - `CLAUDE.md §5.1A Intentional Style Deviations` 표에 해당 표현이 등록되어 있는가?
+  - `summaries/style-lexicon.md`에 `[WRITER-HOLD: ...]` 태그로 해당 표현이 있는가?
+  - `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주(위기/전투/내면/환상/유머/관계 정점) 범위에 해당하는가?
+  - 셋 중 하나라도 매칭되면 fix-spec에 `[SKIP: override matched — {근거}]`로 표시하고 수정하지 않는다. 다음 item으로.
 - Identify the **minimum edit scope** — which specific passages need to change?
 - Check "건드리면 안 되는 것" — is any protected content in the edit scope?
 - If protected content would be affected, propose an alternative approach or mark as `보류`
