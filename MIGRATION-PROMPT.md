@@ -25,17 +25,17 @@ claude-codex-novel-templates-hybrid/ 을 참고해서 no-title-{XXX}/ 소설 프
 - `chapters/` 본문은 **어떤 경우에도 수정하지 마라.**
 - 기존 소설의 설정, 캐릭터, 고유 규칙, 세계관 의미를 바꾸지 마라.
 - `summaries/` 기존 내용을 삭제하거나 재서술하지 마라. 필요한 새 필드만 추가하라.
-- old 템플릿의 placeholder 방식으로 덮어쓰지 마라. 이미 채워진 값을 lean 구조에 재배치하라.
+- old 템플릿의 placeholder 방식으로 덮어쓰지 마라. 이미 채워진 값을 hybrid 구조에 재배치하라.
 
 ## 마이그레이션 목표
 
-> **Note**: hybrid 템플릿은 lean 아키텍처 위에 Writer/Supervisor 분리 레이어를 추가한 것이다 (`writer_model`에 따라 Codex 또는 Claude가 writer). 아래의 "lean 구조/골격"은 이 공유 아키텍처를 가리킨다. 요약 갱신은 writer가 아닌 review 세션이 담당한다 (3세션 분리 원칙).
+> **Note**: hybrid 템플릿은 lean 시리즈와 `settings/` 공통 authoring 레이어를 공유하는 Writer/Supervisor 분리 구조다 (`writer_model`에 따라 Codex 또는 Claude가 writer). 아래의 "hybrid 구조/골격"은 이 공유 아키텍처 위에 얹힌 hybrid 전용 런타임/에이전트 계층을 가리킨다. 요약 갱신은 writer가 아닌 review 세션이 담당한다 (3세션 분리 원칙).
 
-- `CLAUDE.md`를 lean 구조(§1~§10)로 재편한다.
+- `CLAUDE.md`를 hybrid 구조(§1~§10)로 재편한다.
 - `settings/`는 규칙을 유지한 채 영어 지시문으로 전환한다. 한국어 예시/호칭/고유 용어는 유지.
-- 에이전트/커맨드 참조를 lean 체계(11 에이전트 + 12 커맨드)로 업데이트한다.
-- lean의 신규 파일과 섹션을 추가한다.
-- `batch-supervisor.md`를 lean 운영 절차(why-check 통합, 아크 전환)에 맞게 갱신한다.
+- 에이전트/커맨드 참조를 hybrid 체계(11 에이전트 + 12 커맨드)로 업데이트한다.
+- hybrid의 신규 파일과 섹션을 추가한다.
+- `batch-supervisor.md`를 hybrid 운영 절차(why-check 통합, 아크 전환)에 맞게 갱신한다.
 - 결과물이 **기존 소설 프로젝트로서 계속 운영 가능**해야 한다.
 
 ## 진행 방식 (12단계)
@@ -45,8 +45,8 @@ claude-codex-novel-templates-hybrid/ 을 참고해서 no-title-{XXX}/ 소설 프
 - 현재 프로젝트 파일 구조
 - old 에이전트/커맨드 목록
 - 소설 고유 설정 목록 (캐릭터, 세계관, 저주 체계 등 특수 규칙)
-- lean에서 새로 생기는 파일/섹션 목록
-- old → lean 매핑표
+- hybrid에서 새로 생기는 파일/섹션 목록
+- old → hybrid 매핑표
 
 git에서 마이그레이션 전 커밋을 확인하거나, 필요 시 백업 브랜치를 생성한다.
 
@@ -59,12 +59,12 @@ git에서 마이그레이션 전 커밋을 확인하거나, 필요 시 백업 �
 
 > ✅ 완료 기준: 수정/생성/삭제 체크리스트 확정, 위험 요소 명시, 사용자 승인 획득
 
-### 3단계: lean 골격 반영
-lean 템플릿에서 아래를 복사/적용:
-- `.claude/agents/` (lean 전체)
-- `.claude/commands/` (lean 전체)
+### 3단계: hybrid 골격 반영
+이 템플릿에서 아래를 복사/적용:
+- `.claude/agents/` (hybrid 전체)
+- `.claude/commands/` (hybrid 전체)
 - `settings/08-illustration.md` (없으면 생성)
-- `settings/07-periodic.md` (lean 기준으로 교체)
+- `settings/07-periodic.md` (hybrid 기준으로 교체)
 - `batch-supervisor.md`
 
 **기존 소설 고유 파일은 건드리지 않는다.**
@@ -72,7 +72,7 @@ lean 템플릿에서 아래를 복사/적용:
 > ✅ 완료 기준: ls로 11 agents + 12 commands 존재 확인
 
 ### 4단계: CLAUDE.md 재구성
-기존 `CLAUDE.md`의 채워진 정보를 lean 구조로 옮긴다:
+기존 `CLAUDE.md`의 채워진 정보를 hybrid 구조로 옮긴다:
 - Language Contract (신규 추가)
 - §1 Project Overview + §1.1 Core Promises
 - §2 Folder Structure
@@ -97,18 +97,18 @@ lean 템플릿에서 아래를 복사/적용:
 - 지시문/헤더 → 영어
 - 한국어 예시, 호칭 규칙, 고유 용어 → 유지
 - 규칙 추가/삭제 없이 의미 보존
-- 외래어 관련: lean style-guide 헤더 규칙 추가 ("예시가 CLAUDE.md 금지사항 위반하면 버그")
+- 외래어 관련: hybrid style-guide 헤더 규칙 추가 ("예시가 CLAUDE.md 금지사항 위반하면 버그")
 
 > ✅ 완료 기준: settings/ 전 파일 헤더/지시문 영어, 한국어 예시 원문 보존 확인
 
 ### 6단계: 에이전트/커맨드 참조 교체
-프로젝트 전체에서 구 에이전트명을 검색하여 lean 명칭으로 치환:
+프로젝트 전체에서 구 에이전트명을 검색하여 hybrid 명칭으로 치환:
 - `summary-validator` → `unified-reviewer`
 - `continuity-checker` → `unified-reviewer`
 - `gemini-feedback` → `unified-reviewer` + `review_episode` MCP
 - `korean-proofreader` → `korean-naturalness`
 - `summary-generator` → **review 세션** (compile_brief 기반, 후처리로 갱신. hybrid에서 writer는 요약을 수행하지 않음)
-- 기타 구 참조 → lean 대응
+- 기타 구 참조 → hybrid 대응
 
 새 에이전트/커맨드 추가 확인:
 - `.claude/agents/oag-checker.md` (행동 갭 탐지 — Text/Planning 모드)
@@ -121,13 +121,13 @@ lean 템플릿에서 아래를 복사/적용:
 > ✅ 완료 기준: grep으로 구 에이전트명 전수 검색 0건
 
 ### 7단계: summaries 스키마 점검
-기존 내용 보존. lean에서 필요한 필드만 추가:
+기존 내용 보존. hybrid에서 필요한 필드만 추가:
 - `explained-concepts.md`: "초기 필수 설명 대상" 섹션 (필요 시)
 - `decision-log.md`: 반복적 의도적 일탈 기록용. 없으면 빈 템플릿으로 생성
 - `why-check-report.md`: 파일 경로 확보
-- EPISODE_META 형식이 lean과 일치하는지 확인 (일치하지 않으면 메타만 보정)
+- EPISODE_META 형식이 hybrid와 일치하는지 확인 (일치하지 않으면 메타만 보정)
 
-> ✅ 완료 기준: why-check-report.md 경로 확보, lean 필수 필드 전부 존재
+> ✅ 완료 기준: why-check-report.md 경로 확보, hybrid 필수 필드 전부 존재
 
 ### 8단계: 운영 문서 갱신
 - `batch-supervisor.md`: why-check 통합, 아크 전환 절차, 최종 완결 파이프라인
@@ -153,8 +153,8 @@ lean 템플릿에서 아래를 복사/적용:
 ### 10단계: GPT 5.4 의미 검증
 GPT 5.4에게 다음을 검토시킨다 (`mcp__external-ai__ask_gpt` 사용):
 
-"no-title-{XXX} 소설의 old→lean 마이그레이션 결과를 검토해주세요.
-old CLAUDE.md와 lean CLAUDE.md를 비교하여:
+"no-title-{XXX} 소설의 old→hybrid 마이그레이션 결과를 검토해주세요.
+old CLAUDE.md와 hybrid CLAUDE.md를 비교하여:
 1. 의미가 보존되었는가 (규칙 변경이 아닌 구조 변경인가)
 2. 누락된 규칙이 있는가
 3. 한국어 예시가 손상되었는가
@@ -164,7 +164,7 @@ High / Medium / Low로 정리해주세요."
 검토 결과를 반영한다.
 
 > 📝 진행 중 소설: "다음 화 집필 시 워크플로가 끊기지 않는가"에 집중.
-> 📝 완결 소설: "lean 기준 전체 재평가가 가능한가"에 집중.
+> 📝 완결 소설: "hybrid 기준 전체 재평가가 가능한가"에 집중.
 
 > ✅ 완료 기준: GPT 검토 결과 기록 완료. High 리스크 항목은 사용자에게 보고.
 
@@ -207,22 +207,22 @@ High / Medium / Low로 정리해주세요."
 7. 롤백 정보 (이전 커밋 해시)
 
 git commit 2단계:
-- 소설 폴더: `{소설명} lean 마이그레이션 완료`
+- 소설 폴더: `{소설명} hybrid 마이그레이션 완료`
 - 상위 레포: config.json 변경 시만
 
 **중요:**
 - 본문 불변 원칙을 마지막에도 `git diff chapters/`로 재확인하라.
 - 집필 진행 중 소설: "다음 아크부터 바로 운영 가능한 상태"가 목표.
-- 완결 소설: "lean 기준 전체 검토 가능 상태"가 목표.
+- 완결 소설: "hybrid 기준 전체 검토 가능 상태"가 목표.
 
 > ✅ 완료 기준: 보고서 7개 항목 작성, git diff chapters/ 최종 확인 0건, 커밋 완료
 ```
 
 ---
 
-## 참고: old → lean 에이전트 매핑
+## 참고: old → hybrid 에이전트 매핑
 
-| old 에이전트 | lean 대응 |
+| old 에이전트 | hybrid 대응 |
 |-------------|-----------|
 | writer | **Writer 세션** (compile_brief 기반 본문 생성 + fix-spec 수정, `writer_model`에 따라 Codex 또는 Claude) |
 | reviewer | **unified-reviewer** (3모드 통합) |

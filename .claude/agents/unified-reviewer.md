@@ -19,7 +19,7 @@ Performs continuity verification + narrative quality + Korean proofreading + ext
 | Mode | Frequency | Scope |
 |------|-----------|-------|
 | `continuity` | Every episode | 14 continuity items + Korean errors (❌ level only) |
-| `standard` | Per settings/07-periodic.md trigger rule (default every 5, flexible up to 8) | Continuity + 7 narrative items + full Korean proofing |
+| `standard` | Per settings/07-periodic.md trigger rule (default every 7, max 8) | Continuity + 7 narrative items + full Korean proofing |
 | `full` | Arc boundary | All items + detailed analysis + direct settings/ reference |
 
 ---

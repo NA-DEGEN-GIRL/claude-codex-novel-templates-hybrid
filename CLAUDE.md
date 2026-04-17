@@ -229,6 +229,39 @@ Arc boundary principle:
 5. **`README.md`** — 온보딩/개요 문서다. 런타임 절차나 세부 우선순위가 충돌하면 `CLAUDE.md`와 `batch-supervisor.md`를 따른다.
 6. **`summaries/`** — 압축 메모리다. 빠른 참조용이지만, 본문과 설정을 뒤집는 권한은 없다.
 
+### 4.1 Runtime Spec Canon
+
+> Exact values that MUST match across all documents in this template.
+> If any other doc disagrees with this block, this block wins. Any change must be made here first, then propagated.
+
+**Sentinel strings** (tmux stdout exact match — supervisor matches these as substrings):
+
+| Phase | Exact string | Notes |
+|-------|-------------|-------|
+| Writer chunk done | `WRITER_DONE chapter-{NN}.md :: run={RUN_NONCE}` | `{NN}` = 2-digit zero-padded (e.g. `chapter-05.md`). Extension `.md` included. |
+| Writer fix done | `FIX_DONE chapter-{NN} :: run={RUN_NONCE}` | Extension `.md` NOT included. |
+| Review done | `REVIEW_DONE chapter-{NN} :: run={RUN_NONCE}` | Extension `.md` NOT included. |
+
+**`writer_model` values & mode names**:
+
+- Legal values of `writer_model` (CLAUDE.md §1): `codex` | `claude` (bare string).
+- Human-readable mode labels in prose: **codex mode** / **claude mode**.
+- Do not mix (`"codex mode"` is never a valid value; `"claude"` is never a mode label in English prose).
+
+**Review mode tiers**:
+
+| Mode | Trigger | Cadence |
+|------|--------|---------|
+| `continuity` | Every episode | Every episode |
+| `standard` | settings/07-periodic.md trigger rule | Default every 7 episodes, max 8 |
+| `full` | Arc boundary / decision-log trigger / 10+ episodes since last full | As needed |
+
+**MCP servers vs standalone tools**:
+
+- **MCP servers** (native MCP protocol, tool calls): `novel-calc`, `novel-hanja`, `novel-naming`, `novel-editor`, `novelai-image`.
+- **Standalone Python scripts** (not MCP): `compile_brief.py`, `scripts/*.py`.
+- `compile_brief`는 **helper script**. "MCP tool"로 부르지 말 것.
+
 ---
 
 ## 5. Prohibitions

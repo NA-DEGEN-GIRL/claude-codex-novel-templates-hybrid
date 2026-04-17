@@ -2,6 +2,35 @@
 
 **Writer가 쓰고, Claude Code가 지휘한다.**
 
+## TL;DR
+
+- **한국 웹소설 AI 집필을 위한 하이브리드 파이프라인**. Writer(Codex 또는 Claude)는 본문만 생성하고, Claude Code supervisor가 tmux로 지휘·리뷰·요약·커밋을 담당한다.
+- **첫 화 프롬프트 주입까지 가장 짧은 경로** (약 20~30분):
+  1. [사전 준비](#0-사전-준비-mcp-서버-clone): MCP 서버 5개 clone + 등록
+  2. [INIT-PROMPT](./INIT-PROMPT.md): 새 프로젝트 초기화 + plot 사전 검증
+  3. [batch-supervisor](./batch-supervisor.md): 배치 집필 기동
+- **모드**: `writer_model: codex`(교차 검증 강점) 또는 `claude`(동일 모델, 역할 분리). 자세히는 [왜 Hybrid인가](#왜-hybrid인가).
+- **런타임 정본은 이 README가 아니다**: 세부 스펙은 `CLAUDE.md §4 Document Authority` 순서를 따를 것.
+
+## 목차
+
+- [TL;DR](#tldr)
+- [시작 전](#시작-전) — 구조 개요
+- [Shared Settings Layer](#shared-settings-layer) — lean 시리즈와 공유
+- [문서 권위](#문서-권위) — 충돌 시 우선순위
+- [먼저 볼 문서](#먼저-볼-문서) — Getting Started / Operations / Design
+- [왜 Hybrid인가?](#왜-hybrid인가) — 모드 비교
+- [아키텍처 (3세션 분리)](#아키텍처-3세션-분리)
+- [워크플로우](#워크플로우-매-화-집필-사이클) — 매 화 집필 사이클
+- [Supervisor 의사결정 흐름](#supervisor-의사결정-흐름)
+- [정기 점검 cadence](#정기-점검-cadence)
+- [빠른 시작](#빠른-시작) — MCP 등록부터 supervisor 실행까지
+- [INIT-PROMPT 사용 예시](#init-prompt-사용-예시)
+- [batch-supervisor 사용법](#batch-supervisor-사용법)
+- [폴더 구조](#폴더-구조)
+
+---
+
 AI 한국어 웹소설 집필을 위한 하이브리드 파이프라인 템플릿. 두 가지 모드를 지원한다.
 
 | 모드 | Writer | Supervisor/Review | 핵심 이점 |
@@ -50,25 +79,39 @@ AI 한국어 웹소설 집필을 위한 하이브리드 파이프라인 템플�
 
 ## 먼저 볼 문서
 
-- [README.md](./README.md): 전체 구조와 빠른 시작. 런타임 정본은 아님
-- [INIT-PROMPT.md](./INIT-PROMPT.md): 새 소설 프로젝트를 처음 만드는 프롬프트
-- [PLOT-REINFORCEMENT-PROMPT.md](./PLOT-REINFORCEMENT-PROMPT.md): 초기 `plot/`을 집필 직전 수준으로 강화하는 프롬프트
-- [batch-supervisor.md](./batch-supervisor.md): 배치 집필 supervisor 운용 규칙
-- [HYBRID-DESIGN.md](./HYBRID-DESIGN.md): 왜 이렇게 분리했는지에 대한 설계 근거
-- [scripts/README.md](./scripts/README.md): 수동 셸 테스트용 보조 스크립트 설명
-- [.claude/prompts/codex-writer-role.md](./.claude/prompts/codex-writer-role.md): codex mode — Writer 창작 역할 + 문체 원칙
-- [.claude/prompts/codex-writer.md](./.claude/prompts/codex-writer.md): codex mode — Writer 집필 프롬프트 (정본)
-- [.claude/prompts/codex-fixer.md](./.claude/prompts/codex-fixer.md): codex mode — Writer 수정 프롬프트
-- [.claude/prompts/claude-writer-role.md](./.claude/prompts/claude-writer-role.md): claude mode — Writer 창작 역할 + 문체 원칙 + Session Boundary
-- [.claude/prompts/claude-writer.md](./.claude/prompts/claude-writer.md): claude mode — Writer 집필 프롬프트 (정본)
-- [.claude/prompts/claude-fixer.md](./.claude/prompts/claude-fixer.md): claude mode — Writer 수정 프롬프트
+처음 보는 사용자는 목적에 따라 아래 3 레인 중 하나를 타면 된다. 실행 경로가 혼동되지 않도록 분류했다.
 
-초보자 기준 권장 읽기 순서:
+### 🚀 Getting Started — 새 프로젝트 만들기
 
-1. 이 README
-2. [INIT-PROMPT.md](./INIT-PROMPT.md)
-3. [PLOT-REINFORCEMENT-PROMPT.md](./PLOT-REINFORCEMENT-PROMPT.md)
-4. [batch-supervisor.md](./batch-supervisor.md)
+> 이 순서대로 읽으면 첫 화 프롬프트 주입 직전까지 도달한다.
+
+1. 이 README (지금 이 문서) — 구조와 모드 이해
+2. [INIT-PROMPT.md](./INIT-PROMPT.md) — 새 소설 초기화 프롬프트
+3. [PLOT-REINFORCEMENT-PROMPT.md](./PLOT-REINFORCEMENT-PROMPT.md) — plot 사전 강화
+4. [FULL-STORY-PROMPT.md](./FULL-STORY-PROMPT.md) *(선택)* — 완결 시놉시스 제너레이터
+5. [batch-supervisor.md](./batch-supervisor.md) — 배치 집필 기동
+
+### ⚙️ Operations — 연속 집필 운영
+
+> 이미 세팅된 프로젝트를 굴릴 때 참조.
+
+- [batch-supervisor.md](./batch-supervisor.md) — **런타임 정본**. 매 화 사이클 / 아크 전환 / HOLD 처리
+- [scripts/README.md](./scripts/README.md) — 보조 스크립트 (tmux helper, runtime metrics 등)
+- [CLAUDE.md §4.1 Runtime Spec Canon](./CLAUDE.md) — sentinel/mode/writer_model 정확 값
+- [REBUILD-PROMPT.md](./REBUILD-PROMPT.md) — 기존 프로젝트 재구축
+- [MIGRATION-PROMPT.md](./MIGRATION-PROMPT.md) — 구 템플릿 → hybrid 마이그레이션
+
+writer/fixer 프롬프트는 supervisor가 자동 로드하므로 직접 읽을 필요는 없다. 튜닝/디버깅 시만 참조:
+- codex mode: [.claude/prompts/codex-writer-role.md](./.claude/prompts/codex-writer-role.md), [codex-writer.md](./.claude/prompts/codex-writer.md), [codex-fixer.md](./.claude/prompts/codex-fixer.md)
+- claude mode: [.claude/prompts/claude-writer-role.md](./.claude/prompts/claude-writer-role.md), [claude-writer.md](./.claude/prompts/claude-writer.md), [claude-fixer.md](./.claude/prompts/claude-fixer.md)
+
+### 📐 Design Rationale — 왜 이렇게?
+
+> 구조적 결정과 과거 이력. 바로 실행에 필요하지는 않음.
+
+- [HYBRID-DESIGN.md](./HYBRID-DESIGN.md) — 3세션 분리 설계 근거
+- [docs/archive/](./docs/archive/) — 과거 설계·패치 기록 (참고용, 현행 규칙 아님)
+- [docs/updates/](./docs/updates/) — 최근 구조 변경 로그 (롤백·추가 수정 가이드)
 
 ---
 
@@ -355,10 +398,29 @@ settings/         → 01~08 설정 파일 작성
 plot/             → master-outline + arc plots
 ```
 
-### 3. Native MCP 등록/확인
+### 0. 사전 준비: MCP 서버 clone
+
+이 템플릿은 아래 MCP 서버들이 `/root/novel/` 하위에 이미 clone 되어 있다고 가정한다. 없으면 먼저 설치한다.
 
 ```bash
-# codex mode 예시: 한 번만 등록
+cd /root/novel
+git clone https://github.com/NA-DEGEN-GIRL/mcp-novel-editor.git   # compile_brief / review_episode 등
+git clone https://github.com/NA-DEGEN-GIRL/mcp-novel-calc.git     # 날짜/거리/길이 계산
+git clone https://github.com/NA-DEGEN-GIRL/mcp-novel-hanja.git    # 한자 조회
+git clone https://github.com/NA-DEGEN-GIRL/mcp-novel-naming.git   # 표기 일관성
+git clone https://github.com/NA-DEGEN-GIRL/mcp-novelai-image.git  # (선택) 표지/삽화
+```
+
+각 서버의 `README.md`에 따라 Python 의존성(`pip install -r requirements.txt`)을 설치한다. 이미 clone 되어 있으면 이 단계는 건너뛴다.
+
+> **중요**: 이 hybrid 템플릿 자체는 `/root/novel/` 하위의 sub-project로 동작한다. standalone 사용 시에는 상위 레포 `config.json`의 경로 전제를 수정해야 할 수 있다.
+
+### 3. Native MCP 등록/확인
+
+아래 명령은 Codex CLI와 Claude Code **각각**에 같은 MCP 서버를 등록한다. 운용하려는 mode 쪽만 등록해도 동작하지만, writer_model 전환을 고려하면 양쪽 모두 권장.
+
+```bash
+# codex mode용: Codex CLI에 MCP 등록
 codex mcp add novel-calc -- python3 /root/novel/mcp-novel-calc/calc_server.py
 codex mcp add novel-hanja -- python3 /root/novel/mcp-novel-hanja/hanja_server.py
 codex mcp add novel-naming -- python3 /root/novel/mcp-novel-naming/naming_server.py
@@ -368,7 +430,18 @@ codex mcp add novel-editor -- python3 /root/novel/mcp-novel-editor/editor_server
 codex mcp list
 ```
 
-`claude mode`를 쓸 때도 같은 MCP 서버들을 Claude Code 쪽에 맞게 등록/확인해야 한다. 이 템플릿은 MCP wrapper scripts를 제공하지 않는다.
+```bash
+# claude mode용 (또는 supervisor/review 세션용): Claude Code에 MCP 등록
+claude mcp add novel-calc -- python3 /root/novel/mcp-novel-calc/calc_server.py
+claude mcp add novel-hanja -- python3 /root/novel/mcp-novel-hanja/hanja_server.py
+claude mcp add novel-naming -- python3 /root/novel/mcp-novel-naming/naming_server.py
+claude mcp add novel-editor -- python3 /root/novel/mcp-novel-editor/editor_server.py
+
+# 확인
+claude mcp list
+```
+
+이 템플릿은 MCP wrapper scripts를 제공하지 않는다 — 런타임은 native MCP 호출로 동작한다.
 
 ### 4. 직접 MCP 사용
 
