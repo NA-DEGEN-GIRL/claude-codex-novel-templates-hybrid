@@ -35,8 +35,25 @@ tmp/fix-specs/chapter-{NN}.md 를 읽고 해당 에피소드를 수정해줘.
 - 마지막 줄 exact 형식은 `<접두> :: run=<run nonce>` 이다.
 - 위 형식으로 만든 완성 문자열은 마지막 줄에만 1회 출력하고, 중간에 다시 쓰지 말 것.
 
+[Writer Dissent — fix-spec 거부 경로 (Phase 7 voice preservation, 2026-04-17)]
+fix-spec의 개별 FIX 항목이 Voice Profile(§0), 캐릭터 시그니처, 또는 작가 의도를 훼손한다고 판단하면 해당 FIX만 "hold"로 표시하고 나머지는 정상 수정한다. 구체 절차:
+
+1. 해당 FIX 항목의 수정을 **수행하지 않는다**.
+2. 변경 요약에 아래 형식으로 보고한다:
+   ```
+   [WRITER-HOLD] FIX-{번호} | 원 표현: "{거부한 수정 대상 구절 or 교정안}" | 사유: "{Voice Profile § / 캐릭터 대표 대사 / §5.1A 항목 등 근거}"
+   ```
+3. review 세션(supervisor)이 `FIX_DONE` 감지 후 변경 요약에서 `[WRITER-HOLD]` 줄을 파싱하여 `summaries/style-lexicon.md`에 append:
+   ```markdown
+   | {원 표현} → (교정 거부) | [WRITER-HOLD] {사유} |
+   ```
+4. 이후 리뷰에서 해당 표현은 공통 면책 5종 중 #2에 의해 자동 면책된다.
+5. 같은 표현에 대해 3회 이상 누적 HOLD가 발생하면 supervisor가 `CLAUDE.md §5.1A Intentional Style Deviations` 표로 정식 승격을 사용자에게 제안.
+
+**제약**: WRITER-HOLD는 **style/voice/naturalness/repetition 성격** fix에만 허용. 사실관계 오류, 연속성 모순, 금지 사항(§5) 위반 fix는 거부 불가. 해당 성격이면 fix-spec을 수정 없이 수행하고 별도 이의제기는 사용자에게 에스컬레이션.
+
 [완료]
-- 파일 직접 수정 후 변경 요약 3줄 이하 출력.
+- 파일 직접 수정 후 변경 요약 3줄 이하 출력 (HOLD 항목이 있으면 4~5줄 허용).
 - 마지막 줄 exact sentinel 1회 출력
 ```
 

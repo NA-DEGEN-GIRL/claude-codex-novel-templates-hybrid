@@ -29,6 +29,7 @@ claude-codex-novel-templates-hybrid/ 를 참고해서 새 소설 프로젝트를
 - 분량: [에피소드 목표 분량] (예: 4000~6000자)
 - 총 화수: [목표 화수] (예: 70화, 200화)
 - 특이사항: [있으면 적어줘] (예: 한자 병기 필요, 현대 배경이라 외래어 OK 등)
+- **profile**: [장르 프리셋 이름. 생략하면 Claude가 장르를 기반으로 자동 선택] (값: `wuxia` / `modern` / `game-fantasy` / `regression` / `romance`. regression은 병용 base profile도 명시 — 예: `regression+wuxia`. 상세: `settings/profiles/README.md`)
 
 ## 진행 방식
 
@@ -78,11 +79,15 @@ claude-codex-novel-templates-hybrid/ 를 참고해서 새 소설 프로젝트를
 ### 3단계: 프로젝트 생성
 claude-codex-novel-templates-hybrid/의 구조를 참조하여 아래 체크리스트대로 전체 파일을 생성해줘:
 
+0. **Profile 결정 (Phase 7 — 반드시 먼저)**: 사용자가 명시한 `profile` 값을 그대로 사용하거나, 미명시 시 장르를 보고 자동 선택한다.
+   - 매핑: 무협/사극 → `wuxia` / 현대·직장·학원 → `modern` / 헌터·게임판타지·시스템 → `game-fantasy` / 현대 로맨스 → `romance` / 회귀·환생·빙의 → `regression+{base}` (base는 시대에 따라)
+   - 선택된 profile의 `settings/profiles/{profile}.md`를 읽고, 아래 단계에서 값 override 시 참조한다.
+   - regression 병용 시 `regression.md`의 "Override 규칙"을 base profile (예: wuxia) 위에 얹는다.
 1. 소설 폴더 생성 (no-title-XXX, 다음 번호 자동 결정)
 2. 템플릿 파일 복사 (CLAUDE.md, settings/, .claude/agents/, .claude/commands/, summaries/ 등)
 3. 권한 설정: `.claude/settings.local.example.json`을 `.claude/settings.local.json`으로 복사 (`claude -p` 배치 실행에 필수)
-4. CLAUDE.md의 {{PLACEHOLDER}} 전부 채우기
-5. settings/ 파일 전부 실제 내용으로 작성 (01-style-guide.md ~ 05-continuity.md, 07-periodic.md, 08-illustration.md, 선택: 06-humor-guide.md)
+4. **CLAUDE.md의 {{PLACEHOLDER}} 전부 채우기 + `profile:` 필드를 0단계에서 결정한 값으로 설정**. §5.1A 표에 해당 profile의 seed 3~5행을 `settings/profiles/{profile}.md`에서 복사 (없으면 placeholder 유지).
+5. settings/ 파일 전부 실제 내용으로 작성 (01-style-guide.md ~ 05-continuity.md, 07-periodic.md, 08-illustration.md, 선택: 06-humor-guide.md). **Profile 기반 override 필수**: 0단계에서 결정한 profile에 맞게 `settings/04-worldbuilding.md`의 era/units/currency, `settings/03-characters.md`의 생활 조연 슬롯(wuxia 기본 = 객잔/제자 → modern = 직장/학교 → romance = 친구/라이벌 등)을 실제 값으로 교체. 무협이 아니면 hanja 관련 섹션 삭제 또는 축소.
 6. plot/master-outline.md 작성 (전체 아크 구성)
 7. plot/foreshadowing.md 초기 복선 설계
 8. plot/arc-01.md 작성 (1아크 상세 플롯). 모든 plot 파일(prologue, arc-XX, epilogue, interlude 등)의 에피소드 항목에 optional `risk:` 필드 사용 가능 — 허용 값: `oag`, `why`, `pov-era`, `scene-logic` (쉼표 구분). 고위험 장면에만 태깅. 없으면 생략.

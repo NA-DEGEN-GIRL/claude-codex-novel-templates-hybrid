@@ -36,7 +36,7 @@
 - **prose_risk**: medium  <!-- low/medium/high. 높을수록 prose drift override를 더 쉽게 건다 -->
 - **emotion_risk**: medium  <!-- low/medium/high. 감정 전환 화수에서 standard/full 승격 근거로 사용 -->
 - **illustration**: false  <!-- set true to generate episode illustrations. Cover is always generated -->
-- **profile**: wuxia  <!-- 장르 프리셋 (Phase 4 genre profiles, 2026-04-17). 값: wuxia | modern | game-fantasy | regression | romance. 상세: settings/profiles/README.md. 각 profile이 시대/Hanja/수사/대화 위계 기본값을 미리 잡아준다. -->
+- **profile**: wuxia  <!-- 장르 프리셋 (Phase 4 + Phase 7 syntax, 2026-04-17). 값: `wuxia | modern | game-fantasy | romance | regression+{base}` (base = wuxia/modern/game-fantasy/romance). 단일값에는 regression을 쓸 수 없다 — 항상 base와 병용. 상세: settings/profiles/README.md. ⚠️ compile_brief/writer/reviewer가 이 필드를 자동 읽지 않는다 (Phase 4.1로 연기). INIT-PROMPT 3단계 0번이 profile 값을 보고 settings/ 파일을 수동으로 맞춤 — 즉 profile은 "초기 셋업 seed"로 작동. -->
 
 ### 1.1 Core Promises
 

@@ -10,14 +10,22 @@
 
 ## ⚠️ 병용 Profile
 
-**regression 단독으로는 불완전하다.** 시대/세계관은 추가 profile 또는 settings/04-worldbuilding.md로 별도 설정:
+**regression 단독으로는 불완전하다.** 시대/세계관은 base profile과 **병용**해야 한다.
 
-| 목표 장르 | 병용 |
-|----------|------|
-| 무협 회귀 | `wuxia.md` + 회귀 override |
-| 현대 회귀 | `modern.md` + 회귀 override |
-| 게임판타지 빙의 | `game-fantasy.md` + 회귀 override |
-| 로맨스 회귀 | `romance.md` + 회귀 override |
+### `profile:` 필드 syntax (Phase 7 명확화, 2026-04-17)
+
+`CLAUDE.md §1`의 `profile:` 필드에 `regression+{base}` 형태로 표기:
+
+| CLAUDE.md §1 `profile:` 값 | 목표 장르 |
+|---------------------------|---------|
+| `regression+wuxia` | 무협 회귀/환생 |
+| `regression+modern` | 현대 회귀 |
+| `regression+game-fantasy` | 헌터/게임판타지 회귀·빙의 |
+| `regression+romance` | 로맨스 회귀/환생 |
+
+**적용 순서**: base profile(wuxia/modern/game-fantasy/romance) 전체 적용 → regression.md "Override 규칙"을 그 위에 얹음. §5.1A seed는 **양쪽 seed 병합** (중복 시 regression 우선).
+
+상세 병용 UX: `settings/profiles/README.md § Profile 적용 원칙 > 병용 Profile 적용 순서`.
 
 ## Override 규칙 (모든 병용 profile에 공통 적용)
 
@@ -40,6 +48,16 @@
 - 기본은 병용 profile의 톤 (wuxia/modern/etc.)
 - **추가 톤**: 회귀 냉소, 기시감, "이번에는 다르다" 결의 — 주인공 POV에서 지속적으로 드러나야 함
 - **회귀 후 첫 몇 화**: 정보 과잉 투하 위험 주의 (CLAUDE.md §5.2 guardrail G3 참고)
+
+## §5.1A Intentional Style Deviations — regression seed
+
+> INIT-PROMPT 3단계 0번에서 이 seed를 `CLAUDE.md §5.1A` 표에 복사한다. base profile(wuxia/modern 등)의 seed와 **함께** 추가한다 (병합).
+
+| 항목 | 적용 범위 | 허용 변화 | 서사적 이유 |
+|------|----------|----------|-----------|
+| POV 내면 현대 어휘 (base 시대와 무관) | 주인공 내면 독백 | 회귀자가 전생에 썼던 현대 어휘 자유 사용 | 회귀물 기본 장치. 말과 생각의 괴리 |
+| 기시감·예지 선언 | 회귀 이점 시전 장면 | "이번에는 다르다", "그때 그랬지" 등 자기참조 반복 | 장르 시그니처 독백 |
+| 감정 진정 대신 냉소 | 초반 5~10화 특히 | 충격/비극 장면에서 감정 대신 계산·냉소 우선 | 회귀자 내면 보호 장치 |
 
 ## Writer 힌트
 

@@ -27,8 +27,37 @@ Profile은 **CLAUDE.md의 기본값을 장르에 맞게 선 조정**하기 위�
 ## Profile 적용 원칙
 
 - **Profile은 기본값일 뿐, override 가능**. 프로젝트별 CLAUDE.md에서 개별 필드 덮어쓰기 자유.
-- **복수 profile**은 권장 안 됨. 복합 장르(예: 무협×로맨스)는 wuxia를 선택한 뒤 romance 요소를 CLAUDE.md §1.2 Thematic Statement에 명시.
-- **regression profile**은 "회귀 여부"만 다루고 시대/장르는 추가 설정 필요. 예: `profile: regression` + `settings/04-worldbuilding.md`의 era를 pre-modern으로 설정 = 무협 회귀.
+- **복합 장르** (예: 무협×로맨스, 현대 로맨스 회귀)는 아래 규칙을 따른다.
+
+### Profile syntax (Phase 7 명확화, 2026-04-17)
+
+`CLAUDE.md §1 profile:` 필드는 아래 3가지 형태를 허용한다.
+
+| Syntax | 의미 | 예시 |
+|--------|------|------|
+| 단일 profile | 해당 profile 단독 적용 | `profile: wuxia` |
+| **`regression+{base}`** | regression 공통 override + base profile 적용 | `profile: regression+wuxia`, `profile: regression+modern` |
+| 혼합 장르 | **단일 profile + §1.2 Thematic Statement 명시** | `profile: wuxia` + Thematic에 "무협 로맨스"로 명시 |
+
+### 병용 Profile 적용 순서
+
+`regression+wuxia`를 예로:
+
+1. **Base profile(wuxia)** 적용: wuxia.md의 "기본값 override 표" + "§5.1A seed" + 조연 슬롯
+2. **Regression profile** override 추가: regression.md의 "Override 규칙" 섹션을 base 위에 얹음 (POV 내면 예외, knowledge-map 이원 관리 등)
+3. **§5.1A 표**: 두 profile의 seed를 **모두 병합** (중복 항목은 regression 우선)
+4. **다른 summaries/ / settings/**: base profile의 설정을 그대로. regression은 override만 추가.
+
+### 혼합 장르 처리
+
+무협 로맨스(무로맨), 현대 판타지 등은 `regression+X`처럼 전용 syntax가 없다. 대신:
+
+- base profile 하나 선택 (예: wuxia 또는 romance 중 하나)
+- `CLAUDE.md §1.2 Thematic Statement`에 "혼합 장르" 명시
+- `settings/01-style-guide.md §0 Voice Profile` 작성 시 양쪽 장르의 보이스 특징을 합성
+- `§5.1A`에는 base profile seed + 필요 시 다른 profile에서 추가 항목을 **수동 복사**
+
+> 복수 profile 동시 적용을 런타임이 자동 지원하지 않는다. Phase 4.1(compile_brief profile 분기)에서 단일 profile 동작부터 구현 예정.
 
 ## Phase 4 현재 상태
 
