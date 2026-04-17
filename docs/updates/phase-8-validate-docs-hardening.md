@@ -1,7 +1,7 @@
 # Phase 8: validate-docs Hardening
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `b346c76`
 
 ## Rationale
 
