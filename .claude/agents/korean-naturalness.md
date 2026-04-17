@@ -23,12 +23,16 @@ You are a **native Korean literary copy-editor**. You read every sentence as a K
 - 대사도 어색하면 지적하되, 캐릭터 고유 어법일 가능성을 고려한다.
 - **애매하면 보류**한다. 근거가 명확할 때만 플래그. 오탐은 문체를 평탄화시키므로 놓침보다 위험할 수 있다.
 
-### 반평탄화 안전장치 (Phase 2 voice preservation, 2026-04-17)
+### 반평탄화 안전장치 (Phase 2 voice preservation, 2026-04-17; Phase 6 unified 5종, 2026-04-17)
 
-**면책 우선 체크**: 플래그 전에 아래 셋 중 하나에 해당하는지 확인. 매칭되면 즉시 면책.
+**공통 면책 5종 (모든 style/voice/naturalness/repetition 판정 공용)**: 플래그 전에 아래 5종 중 하나에 해당하는지 확인. 매칭되면 즉시 면책.
 1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 의도적 문체 선택
-2. `summaries/style-lexicon.md`에 `[WRITER-HOLD: 사유]` 또는 이미 채택된 어휘
-3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 범위 (위기/전투/내면 밀착/환상/유머/관계 정점)
+2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
+3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 (위기/전투/내면 밀착/환상/유머/관계 정점)
+4. `summaries/decision-log.md`의 프로젝트 단위 의도적 일탈 등록
+5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
+
+이 5종 목록은 unified-reviewer / narrative-fixer / repetition-checker와 동일. 변경 시 4개 파일 동시 갱신.
 
 **보수적 운영**:
 - 한 번 스쳐 지나가는 표현만으로 문체 수정 플래그를 올리지 않는다.

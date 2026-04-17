@@ -52,30 +52,36 @@ def main(argv: list[str]) -> int:
     desire_state_path = novel_dir / "summaries" / "desire-state.md"
     signature_moves_path = novel_dir / "summaries" / "signature-moves.md"
 
-    for needle in (
-        "## 0. Voice Profile",
-        "### 0.2 보이스 우선순위",
-        "### 0.3 대표 문단",
-        "## 1. 시점",
-    ):
-        _require(style_guide, needle, "01-style-guide.md", failures)
+    # Phase 6 fix (2026-04-17): 파일이 누락된 경우 같은 파일에 대한
+    # 후속 _require 호출이 모두 "missing needle" 중복 FAIL을 내는 것을 방지.
+    # _safe_read가 빈 문자열을 반환하면 needle 검사 skip.
+    if style_guide:
+        for needle in (
+            "## 0. Voice Profile",
+            "### 0.2 보이스 우선순위",
+            "### 0.3 대표 문단",
+            "## 1. 시점",
+        ):
+            _require(style_guide, needle, "01-style-guide.md", failures)
 
-    for needle in (
-        "## 캐릭터 시트 형식",
-        "- **말투**:",
-        "- **말 길이 경향**:",
-        "- **금기/트리거**:",
-        "- **회피 반응**:",
-        "- **대표 대사 2~3종**:",
-    ):
-        _require(characters, needle, "03-characters.md", failures)
+    if characters:
+        for needle in (
+            "## 캐릭터 시트 형식",
+            "- **말투**:",
+            "- **말 길이 경향**:",
+            "- **금기/트리거**:",
+            "- **회피 반응**:",
+            "- **대표 대사 2~3종**:",
+        ):
+            _require(characters, needle, "03-characters.md", failures)
 
-    for needle in (
-        "## Immediate Carry-Forward",
-        "## 엔딩 훅 추적",
-        "## HOLD 경고",
-    ):
-        _require(running_context, needle, "summaries/running-context.md", failures)
+    if running_context:
+        for needle in (
+            "## Immediate Carry-Forward",
+            "## 엔딩 훅 추적",
+            "## HOLD 경고",
+        ):
+            _require(running_context, needle, "summaries/running-context.md", failures)
 
     if not desire_state_path.exists():
         failures.append("summaries/desire-state.md: missing file")

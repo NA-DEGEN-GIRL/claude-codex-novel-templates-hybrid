@@ -1,7 +1,7 @@
 # Phase 0: Cleanup & Reorganization
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `4a71d44`
 
 ## Rationale
 

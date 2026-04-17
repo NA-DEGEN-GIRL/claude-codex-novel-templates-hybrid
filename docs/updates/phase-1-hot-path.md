@@ -1,7 +1,7 @@
 # Phase 1: Hot Path Optimization
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `513c911`
 
 ## Rationale
 

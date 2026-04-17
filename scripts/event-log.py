@@ -18,9 +18,11 @@ def _usage() -> int:
 def _coerce(value: str):
     """payload 값을 JSON 호환 타입으로 변환.
 
-    bool / null / int / float / string 순서로 시도.
-    float 추가 (이전에는 float 값이 그대로 string이 되는 버그).
+    bool / null / int / float (finite only) / string 순서로 시도.
+    inf/nan은 JSON 표준 비호환이므로 string으로 fallback (Phase 6 fix, 2026-04-17).
     """
+    import math
+
     lowered = value.lower()
     if lowered in {"true", "false"}:
         return lowered == "true"
@@ -31,10 +33,14 @@ def _coerce(value: str):
     except ValueError:
         pass
     try:
-        return float(value)
+        f = float(value)
     except ValueError:
-        pass
-    return value
+        return value
+    # inf/-inf/nan은 json.dumps가 allow_nan=True로 emit하면 strict consumer가 거부.
+    # 안전하게 string으로 보존.
+    if math.isinf(f) or math.isnan(f):
+        return value
+    return f
 
 
 def main(argv: list[str]) -> int:

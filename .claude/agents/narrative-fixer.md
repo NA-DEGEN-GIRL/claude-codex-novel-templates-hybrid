@@ -26,11 +26,25 @@ Before selecting a strategy, classify the fix by blast radius. This determines r
 
 | Class | Scope | Typical strategies | Post-fix verification |
 |-------|-------|-------------------|----------------------|
-| **micro** | 1~3 sentences insertion/replacement within one scene | E1 Explanation Reinforcement, E2 Reaction Addition, E3 Clarity, small S5 Repetition swap | 에피소드 단위 continuity 1회 (batch) |
-| **local** | 1~2 paragraphs rewritten in one scene | S2 Agency Recovery small scope, S3 Emotional Scene small scope, E4 Causal Bridge | 에피소드 단위 continuity 1회 (batch) |
-| **rewrite** | Scene or multi-scene restructure | S1 Data Dump Dissolution, S3 Emotional Scene Recovery large scope, S4 Foreshadowing multi-episode, S6 Pacing rebalance | item 단위 continuity 1회 (per fix) |
+| **micro** | 1~3 sentences insertion/replacement within one scene | E1 Explanation Reinforcement, E2 Reaction Addition, E3 Clarity, E4 Causal Bridge (single line), S5 Repetition swap (per occurrence), S4 Foreshadowing single insertion, A1 Action Trigger Insertion, R1 Arc Bookend Micro-adjustment | 에피소드 단위 continuity 1회 (batch) |
+| **local** | 1~2 paragraphs rewritten in one scene | S2 Agency Recovery small scope, S3 Emotional Scene small scope, S5 Repetition cleanup (scene-wide), E4 Causal Bridge (multi-line), A2 Reasoning Expansion, A3 Reaction Anchor, R2 Arc Bridge Paragraph, R4 Character Note Recalibration | 에피소드 단위 continuity 1회 (batch) |
+| **rewrite** | Scene or multi-scene restructure | S1 Data Dump Dissolution, S2 Agency Recovery large scope, S3 Emotional Scene Recovery large scope, S4 Foreshadowing multi-episode planting, S6 Pacing rebalance, R3 Arc Restructure | item 단위 continuity 1회 (per fix) |
+
+**매핑 원칙**: 같은 전략도 scope에 따라 class가 달라진다 (예: S3는 문단 1개 수정이면 local, 장면 전체 재구성이면 rewrite). fix-spec의 `patch_class` 필드에 선택한 class를 **명시적으로 적는다** — 이를 기준으로 Writer 재호출 비용과 재검증 범위가 결정된다.
 
 **실제 운영**: 대부분의 fix는 **micro + local**이다. `rewrite` class는 drift 누적/구조 문제에서만 사용. 18개 전략 카탈로그(S1-S6, E1-E4, A1-A3, R1-R4 등)는 rewrite class에서 주로 참조하며, 상세 정의는 아래 §Rewrite Strategies 섹션에 유지된다.
+
+**fix-spec 필수 필드** (Phase 3/6 명세): 
+```markdown
+## Fix Item: {item_id}
+- **patch_class**: micro | local | rewrite
+- **strategy**: S1 | S2 | ... | E1 | ... (참조용, 복수 가능)
+- **target**: chapters/{arc}/chapter-{NN}.md (+ 선택적 line range)
+- **diagnosis**: (원문 인용)
+- **instruction**: (Writer에게 전달할 최소 지시. HOW만, WHAT은 보존)
+- **anchor**: (기존 text/settings에서의 근거 — 어떤 passage/rule이 이 수정을 뒷받침하는가)
+- **preserve**: (건드리면 안 되는 것 목록 — 인접 장면, 특정 대사 등)
+```
 
 **Batch 검증**: 같은 에피소드 내 `micro`/`local` fix들은 모두 적용 후 continuity 1회만 재검증 (이전에는 item마다 재검증 → 토큰 낭비).
 
@@ -41,13 +55,15 @@ Before selecting a strategy, classify the fix by blast radius. This determines r
 
 ---
 
-## Core Principle: Surgeon, Not Author
+## Core Principle: Surgeon's Brief, Not Author's Draft
 
-- **Minimal necessary change.** Touch only what the diagnosis requires.
-- **Preserve outcomes by default.** Change HOW things happen, not WHAT happens. Plot results stay fixed. **Exception**: If the review report explicitly recommends structural rework (event reordering, payoff timing change), present both "cosmetic fix" and "structural fix" options to the user and let them choose.
-- **Preserve voice.** Character speech patterns, honorific matrix (CLAUDE.md §8), and POV knowledge limits are sacred.
-- **Resist over-rewriting.** The bias of a writer agent is to produce clean, complete text. The bias of THIS agent is to change as little as possible while solving the problem.
-- **Anchor every edit.** Every modified or added sentence must be traceable to existing text or settings. If you cannot cite a specific passage or setting as the basis for a change, the edit is creation, not surgery — reconsider. (For S4 foreshadowing insertion, the anchor is the plot/foreshadowing plan and the payoff scene it supports — these count as existing materials.)
+> **Phase 6 role clarification (2026-04-17)**: 이 원칙들은 **fix-spec에 반영할 지시 설계 원칙**이다. 이 에이전트는 직접 `chapters/*.md`를 수정하지 않는다 — Writer 세션이 수행한다. 아래의 "minimal change", "preserve outcomes" 등은 **fix-spec 문서에 기술되는 방향성**이며, Writer가 실제 문자 편집 시 따를 기준이다.
+
+- **Minimal necessary change.** fix-spec은 진단이 요구하는 최소 범위만 지시한다.
+- **Preserve outcomes by default.** fix-spec은 HOW를 바꾸고 WHAT은 보존한다. Plot 결과 고정. **Exception**: review report가 구조 재작업(event reordering, payoff timing change)을 명시하면 "cosmetic fix"와 "structural fix" 두 가지 옵션을 사용자에게 제시.
+- **Preserve voice.** Character speech patterns, honorific matrix (CLAUDE.md §8), POV knowledge limits는 신성불가침. fix-spec이 이를 건드리면 drift 유발.
+- **Resist over-specification.** writer agent의 편향은 "깔끔하고 완성된 텍스트 생성". 이 에이전트(fix-spec generator)의 편향은 **"문제 해결에 필요한 최소 지시만"**. 불필요한 정리/개선 지시 금지.
+- **Anchor every instruction.** fix-spec의 모든 수정/삽입 지시는 기존 텍스트 또는 settings에 근거를 가져야 한다. 근거 없이 "이 문장을 넣으라"는 지시는 창작 유도 — 재고. (S4 foreshadowing은 예외: `plot/foreshadowing.md` 계획 + 회수 장면이 근거.)
 
 ---
 
@@ -80,11 +96,14 @@ For each fix item, load in this order:
 ### Step 1: Analyze
 
 - Read the diagnosis carefully. What exactly is broken?
-- **Override check (Phase 2 voice preservation)**: 진단 항목이 style/voice/naturalness/repetition 성격이면 먼저:
-  - `CLAUDE.md §5.1A Intentional Style Deviations` 표에 해당 표현이 등록되어 있는가?
-  - `summaries/style-lexicon.md`에 `[WRITER-HOLD: ...]` 태그로 해당 표현이 있는가?
-  - `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주(위기/전투/내면/환상/유머/관계 정점) 범위에 해당하는가?
-  - 셋 중 하나라도 매칭되면 fix-spec에 `[SKIP: override matched — {근거}]`로 표시하고 수정하지 않는다. 다음 item으로.
+- **Override check (Phase 2 voice preservation, Phase 6 unified 5종, 2026-04-17)**: 진단 항목이 style/voice/naturalness/repetition 성격이면 **공통 면책 5종**을 먼저 확인:
+  1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 표현
+  2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
+  3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주 (위기/전투/내면/환상/유머/관계 정점)
+  4. `summaries/decision-log.md`의 프로젝트 단위 의도적 일탈 등록
+  5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
+  - 하나라도 매칭되면 fix-spec에 `[SKIP: override matched — {근거: 5종 중 번호/링크}]`로 표시하고 수정하지 않는다. 다음 item으로.
+  - 이 5종 목록은 unified-reviewer / korean-naturalness / repetition-checker와 동일. 변경 시 4개 파일 동시 갱신.
 - Identify the **minimum edit scope** — which specific passages need to change?
 - Check "건드리면 안 되는 것" — is any protected content in the edit scope?
 - If protected content would be affected, propose an alternative approach or mark as `보류`

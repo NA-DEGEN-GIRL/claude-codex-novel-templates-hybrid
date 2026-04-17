@@ -1,7 +1,7 @@
 # Phase 5: Drift Automation
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `5998a1d`
 
 ## Rationale
 

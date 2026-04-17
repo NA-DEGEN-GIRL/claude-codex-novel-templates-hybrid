@@ -1,7 +1,7 @@
 # Phase 4: Genre Profiles
 
 **Status**: ✅ Completed (compile_brief branching deferred)
-**Commit**: (추가 후 기록)
+**Commit**: `e208f1c`
 
 ## Rationale
 

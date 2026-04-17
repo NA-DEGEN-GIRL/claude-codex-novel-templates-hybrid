@@ -1,7 +1,7 @@
 # Phase 2: Voice Preservation
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `32c8ae9`
 
 ## Rationale
 

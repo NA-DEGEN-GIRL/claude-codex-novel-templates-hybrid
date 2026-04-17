@@ -593,16 +593,22 @@ def _build_live_drafting_cues(
             + "\n".join(lexicon_rows)
         )
 
+    # Phase 6 fix (2026-04-17): 구분선 감지 regex 개선.
+    # 이전에는 "|----" prefix만 감지 → "|---|---|" (3 dashes) 또는 "|:---:|" (alignment)를
+    # 데이터 행으로 오판. 이제 진짜 separator 패턴을 regex로 매칭.
+    _sep_pattern = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+\s*$")
     dialogue_rows = [
         line.strip()
         for line in dialogue_log.splitlines()
-        if line.strip().startswith("|") and not line.strip().startswith("|----")
+        if line.strip().startswith("|") and not _sep_pattern.match(line.strip())
     ][:4]
     if len(dialogue_rows) > 1:
         # 첫 줄이 헤더이면 구분선을 삽입하여 올바른 마크다운 테이블 형태로 출력.
         header = dialogue_rows[0]
         body_rows = dialogue_rows[1:]
-        col_count = max(1, len([c for c in header.split("|") if c.strip()]))
+        # col_count: header의 파이프 개수로 계산 (escaped \| 미지원하나 실사용 드물다).
+        # `| A | B | C |`는 파이프 4개 → 3 컬럼.
+        col_count = max(1, header.count("|") - 1)
         separator = "|" + "|".join([" --- "] * col_count) + "|"
         blocks.append(
             "### 대사 운용 경고\n\n"
@@ -633,9 +639,20 @@ def _build_live_drafting_cues(
     hold_warning_lines = _extract_running_context_hold_warnings(running_context)
     open_holds = _extract_open_holds(review_log)
     if hold_warning_lines or open_holds:
+        # Phase 6 fix (2026-04-17): HOLD id 기반 dedup.
+        # running-context의 HOLD 경고와 review-log의 open_holds가 같은 HOLD-NNN을
+        # 언급할 때 이전에는 두 번 출력됨. review-log 항목을 기준으로 하고,
+        # running-context의 텍스트에 해당 id가 이미 나오면 중복 방지.
+        review_hold_ids = {hold.get("id", "") for hold in open_holds}
         hold_blocks: list[str] = []
         if hold_warning_lines:
-            hold_blocks.append("\n".join(hold_warning_lines))
+            # running-context 줄 중, review_hold_ids에 이미 있는 id는 생략
+            filtered_rc = [
+                ln for ln in hold_warning_lines
+                if not any(hid and hid in ln for hid in review_hold_ids)
+            ]
+            if filtered_rc:
+                hold_blocks.append("\n".join(filtered_rc))
         if open_holds:
             hold_blocks.append(
                 "\n".join(
@@ -644,7 +661,8 @@ def _build_live_drafting_cues(
                     for hold in open_holds
                 )
             )
-        blocks.append("### OPEN HOLD 경고\n\n" + "\n\n".join(hold_blocks))
+        if hold_blocks:
+            blocks.append("### OPEN HOLD 경고\n\n" + "\n\n".join(hold_blocks))
 
     desire_blocks = _extract_desire_state(desire_state)
     if desire_blocks:
@@ -1022,6 +1040,10 @@ def _filter_promise_tracker(content: str) -> str:
 
     '## 활성 약속' 섹션의 테이블에서 status가 완료가 아닌 항목을 가져온다.
     완료/무효화 섹션은 건너뛴다.
+
+    Phase 6 fix (2026-04-17): header-aware parsing.
+    이전에는 cols[4]=due, cols[5]=priority를 하드코딩 → 다른 schema 프로젝트에서 regression.
+    이제 헤더 행을 읽어 컬럼명-인덱스 매핑을 만든다.
     """
     if not content:
         return "(파일 없음)"
@@ -1036,34 +1058,81 @@ def _filter_promise_tracker(content: str) -> str:
         return "(활성 약속 없음)"
 
     section = active_match.group(1).strip()
-
-    # 테이블을 간결한 리스트 형식으로 변환 (테이블은 너무 넓어서 읽기 어렵다)
     lines = section.splitlines()
     result: list[str] = []
+
+    def _split_row(line: str) -> list[str]:
+        cols = [c.strip() for c in line.split("|")]
+        return [c for c in cols if c]
+
+    def _is_separator(line: str) -> bool:
+        stripped = line.strip()
+        return bool(stripped) and all(c in "-|: " for c in stripped)
+
+    # 헤더 행 탐색: 다음 줄이 구분선인 pipe 행
+    header_cols: list[str] = []
+    for i, line in enumerate(lines):
+        if not line.startswith("|") or _is_separator(line):
+            continue
+        if i + 1 < len(lines) and _is_separator(lines[i + 1]):
+            header_cols = _split_row(line)
+            break
+
+    # 헤더 기반 인덱스 매핑 (fuzzy: 키워드 포함 여부)
+    def _find_col(keywords: list[str]) -> int:
+        for idx, name in enumerate(header_cols):
+            for kw in keywords:
+                if kw in name:
+                    return idx
+        return -1
+
+    id_idx = _find_col(["ID", "id"])
+    parties_idx = _find_col(["당사자", "대상", "주체"])
+    desc_idx = _find_col(["내용", "약속", "계획"])
+    due_idx = _find_col(["예정", "마감", "기한", "이행 예정", "예정회수"])
+    priority_idx = _find_col(["우선순위", "우선", "priority"])
+    status_idx = _find_col(["상태", "status", "진행"])
+    detail_idx = _find_col(["상세", "메모", "비고", "detail"])
+
+    # Fallback: 헤더 없으면 기존 하드코딩 사용
+    fallback = not header_cols
 
     for line in lines:
         if not line.startswith("|"):
             continue
-        # 구분선 건너뛰기
-        if all(c in "-| " for c in line):
+        if _is_separator(line):
             continue
-        # 헤더행 건너뛰기
-        if "ID" in line and "당사자" in line:
+        # 헤더 행 자체는 skip
+        if header_cols and _split_row(line) == header_cols:
             continue
-
-        cols = [c.strip() for c in line.split("|")]
-        # cols: ['', ID, 당사자, 내용, 투하, 예정회수, 우선순위, 상세, '']
-        cols = [c for c in cols if c]  # 빈 문자열 제거
-        if len(cols) < 4:
+        # 헤더 fallback 감지 (ID + 당사자/내용 키워드 포함 시 헤더 간주)
+        if fallback and "ID" in line and ("당사자" in line or "내용" in line):
             continue
 
-        # Schema (빈 문자열 제거 후): [ID, 당사자, 내용, 투하, 예정회수, 우선순위, 상세]
-        pid = cols[0]
-        parties = cols[1]
-        desc = cols[2]
-        due = cols[4] if len(cols) > 4 else ""       # 예정회수 (상태가 아님 — 과거 버그 수정)
-        priority = cols[5] if len(cols) > 5 else ""  # 우선순위
-        detail = cols[-1] if len(cols) > 5 else ""   # 상세
+        cols = _split_row(line)
+        if len(cols) < 3:
+            continue
+
+        def _get(idx: int) -> str:
+            if idx < 0 or idx >= len(cols):
+                return ""
+            return cols[idx]
+
+        if fallback:
+            # 기존 스키마 가정: [ID, 당사자, 내용, 투하, 예정회수, 우선순위, 상세]
+            pid = cols[0]
+            parties = cols[1] if len(cols) > 1 else ""
+            desc = cols[2] if len(cols) > 2 else ""
+            due = cols[4] if len(cols) > 4 else ""
+            priority = cols[5] if len(cols) > 5 else ""
+            detail = cols[-1] if len(cols) > 5 else ""
+        else:
+            pid = _get(id_idx) or cols[0]
+            parties = _get(parties_idx)
+            desc = _get(desc_idx)
+            due = _get(due_idx)
+            priority = _get(priority_idx) or _get(status_idx)  # priority 없으면 status 대체
+            detail = _get(detail_idx) or (cols[-1] if cols else "")
 
         # 최근 진전 추출
         latest = ""
@@ -1700,7 +1769,10 @@ def _extract_relationship_turning_points(content: str) -> str:
     """relationship-log에서 관계 전환점을 추출한다.
 
     '반전', '단절', '화해', '배신', '고백', '결별' 등의 키워드가 있는 항목.
-    출력에는 원본 테이블의 헤더+구분선을 포함하여 올바른 마크다운 테이블을 보장한다.
+    출력에는 **각 매칭 행이 속한 테이블의 헤더+구분선**을 포함하여 올바른 마크다운 테이블을 보장한다.
+    relationship-log는 여러 표(만남 로그, 관계 매트릭스, 관계 변화 이력)를 포함하므로
+    각 매칭 행이 어느 표에 속하는지를 추적해 그 표의 헤더를 사용한다.
+    (Phase 6 fix, 2026-04-17: 이전에는 파일 최초 헤더를 전체 매칭에 잘못 적용)
     """
     if not content:
         return ""
@@ -1709,43 +1781,65 @@ def _extract_relationship_turning_points(content: str) -> str:
                         "전환", "변화", "갈등", "결렬"]
     lines = content.splitlines()
 
-    # 원본 테이블의 헤더와 구분선 찾기 (첫 번째 | 줄 + 그 다음 구분선)
-    header_row: str = ""
-    separator_row: str = ""
+    def _is_separator(stripped: str) -> bool:
+        return bool(stripped) and all(c in "-|: " for c in stripped)
+
+    # 각 pipe 행(헤더/구분선/데이터)을 속한 "테이블 블록"으로 grouping.
+    # 테이블 경계: 빈 줄 또는 non-pipe 줄로 끊어짐.
+    blocks: list[dict] = []  # {"header": str, "separator": str, "rows": [str], "col_count": int}
+    current: dict | None = None
+
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not stripped.startswith("|"):
+            current = None  # 테이블 경계
             continue
-        is_separator = all(c in "-| " for c in stripped)
-        if is_separator:
+        if _is_separator(stripped):
+            # 구분선은 앞 줄이 헤더였어야 함
+            if current and current.get("header") and not current.get("separator"):
+                current["separator"] = stripped
             continue
-        # 이 줄이 헤더 후보. 다음 pipe 줄이 구분선이면 확정.
-        if i + 1 < len(lines):
-            next_stripped = lines[i + 1].strip()
-            if next_stripped.startswith("|") and all(c in "-| " for c in next_stripped):
-                header_row = stripped
-                separator_row = next_stripped
-                break
+        # 데이터 또는 헤더 행
+        if current is None or not current.get("header"):
+            # 헤더 후보 — 다음 줄이 구분선이면 확정 (또는 현재 block이 비어있으면 시작)
+            next_stripped = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            if _is_separator(next_stripped):
+                current = {
+                    "header": stripped,
+                    "separator": "",
+                    "rows": [],
+                    "col_count": stripped.count("|") - 1,
+                }
+                blocks.append(current)
+            # 헤더 없는 단독 pipe 행은 무시 (파싱 불가)
+            continue
+        # 일반 데이터 행
+        current["rows"].append(stripped)
 
-    result: list[str] = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        if stripped == header_row or all(c in "-| " for c in stripped):
-            continue  # 헤더/구분선 중복 방지
-        if any(kw in line for kw in turning_keywords):
-            if len(line) > 200:
-                result.append(line[:200] + "...")
-            else:
-                result.append(line)
+    # 각 블록에서 turning keyword가 있는 행만 추출, 블록별 그룹 유지
+    matched_by_block: list[tuple[dict, list[str]]] = []
+    for block in blocks:
+        matched_rows = []
+        for row in block["rows"]:
+            if any(kw in row for kw in turning_keywords):
+                if len(row) > 200:
+                    matched_rows.append(row[:200] + "...")
+                else:
+                    matched_rows.append(row)
+        if matched_rows:
+            matched_by_block.append((block, matched_rows[-5:]))
 
-    if not result:
+    if not matched_by_block:
         return ""
 
-    tail = result[-5:]
-    body = [header_row, separator_row] + tail if header_row else tail
-    return "### 관계 전환점\n\n" + "\n".join(body)
+    # 블록별로 (헤더+구분선+tail rows) 섹션을 생성하여 이어 붙임
+    output_parts: list[str] = []
+    for block, rows in matched_by_block:
+        block_out = [block["header"], block["separator"] or "|---" * max(1, block["col_count"]) + "|"]
+        block_out.extend(rows)
+        output_parts.append("\n".join(block_out))
+
+    return "### 관계 전환점\n\n" + "\n\n".join(output_parts)
 
 
 # ─── Main Compiler ─────────────────────────────────────────
@@ -2253,11 +2347,12 @@ def _compile_brief(
 def _estimate_source_size(novel_dir: str) -> float:
     """소스 파일들의 대략적인 합산 크기를 KB로 반환한다.
 
-    compile_brief가 실제로 읽는 파일 중 주요 것들을 포함.
+    compile_brief가 실제로 읽는 파일들을 포함.
     사용자가 "왜 brief가 11KB인가"를 디버깅할 때 참고할 수치.
+    Phase 1에서 9 → 20개로 확장, Phase 6에서 plot/arc-*.md 포함 + 추가 settings로 확장 (2026-04-17).
     """
     total = 0
-    paths = [
+    fixed_paths = [
         # 핵심 summaries
         "summaries/running-context.md",
         "summaries/character-tracker.md",
@@ -2273,19 +2368,35 @@ def _estimate_source_size(novel_dir: str) -> float:
         "summaries/desire-state.md",
         "summaries/signature-moves.md",
         "summaries/term-onboarding.md",
-        # plot
+        # plot (arc 파일은 glob으로)
         "plot/foreshadowing.md",
+        "plot/master-outline.md",
+        "plot/timeline.md",
+        "plot/prologue.md",
+        "plot/epilogue.md",
         # project rules
         "CLAUDE.md",
         "settings/01-style-guide.md",
+        "settings/02-episode-structure.md",
         "settings/03-characters.md",
         "settings/04-worldbuilding.md",
         "settings/05-continuity.md",
+        "settings/07-periodic.md",
+        "settings/08-illustration.md",
     ]
-    for p in paths:
-        full = Path(novel_dir) / p
+    novel_path = Path(novel_dir)
+    for p in fixed_paths:
+        full = novel_path / p
         if full.exists():
             total += full.stat().st_size
+    # plot/arc-*.md 동적 포함
+    plot_dir = novel_path / "plot"
+    if plot_dir.exists():
+        for arc_file in plot_dir.glob("arc-*.md"):
+            try:
+                total += arc_file.stat().st_size
+            except OSError:
+                pass
     return total / 1024
 
 

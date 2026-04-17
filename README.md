@@ -380,25 +380,7 @@ F. 아크 마감       → summary reset + thread triage + 새 아크 준비
 
 직접 파일을 하나씩 채우기보다, **INIT-PROMPT로 초기 셋업 → plot 강화 → 필요 시 full story 생성 → batch-supervisor 집필** 순서가 가장 안전하다.
 
-### 1. 새 소설 프로젝트 생성
-
-```bash
-rsync -a --exclude='.git' claude-codex-novel-templates-hybrid/ /root/novel/no-title-XXX/
-cd /root/novel/no-title-XXX/
-```
-
-> `cp -r`은 `.git/` 디렉터리까지 복사하므로 사용하지 않는다. `rsync --exclude='.git'`으로 템플릿의 git 메타데이터를 제외한다.
-
-### 2. 설정 채우기
-
-```
-CLAUDE.md         → {{PLACEHOLDER}} 채우기
-settings/         → 01~08 설정 파일 작성
-                 → 특히 01/03/05/07은 세 템플릿 공통 집필 레이어
-plot/             → master-outline + arc plots
-```
-
-### 0. 사전 준비: MCP 서버 clone
+### 1. 사전 준비: MCP 서버 clone
 
 이 템플릿은 아래 MCP 서버들이 `/root/novel/` 하위에 이미 clone 되어 있다고 가정한다. 없으면 먼저 설치한다.
 
@@ -415,7 +397,26 @@ git clone https://github.com/NA-DEGEN-GIRL/mcp-novelai-image.git  # (선택) 표
 
 > **중요**: 이 hybrid 템플릿 자체는 `/root/novel/` 하위의 sub-project로 동작한다. standalone 사용 시에는 상위 레포 `config.json`의 경로 전제를 수정해야 할 수 있다.
 
-### 3. Native MCP 등록/확인
+### 2. 새 소설 프로젝트 생성
+
+```bash
+rsync -a --exclude='.git' claude-codex-novel-templates-hybrid/ /root/novel/no-title-XXX/
+cd /root/novel/no-title-XXX/
+```
+
+> `cp -r`은 `.git/` 디렉터리까지 복사하므로 사용하지 않는다. `rsync --exclude='.git'`으로 템플릿의 git 메타데이터를 제외한다.
+
+### 3. 설정 채우기
+
+```
+CLAUDE.md         → {{PLACEHOLDER}} 채우기 (profile: 값 포함)
+settings/         → 01~08 설정 파일 작성
+                 → 특히 01/03/05/07은 세 템플릿 공통 집필 레이어
+                 → profiles/ 참조 (장르 프리셋)
+plot/             → master-outline + arc plots
+```
+
+### 4. Native MCP 등록/확인
 
 아래 명령은 Codex CLI와 Claude Code **각각**에 같은 MCP 서버를 등록한다. 운용하려는 mode 쪽만 등록해도 동작하지만, writer_model 전환을 고려하면 양쪽 모두 권장.
 
@@ -443,7 +444,7 @@ claude mcp list
 
 이 템플릿은 MCP wrapper scripts를 제공하지 않는다 — 런타임은 native MCP 호출로 동작한다.
 
-### 4. 직접 MCP 사용
+### 5. 직접 MCP 사용
 
 ```bash
 # 예: codex mode 등록 확인
@@ -453,7 +454,7 @@ codex mcp list
 # shell wrapper 경로는 intentionally 없음.
 ```
 
-### 5. Supervisor 실행
+### 6. Supervisor 실행
 
 ```bash
 # Claude Code supervisor
@@ -465,7 +466,7 @@ claude
 #  SESSION=write-XXX, START_EP=1, END_EP=50"
 ```
 
-### 6. Writer/Review 세션 (supervisor가 자동 생성)
+### 7. Writer/Review 세션 (supervisor가 자동 생성)
 
 ```bash
 # Writer tmux 세션 생성 (codex mode 예시):

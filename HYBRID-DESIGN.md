@@ -61,7 +61,8 @@
 ## Native MCP 원칙
 
 > 런타임 기본 경로는 **MCP 직접 호출**이다.
-> 이 템플릿은 `compile_brief`, `novel-calc`, `novel-hanja`, `novel-naming`용 shell wrapper를 두지 않는다.
+> 이 템플릿은 `novel-calc`, `novel-hanja`, `novel-naming`, `novel-editor` 등 MCP 서버의 tool을 직접 호출한다. shell wrapper를 두지 않는다.
+> `compile_brief`는 **독립 MCP 서버가 아니라 `novel-editor` MCP 서버의 tool**이다 (Phase 5 clarification, 2026-04-17). 템플릿에 번들된 `compile_brief.py` 스크립트를 novel-editor가 MCP tool로 노출한다.
 > `scripts/`에는 tmux/session helper와 codex mode 편의 런처만 남긴다.
 
 ### Codex MCP 설정
@@ -81,14 +82,14 @@ codex mcp list
 
 ### Writer/Review MCP 분담
 
-| MCP 도구 | Writer | Review (Claude) | 비고 |
-|---------|--------|-----------------|------|
-| `compile_brief` | ✅ 집필 전 필수 | ✅ 검증용 | 양쪽 다 사용 |
-| `char_count` | ✅ 초안 후 필수 | ✅ 재확인 | 이중 안전망 |
-| `hanja_lookup` | ✅ 병기 시 | ✅ 보정 | Writer가 못 쓰면 Review 보정 |
-| `review_episode` | ❌ | ✅ 전담 | 외부 AI 리뷰는 Review만 |
-| `naming_check` | ❌ | ✅ 전담 | periodic/아크 경계 |
-| summaries/META/git | ❌ | ✅ 전담 | 메타데이터는 Review만 |
+| MCP 도구 (서버) | Writer | Review (Claude) | 비고 |
+|-------------|--------|-----------------|------|
+| `compile_brief` (novel-editor) | ✅ 집필 전 필수 | ✅ 검증용 | 양쪽 다 사용. **novel-editor 서버의 tool** |
+| `char_count` (novel-calc) | ✅ 초안 후 필수 | ✅ 재확인 | 이중 안전망 |
+| `hanja_lookup` (novel-hanja) | ✅ 병기 시 | ✅ 보정 | Writer가 못 쓰면 Review 보정 |
+| `review_episode` (novel-editor) | ❌ | ✅ 전담 | 외부 AI 리뷰는 Review만 |
+| `naming_check` (novel-naming) | ❌ | ✅ 전담 | periodic/아크 경계 |
+| summaries/META/git | ❌ | ✅ 전담 | 메타데이터는 Review만 (MCP 아님) |
 
 > **이중 안전망**: Writer가 MCP를 쓰면 좋고, 안 써도 Review가 동일 검증을 수행한다. 단, 경로는 항상 native MCP여야 한다.
 

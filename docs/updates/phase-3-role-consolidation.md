@@ -1,7 +1,7 @@
 # Phase 3: Role Consolidation
 
 **Status**: ✅ Completed
-**Commit**: (추가 후 기록)
+**Commit**: `247861a`
 
 ## Rationale
 
