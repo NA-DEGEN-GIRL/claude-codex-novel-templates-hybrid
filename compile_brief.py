@@ -226,9 +226,10 @@ def _extract_episode_plot_block(content: str, episode_number: int) -> str:
             continue
 
         cells = [c.strip() for c in stripped.split("|")[1:-1]]
-        if len(cells) < 4 or not cells[0].isdigit():
+        if len(cells) < 4:
             continue
-        if int(cells[0]) != episode_number:
+        cell_num_match = re.match(r"^(\d+)\s*화?$", cells[0])
+        if not cell_num_match or int(cell_num_match.group(1)) != episode_number:
             continue
 
         block_title = ""
@@ -1481,6 +1482,12 @@ def _map_episode_columns(header_cells: list[str]) -> dict[str, int]:
     return idx
 
 
+def _episode_cell_number(cell: str) -> Optional[int]:
+    """'1' 또는 '1화' 형태의 화수 셀을 정수로 반환한다 (그 외 None)."""
+    match = re.match(r"^(\d+)\s*화?$", cell.strip())
+    return int(match.group(1)) if match else None
+
+
 def _parse_episode_log_table(
     content: str,
 ) -> tuple[dict[str, int], list[tuple[int, list[str]]]]:
@@ -1495,13 +1502,14 @@ def _parse_episode_log_table(
         cells = _split_table_cells(stripped)
         if not cells:
             continue
-        if not header_seen and not cells[0].isdigit():
+        num = _episode_cell_number(cells[0])
+        if not header_seen and num is None:
             col_idx = _map_episode_columns(cells)
             header_seen = True
             continue
-        if not cells[0].isdigit():
+        if num is None:
             continue
-        rows.append((int(cells[0]), cells))
+        rows.append((num, cells))
     return col_idx, rows
 
 

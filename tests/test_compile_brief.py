@@ -479,3 +479,18 @@ def test_validate_settings_script_passes_fixture(tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_episode_log_accepts_hwa_suffix_in_number_column() -> None:
+    """'| 1화 |' 형식(숫자+화)의 첫 열도 파싱된다 (실프로젝트 관용 표기)."""
+    content = (
+        "# Episode Log\n\n"
+        "| 화 | 요약 | 장소 | 등장인물 | 핵심 사건 | 엔딩 훅 |\n"
+        "|----|------|------|----------|----------|---------|\n"
+        "| 1화 | 회귀한다 | 천외봉 | 엽무진 | 회귀 | 어머니 등장 |\n"
+        "| 2화 | 은점 발견 | 엽촌 집 | 엽무진, 유씨 | 은점 활성화 | 위협 감지 |\n"
+    )
+    out = compile_brief._extract_last_n_episodes(content, before_episode=3)
+    assert "### 1화" in out
+    assert "### 2화" in out
+    assert "은점 활성화" in out
