@@ -21,6 +21,7 @@
 | 6 | Critical correctness fixes | ✅ | [phase-6-critical-fixes.md](phase-6-critical-fixes.md) |
 | 7 | Profile + WRITER-HOLD runtime | ✅ | [phase-7-profile-runtime.md](phase-7-profile-runtime.md) |
 | 8 | validate-docs hardening | 🔄 | [phase-8-validate-docs-hardening.md](phase-8-validate-docs-hardening.md) |
+| 9 | 4-lens audit fixes (전달·실행·반영 체인 수리) | ✅ | [phase-9-audit-fixes.md](phase-9-audit-fixes.md) |
 
 **범례**: ✅ 완료 · 🔄 진행중 · ⏳ 대기
 

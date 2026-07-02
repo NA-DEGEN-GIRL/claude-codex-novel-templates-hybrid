@@ -184,6 +184,13 @@ for each specialist in [oag, why, pov_era, scene_logic]:
   elif flag only    → 실행 (emergent risk)
   elif tag only     → watch 등록 (review-log.md에 "WATCH {specialist}: {tag 근거}" 1줄 append). 본문 증거가 붙거나 periodic due 시 승격
   else              → skip
+
+# 4. 즉시 대응 escalation 2종 (specialist checker가 아니라 당화 대응 경로)
+if ESCALATE_NATURALNESS → 현재 화에 `/naturalness {N}` 즉시 실행 지시 (review 세션), 결과를 fix routing에 합침.
+                          다음 화 review_floor 상향 근거로도 사용 (Prose drift override 참조).
+if ESCALATE_SPEECH      → 존댓말/호칭 불일치 항목을 현재 화 fix routing에 포함하고,
+                          다음 화 review_floor를 최소 standard로 상향. 미등재 캐릭터 축이 원인이면
+                          3b-post step 6의 03-characters/§8.1 등재를 함께 지시.
 ```
 
 > repetition은 plot risk tag 대상이 아님. periodic/watchlist 트리거만 사용.
@@ -193,6 +200,9 @@ for each specialist in [oag, why, pov_era, scene_logic]:
 - 첫 문단이나 장면 전환 첫 문장이 지나치게 문학적 압축에 기대어 뜻을 한 번 더 해석하게 만듦
 - 분위기는 있으나 한국어 결합이 어색한 문장(주어-서술어, 명사-동사, 추상명사-행위 결합)이 눈에 띔
 - review 세션이 "보이스일 수 있음"과 "어색한 한국어" 사이에서 애매하다고 판단함
+- **직전 화 continuity 출력에 `ESCALATE_NATURALNESS`가 있었음** — 이것이 이 override의 공식 신호 채널이다. supervisor는 continuity 출력의 Specialist Escalation 섹션과 review-log를 근거로 판정한다.
+
+**Brief sanity preflight** (2화 이후): writer가 받을 compile_brief 출력(스냅샷/이벤트 로그)에 `직전 화 직결 앵커` 섹션이 존재해야 정상이다. 부재하거나 상단에 `⚠️ PARSE-MISS`가 표시되면 **브리프 결함**으로 보고, 해당 요약 파일의 헤딩 형식(각 summaries 템플릿 상단 주석의 파서 계약)을 점검한 뒤 집필을 진행한다. 또한 브리프의 직결 상태 bullet과 직전 화 EPISODE_META `unresolved`가 서로 모순되지 않는지 1회 대조한다.
 
 **Arc transition package** (마지막 화 완료 후 supervisor가 반드시 순서대로 지시):
 
@@ -271,6 +281,7 @@ for each specialist in [oag, why, pov_era, scene_logic]:
 **F. 아크 마감**
 9. Arc summary + character state reset (settings/05-continuity.md)
 10. Unresolved thread triage (carry-forward vs discard)
+11. **장기 기억 승격 (PIN)**: 이번 아크에서 성립한 지식/관계/어투 변화 중 이후 아크에서도 유지돼야 하는 항목을 (a) `summaries/knowledge-map.md` 해당 행에 `[PIN]` 태그로 표시하거나 (b) `settings/05-continuity.md` 불변 조건 표로 승격한다. compile_brief는 `[PIN]` 행을 최근-N행 창과 무관하게 상시 포함한다 — 이것이 30화+에서 초반 아크 기억이 브리프에서 소멸하는 것을 막는 유일한 경로다.
 
 **Hybrid**: `review_floor`은 Writer 프롬프트에 넣지 않는다. supervisor가 3b-post에서 직접 해당 모드로 unified-reviewer를 실행한다.
 
@@ -343,14 +354,18 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 1. **chapter 파일 확인**: `ls {{NOVEL_DIR}}/chapters/{arc}/chapter-{NN}.md`
 2. **review 세션으로 post-write 지시 전송**: 기본은 `tmux-send-claude`로 보낸다. 아래 작업을 review 세션이 수행하게 한다.
 3. **외부 AI 리뷰**: `review_episode` MCP 호출 (sources="auto") — review 세션 수행
+   - **PROXY 실패 대응**: 결과에 `❌ PROXY`(호출 실패/timeout)가 보이면 `check_status`로 상태를 확인하고 action-log에 `proxy-skip {N}화` 기록. **연속 2화 실패 시 supervisor가 사용자에게 보고**한다 (무음 skip 금지 — proxy는 매 화 유일한 한국어 line-edit 방어선이다). 실패 화는 4단계의 조건부 `/naturalness {N}`을 "의심 시"가 아니라 **자동 대체 실행**으로 승격한다.
+   - **지연 도착 피드백 회수**: proxy가 timeout 후 뒤늦게 `EDITOR_FEEDBACK_proxy*.md`(또는 feedback-archive/)를 남길 수 있다. **다음 화 시작 전에 미처리 EDITOR_FEEDBACK 파일 유무를 확인**하고, 있으면 해당 화 fix routing에 소급 반영하거나 review-log에 `DEFER-{N}화` 항목으로 등록한다. review-log에 "❌ 0건"으로 기재해 놓고 아카이브에 MUST-FIX가 쌓이는 무음 누수를 금지한다.
 4. **unified-reviewer**: review_floor에 맞는 모드로 실행. EDITOR_FEEDBACK 반영 — review 세션 수행
    - narration opening, scene-transition first line, paragraph-ending sentence 중 하나라도 어색한 결합이 의심되면 현재 화에 한해 `/naturalness {N}`를 추가 실행하고 결과를 fix routing에 합친다.
 5. **문제 발견 시 — fix routing**:
    a. 모든 발견 항목을 **patch_class**로 분류:
-      - `micro`: 사실관계 1-3문장 → **Writer fixer**
-      - `local`: 문단 내 수정 → **Writer fixer**
-      - `rewrite`: 장면 수준 재작성 → **Writer fixer**
+      - `micro`: 사실관계 1-3문장 · 단어·표기 치환 → **Writer fixer** (기본). Writer가 fix 지시를 부분 반영하는 모델 특성이 확인되면 프로젝트 override로 **Supervisor 직접 edit** 허용 (문체 리듬 불변 범위에서만).
+      - `local`: 문단 내 수정 → **Writer fixer**. 1회 실패 시 supervisor가 인접 문맥을 고정한 채 **이질감 최소화** 수준 보정 허용 (프로젝트 override).
+      - `rewrite`: 장면 수준 재작성 → **Writer fixer 전용**. 문체 보호 우선. 1회 실패 시 원칙적으로 `HOLD`. 2회 retry는 fix-spec 축소 또는 앵커 문단 제공한 경우에만.
+      - `EPISODE_META` YAML / `summaries/*` (running-context, action-log, decision-log) → **항상 Supervisor**. 본문 아닌 운영 파일.
       - `hold`: 구조 변경 필요 → **HOLD Transfer Routing** (아래 §5g 참조)
+   > Supervisor fallback은 **프로젝트 `CLAUDE.md` 또는 `decision-log.md`에 `writer_compliance: low` 명시**된 경우에만 활성화 권장. 일반 writer (codex/claude 원본)는 기본 경로(모든 fix를 Writer에게) 유지.
    b. `micro`/`local`/`rewrite` 항목을 에피소드 단위로 번들: Claude가 `tmp/fix-specs/chapter-{NN}.md` 생성
    c. Writer 세션에 전송 (writer = fixer, 같은 세션):
       ```
@@ -358,8 +373,8 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
       fix-spec의 수정 목표와 제약만 따른다. 범위 밖 변경 금지.
       완료 후: FIX_DONE chapter-{NN} :: run={RUN_NONCE}
       ```
-   e. `FIX_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드)
-   f. **재수정 상한**: Writer fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관. 무한 ping-pong 금지.
+   e. `FIX_DONE chapter-{NN} :: run={RUN_NONCE}` 확인 후 Claude가 수정 결과 검증 (unified-reviewer continuity 모드). **fix-spec에 `rewrite`가 포함됐으면 수정 구간 ±1문단에 한해 proxy 문단 window 재호출 또는 korean-naturalness 1회를 재검증에 포함한다** — 수정이 새로 만든 번역투/결합 오류는 continuity 모드 단독으로는 잡지 못한다.
+   f. **재수정 상한**: Writer fixer 호출은 **1회 한정**. 재검증에서 추가 문제 발견 시 다음 정기 점검으로 이관하되, **이관은 반드시 `summaries/review-log.md`에 `DEFER-{N}화: {항목}` append로 남기고, 다음 periodic 실행 프롬프트에 DEFER 목록을 포함**한다. 무한 ping-pong 금지.
    g. **resolution_threshold**:
       - `resolved`: 재검증에서 `❌` 0건 + `HIGH` 0건
       - `accepted_with_residuals`: `❌`는 사라졌고 `medium/low`만 남음 → action-log에 residual 기록 후 진행
@@ -373,6 +388,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
      - `promise-tracker.md`: 약속/복선의 설치/진행/해소가 있을 때. 없으면 skipped.
      - `knowledge-map.md`: 캐릭터가 새 정보를 획득/전달/오해할 때, 또는 보고/경고/허락/소문/비밀 공유가 실제로 성립했거나 불발되어 다음 화 오프닝에 영향을 줄 때. 없으면 skipped.
      - `relationship-log.md`: 첫 만남, 관계 변화, 호칭 변경이 있을 때. 없으면 skipped.
+     - `03-characters.md` + `CLAUDE.md §8.1~8.3`: **이름 있는 신규 캐릭터가 등장**했거나 기존 쌍의 호칭/어투가 변했을 때 시트 등재 + 매트릭스 동기화 (어투 변화는 §8.3 이력에도 기록). 없으면 skipped. — 미등재 캐릭터 축은 존댓말 검증(항목 6)의 사각지대가 된다.
      - `decision-log.md`: 프로젝트 수준 규칙 이탈이 있을 때. 없으면 skipped.
      - `desire-state.md`: 독자가 기다리는 것/불안해하는 것/이번 화에서 건드릴 것이 변했을 때. 없으면 skipped.
      - `signature-moves.md`: 잘 먹힌 장면 운용 패턴 또는 과사용 패턴을 올릴 가치가 있을 때. 없으면 skipped.
@@ -380,7 +396,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
      - `hanja-glossary.md` (한자 사용 프로젝트만): 한글(漢字) 첫 표기가 있을 때. 없으면 skipped.
      - `style-lexicon.md`: 어휘 치환이 채택됐을 때. 없으면 skipped.
    - **`REVIEW_DONE` 게이트**: Required 3종 갱신 완료 + Conditional+Logged 전 항목의 updated/skipped 기록이 action-log에 있어야 한다. `python3 {{NOVEL_DIR}}/scripts/verify-review-done.py --novel-dir {{NOVEL_DIR}} --episode {N}`가 통과하지 않으면 REVIEW_DONE 불가.
-7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행
+7. **summary fact-check**: 본문 ↔ 요약 대조 — review 세션 수행. **unified-reviewer E절 Light subset(S1/S3/S6)을 이번 화에 갱신된 요약 행에 대해 수행한다** — 요약 오귀속/지식 오염/상태 오류는 다음 화 compile_brief를 직접 오염시키므로 화 단위로 차단한다.
 8. **EPISODE_META 삽입**: chapter 파일 끝에 append — review 세션 수행
 9. **action-log 갱신** — review 세션 수행
 10. **git add + REVIEW_DONE helper**: review 세션이 chapter + summaries + EDITOR_FEEDBACK를 stage한 뒤 `python3 {{NOVEL_DIR}}/scripts/verify-review-done.py --novel-dir {{NOVEL_DIR}} --episode {N}`를 실행한다. 실패 시 commit 금지.
@@ -395,6 +411,7 @@ batch-supervisor는 plot-repair의 "사용자" 역할을 수행할 수 있다. `
 {arc}의 플롯 파일이 없다. plot/{arc}.md를 먼저 작성해줘.
 - plot/master-outline.md와 plot/foreshadowing.md를 참조한다.
 - 이전 아크의 plot 파일 형식을 따른다.
+- 고위험 화수(전투/추격/군중 장면, 시스템·시대 용어 밀집, 관계 위계 전환, 강한 행동 기대가 걸린 장면)에는 에피소드 항목에 `- risk: oag|why|pov-era|scene-logic` 태그를 붙인다 (§2.5 specialist trigger의 입력 — 태그가 전혀 없으면 트리거의 절반이 사문화된다).
 - 완료 후 {N}화 집필을 이어서 진행한다.
 ```
 
@@ -556,6 +573,11 @@ Wait 5 seconds, then send full prompt (3a).
 > **When to use CHUNK_SIZE = -1 (recommended)**: auto-compact가 안정적으로 작동하는 모델. 기본값.
 > **When to use CHUNK_SIZE = 1**: auto-compact가 실제로 실패하거나, 화별 강제 리셋이 더 안정적이라는 근거가 있을 때만.
 > **When to use CHUNK_SIZE > 0**: auto-compact가 약하거나 컨텍스트 창이 작아 주기적 리셋이 필요한 모델.
+
+**Auto-compact 손실 대응** (`CHUNK_SIZE = -1`일 때):
+- compact는 대화 이력을 압축하므로 writer 세션의 role 원칙·금지사항·매트릭스 세부·Hard Rules가 침식될 수 있다. 보완 장치는 3중이다: (a) 매 화 compile_brief 재주입(금지사항·§8 매트릭스·Voice Profile 포함), (b) 직전 화 원문 재독 지시, (c) writer prompt의 주기 재독 규칙({N}이 5의 배수 또는 compact 직후 → Chunk Start 읽기 목록 재수행).
+- supervisor가 pane에서 compact 배너를 감지했으면, 다음 화는 Continuation이 아니라 **Chunk Start Prompt(3a)로 승격**해 읽기 목록 전체를 재수행시킨다.
+- **compact 직후 화는 어투 역행(관계 진화 이전 상태로 회귀)의 최고 위험 구간**이다 — 해당 화 리뷰에서 항목 6(존댓말 절차)을 특히 주의 깊게 본다.
 
 #### 5b. Arc Transition (Review 세션에 지시)
 

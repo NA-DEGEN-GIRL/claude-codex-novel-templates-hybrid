@@ -95,7 +95,7 @@
 
 ### 3.1 Preparation (Prep)
 
-1. **Call `compile_brief` via `novel-editor` MCP server**: Generates a compressed brief (~4-15KB) from project files (~300KB+). `compile_brief`는 이 템플릿에 포함된 Python 스크립트(`compile_brief.py`)를 `novel-editor` MCP 서버가 tool로 노출한다. 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프에 `직전 화 직결 앵커`가 있으면 현재 화 오프닝의 1차 기준으로 사용한다.
+1. **Call `compile_brief` via `novel-editor` MCP server**: Generates a compressed brief (~4-15KB) from project files (~300KB+). `compile_brief`는 이 템플릿에 포함된 Python 스크립트(`compile_brief.py`)를 `novel-editor` MCP 서버가 tool로 노출한다. 우선 사용하되, 불가능하면 아래 fallback으로 전환. 브리프의 `직전 화 직결 앵커`를 현재 화 오프닝의 1차 기준으로 사용한다. **2화 이후인데 이 섹션이 없거나 브리프 상단에 `⚠️ PARSE-MISS`가 보이면 브리프 결함이다** — 요약 파일 헤딩 형식(각 summaries 템플릿 상단의 파서 계약 주석)을 점검한다 (batch-supervisor §2.5 Brief sanity preflight).
    - Fallback if unavailable: `summaries/running-context.md` → relevant arc plot → `plot/foreshadowing.md` → `summaries/character-tracker.md`.
 2. **Read the previous episode's last scene**: 최소 2~3문단, 가능하면 마지막 장면 전체 또는 마지막 8~12문단을 읽어 hook connection + opening carry-forward facts를 확인한다.
 3. **Check character anchors**: Read `settings/03-characters.md` for the episode's key characters before drafting dialogue. 대화 위계가 중요하면 `§8.1 호칭/어투 매트릭스`까지 함께 확인한다.
@@ -177,9 +177,9 @@ Per `.claude/agents/unified-reviewer.md`. Continuity + narrative quality + Korea
 3. **NIM** (`nim_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_nim.md`
 4. **Ollama** (`ollama_feedback: true`): spelling/grammar/dialogue context → `EDITOR_FEEDBACK_ollama.md`
 5. **Proxy** (`proxy_feedback`): Korean line-edit quality (번역투/어색한 결합/반복/호응/과압축/서술 register 흔들림) → `EDITOR_FEEDBACK_proxy.md`. 로컬 LLM(Gemma4 등)을 활용한 한국어 자연스러움 1차 감수.
-6. **GPT naturalness** (`review_episode(..., sources="gpt_naturalness")`): 빠른 장면의 즉시 장면화, 대상 지시의 표면 읽힘, 수정안 오염 여부를 2차로 확인 → `EDITOR_FEEDBACK_gpt_naturalness_<chapter>.md`. proxy 결과가 애매하거나, 전투/군중/추격 장면에서 누가 어디서 무엇을 했는지 첫 읽기에 바로 안 그려질 때 우선 사용.
+6. **GPT naturalness** (`review_episode(..., sources="gpt_naturalness")`): 빠른 장면의 즉시 장면화, 대상 지시의 표면 읽힘, 수정안 오염 여부를 2차로 확인 → `EDITOR_FEEDBACK_gpt_naturalness_<chapter>.md`. proxy 결과가 애매하거나, 전투/군중/추격 장면에서 누가 어디서 무엇을 했는지 첫 읽기에 바로 안 그려질 때 우선 사용. **주기 샘플링 기본**: 매 5화 중 1화(5의 배수 화 권장) + 전투/군중/추격 화 + proxy 실패 화 — 주관 트리거만으로는 실행이 무산되기 쉽다 (settings/07-periodic.md Specialist Cadence).
 
-> All sources false → skip external review. Individual source failure → skip that source only, log it.
+> All sources false → skip external review. Individual source failure → skip that source only, log it. **단 proxy 실패는 무음 skip 금지** — action-log에 `proxy-skip {N}화` 기록, 연속 2화 실패 시 사용자 보고, 해당 화는 `/naturalness {N}` 자동 대체 실행 (batch-supervisor §3b-post 3). proxy는 매 화 유일한 한국어 line-edit 방어선이다.
 >
 > **오류 유형별 우선순위**: 철자/띄어쓰기/문장부호 → NIM/Ollama 우선. 번역투/결합 자연성/호응/반복/과압축 문장/장면 첫 문장 읽힘 → Proxy 우선. 전투/군중/추격처럼 빠른 장면의 즉시 장면화 실패, 대상 지시가 로그처럼 읽히는 문제, 수정안까지 원문 골격에 묶이는 문제 → `gpt_naturalness`를 2차 우선 경로로 사용. 충돌 시 unified reviewer가 판정.
 
@@ -259,6 +259,17 @@ Arc boundary principle:
 | `continuity` | Every episode | Every episode |
 | `standard` | settings/07-periodic.md trigger rule | Default every 7 episodes, max 8 |
 | `full` | Arc boundary / decision-log trigger / 10+ episodes since last full | As needed |
+
+**Fix / re-review 상한**:
+
+| 항목 | 상한 | 정본 |
+|------|------|------|
+| Writer fixer 호출 | 에피소드당 **1회** (이후 DEFER 기록 + 정기 점검 이관 또는 HOLD) | `batch-supervisor.md` §3b-post 5f |
+| unified-reviewer 재리뷰 | 최대 **2회** (수정 항목만 재평가) | `unified-reviewer.md` Re-review Rules |
+
+두 상한은 서로 다른 것이다 — 전자는 Writer에게 수정을 보내는 횟수, 후자는 리뷰 반복 횟수.
+
+**Specialist cadence 정본**: `settings/07-periodic.md`의 Specialist Cadence 표. 개별 checker 문서의 빈도 서술과 불일치하면 그 표가 우선한다.
 
 **MCP servers vs standalone tools**:
 
@@ -410,7 +421,7 @@ intentional_deviations:  # (optional) record deliberate rule deviations for THIS
 1. **기본 톤보다 관계 위계 우선**: "무뚝뚝함", "다정함" 같은 캐릭터 총평보다 화자-청자 관계와 위계가 먼저다.
 2. **부모/연장자/사부 예외 없음**: 과묵한 인물이라도 부모, 연장자, 사부, 상급자 앞에서는 관계가 읽히는 표면 register를 남긴다. 말수가 적다고 기계적 반말을 허용하지 않는다.
 3. **어투 변화는 사건에 의해서만 발생**: 설명 없는 갑작스러운 전환 금지.
-4. **감정 극단 시 일시적 이탈 허용**: 장면 종료 후 원래로 복귀.
+4. **감정 극단 시 일시적 이탈 허용**: 단 (a) **이탈 직전 1~3문장 안에 트리거(사건/도발/감정 붕괴)가 본문에 보여야 하고**, (b) 같은 장면 안에서 원래 어투로 복귀해야 한다. 트리거 없는 register 오류는 이 규칙으로 면책되지 않는다. 일시 이탈 후 복귀는 규칙 6의 '어투 역행'에 해당하지 않는다.
 5. **공적/사적 구분**: 같은 쌍이라도 상황에 따라 다를 수 있다.
 6. **어투 역행 금지**: 반말→존댓말 전환은 특수 사건(배신, 관계 단절 등) 필요.
 7. **대화는 정보 전달만을 위해 존재하지 않는다**: 대부분의 대화 교환은 정보 전달 외에 최소 하나의 기능(캐릭터 성격 노출, 관계 변화, 서브텍스트, 유머)을 수행해야 한다. 일상적 정보 전달(가격, 길 안내 등)은 예외.

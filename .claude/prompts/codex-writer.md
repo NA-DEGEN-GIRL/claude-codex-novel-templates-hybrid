@@ -17,10 +17,11 @@
 [읽기 — 반드시]
 0. .claude/prompts/codex-writer-role.md — 역할과 공통 문체 원칙
 1. CLAUDE.md — 금지사항, 시대감, 핵심 약속
-2. settings/03-characters.md — 핵심 인물의 대표 대사, 관계별 말투 규칙, 대화 대비축
-3. CLAUDE.md §8.1 호칭/어투 매트릭스 — 이번 화에서 실제로 만나는 관계축 확인
-4. plot/{arc}.md — 이번 화의 기능과 다음 2~3화 런웨이
-5. 직전 화 마지막 장면 — 마지막 장면 전체 또는 마지막 8~12문단 (최소 2~3문단). 오프닝 연결용.
+2. settings/01-style-guide.md — §0 Voice Profile(0.1~0.5) + §2.5 연재 매체 호흡 + §3 대화문·대사 비트 + §4 Show/Tell 예문 + §6 금지 표현·번역투. (§0.6~§0.8은 reviewer 기준이므로 훑기만)
+3. settings/03-characters.md — 핵심 인물의 대표 대사, 관계별 말투 규칙, 대화 대비축
+4. CLAUDE.md §8.1~8.3 호칭/어투 매트릭스 — 이번 화에서 실제로 만나는 관계축 확인 (어투 변화 이력 §8.3이 있으면 현재 상태 우선)
+5. plot/{arc}.md — 이번 화의 기능과 다음 2~3화 런웨이
+6. 직전 화 마지막 장면 — 마지막 장면 전체 또는 마지막 8~12문단 (최소 2~3문단). 오프닝 연결용.
 
 [MCP — 집필 전 필수]
 - `novel-editor` MCP의 `compile_brief(novel_dir="{{NOVEL_DIR}}", episode_number={N})` 호출
@@ -49,7 +50,7 @@
 [Review Surface — 지금 다 짊어지지 말 것]
 - summary/meta/git/external review는 review 단계가 맡는다.
 - §0.6~§0.8 drift 판정까지 초안 단계에서 한꺼번에 해결하려 들지 않는다. 문장이 멈추면 `Live Drafting Cues`와 장면 기능으로 복귀한다.
-- 반복 설명 / 결합 자연성 / 전투 선명도 / 공간 공유 인물 / 대사 평탄화 / 호칭 위계 등 **세부 품질은 unified-reviewer 전담**. 초안에서 과도하게 신경 쓰지 말 것.
+- 반복 설명 / 결합 자연성 / 전투 선명도 / 공간 공유 인물 / 대사 평탄화 / 호칭 위계의 **잔여 정밀 탐지는 unified-reviewer 전담**. 초안에서는 Drafting 4원칙 수준("눈에 띄면 버린다", "먼저 맞춘다")만 적용하고, 문장마다 이 목록으로 재검사하지 말 것.
 
 [초안 후 자기점검 — 3개만]
 1. 분량이 {MIN}~{MAX}자 범위 안인가? (`novel-calc char_count`로 확인)
@@ -86,8 +87,9 @@
   2. 직전 화 carry-forward 3~5개
   3. 엔딩 훅 1개
 - Drafting Surface 4원칙(선명도·평이함·대사 위계·carry-forward 존중)을 먼저 따르고, Hard Rules는 위반 금지선으로만 유지한다.
-- 세부 품질(반복/결합/전투 선명도/공간 공유 인물/대사 평탄화/호칭 위계)은 unified-reviewer 전담. 초안에서 과도하게 신경 쓰지 말 것.
-- `settings/03-characters.md`와 `CLAUDE.md §8.1` 기준으로 관계별 register는 먼저 맞춘다.
+- 세부 품질(반복/결합/전투 선명도/공간 공유 인물/대사 평탄화/호칭 위계)의 잔여 정밀 탐지는 unified-reviewer 전담. 초안에서는 Drafting 4원칙 수준만 적용.
+- `settings/03-characters.md`와 `CLAUDE.md §8.1~8.3` 기준으로 관계별 register는 먼저 맞춘다.
+- **{N}이 5의 배수이거나 세션이 auto-compact를 거친 직후면, Chunk Start의 [읽기 — 반드시] 목록을 다시 수행한다** (compact로 role·금지사항·매트릭스 세부가 소실됐을 수 있다).
 - 오프스크린 완료 처리 금지: 보고/허락/안심/소문 확산/관아 전달/관계 변화는 본문에 보였을 때만 이번 화 기정사실로.
 - 초안 후 자기점검 3개만: 분량 / 기능 수행 / carry-forward 점프.
 - run nonce: `{RUN_NONCE}`

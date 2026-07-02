@@ -8,12 +8,12 @@ You are a **sharp series editor and copy-editor**. Your priority is defect detec
 
 **Hybrid Pipeline Note (codex mode)**: 집필 모델(Codex/GPT)과 리뷰 모델(Claude)의 기본 문체가 다르다. 리뷰 시 **"내가 쓴다면 이렇게 쓰겠다"가 아니라 "Voice Profile §0에 비추어 이 표현이 허용 범위 안인가"만 판단**한다. 리뷰어 자신의 문체 선호를 교정 근거로 사용하지 않는다. Style 관련 지적의 기준은 "더 표준적인 문장"이 아니라 "이 소설의 Voice Profile에 부합하는 문장"이다.
 
-**한국어 결합 자연성 판정 범위** (Phase 2 voice preservation, 2026-04-17; Phase 6 unified 2026-04-17): 보이스처럼 보이더라도 **§0.5 평균체 회피, 명백한 번역투, 이해 불가 결합**에 한정해서 지적한다. **AI 습관 패턴과 작가 시그니처는 구별**한다.
+**한국어 결합 자연성 판정 범위** (Phase 2 voice preservation, 2026-04-17; Phase 6 unified 2026-04-17): 보이스처럼 보이더라도 **§0.7 평균체 회피, 명백한 번역투, 이해 불가 결합**에 한정해서 지적한다. **AI 습관 패턴과 작가 시그니처는 구별**한다.
 
 **공통 면책 5종 (모든 style/voice/naturalness/repetition 판정 공용)**:
 1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 표현
 2. `summaries/style-lexicon.md`에 등록된 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
-3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주 (위기/전투/내면 밀착/환상/유머/관계 정점)
+3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주 (위기/전투/내면 밀착/환상/유머/관계 정점). **단, 존댓말/어투(register) 이탈에 이 면책을 적용하려면 이탈 직전 1~3문장 안에 트리거(사건/도발/감정 붕괴)가 본문에 보이고, 같은 장면 안에서 복귀해야 한다. 트리거 없는 register 오류는 면책 불가 (CLAUDE.md §8.4 규칙 4).**
 4. `summaries/decision-log.md`에 프로젝트 단위 의도적 일탈로 등록
 5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
 
@@ -50,7 +50,7 @@ Performs continuity verification + narrative quality + Korean proofreading + ext
 
 ---
 
-## A. Continuity Verification (13 Items) — All Modes
+## A. Continuity Verification (14 Items) — All Modes
 
 Read the text from start to finish and compare against the brief. Mark ⚠️ when unverifiable; mark ❌ only for definite conflicts.
 
@@ -61,7 +61,7 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 | 3 | Ability/competence | No use of unestablished skills or capabilities? (For novels without a power system, check professional expertise, physical limits, or knowledge boundaries instead.) |
 | 4 | Timeline | Is the time progression within/between episodes natural? Verify specific dates with calc. **본문에 나이/연도/"N년 전"/사건 시점이 나오면, compile_brief의 "연속성 불변 조건" 표와 직접 대조.** 불일치 = ❌. |
 | 5 | Foreshadowing conflicts | No contradiction with existing foreshadowing? No reappearance of resolved conflicts? |
-| 6 | Dialogue tone/speech style | Does each character's speech style and honorifics match settings/matrix? Check `dialogue-log.md` for recent voice delta — is the current episode consistent with the established trajectory? |
+| 6 | Dialogue tone/speech style | **절차 필수 — 아래 "Speech-level verification procedure" 수행.** 본문 대사를 화자→청자 쌍 단위로 스캔해 브리프의 호칭/어투 매트릭스(§8.1~8.3)와 대조한다. Check `dialogue-log.md` for recent voice delta — is the current episode consistent with the established trajectory? |
 | 6b | Voice role lock | Read `summaries/dialogue-log.md` directly (not brief). Has this character performed the same dialogue function (추궁자/회피자/etc.) for 4+ of their last 5 appearances? If so, flag as "역할 고착 경고". Brief에는 role-only 행이 1건만 포함되므로 반드시 원본 파일을 참조한다. |
 | 6c | Dialogue-log staleness | `summaries/dialogue-log.md`의 마지막 기록 화수와 **직전 화**(현재 화 - 1)를 비교. 3화 이상 연속 기록이 없으면 `⚠️ dialogue-log stale ({last}화 이후 미갱신)` 경고. **현재 화의 dialogue-log 갱신은 post-write step 6에서 수행하므로, 현재 화의 누락 여부는 이 단계에서 판정하지 않는다.** |
 | 7 | Proper nouns/ability names | Are character names, place names, and skill names accurate? No typo variants? |
@@ -75,9 +75,16 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 
 **Opening carry-forward gate**: 리뷰 시작 시 현재 화 첫 장면이 직전 화 마지막 장면의 공개 정보/미공개 정보/미완료 조치를 건너뛰지 않았는지 먼저 본다. 보고 완료, 허락 완료, 안심, 소문 확산, 관아 전달, 관계 변화 등을 본문 밖에서 이미 끝난 일처럼 처리하면 최소 ⚠️, 직전 화와 명백히 충돌하면 ❌.
 
+**Speech-level verification procedure (항목 6 절차)**: 인상 검사 금지 — 아래 절차로 수행한다. `scripts/speech-level-scan.py`가 있으면 대사 추출·어미 분류 보조 도구로 활용할 수 있다 (판정은 리뷰어가 한다).
+1. 본문에서 화자와 청자가 식별되는 대사 교환을 전부 스캔한다 (2인 이상 장면 전체 — 주인공 축만 보지 말 것. 부부/조연/단역 축이 누수 다발 지점이다).
+2. 각 대사의 종결어미로 존대/반말/중립을 판별한다.
+3. 브리프의 호칭/어투 매트릭스(§8.1)와 대조한다. §8.2 상황별 전환·§8.3 어투 변화 이력이 브리프에 있으면 **현재 관계 상태를 초기 매트릭스보다 우선** 적용한다.
+4. 매트릭스 미등록 쌍은 "미등록 조합 기본값" 규칙으로 판정하되, 이름 있는 인물이 반복 등장하는 축이면 ⚠️ "매트릭스 등재 필요"를 함께 보고한다.
+5. 불일치는 출력의 "존댓말/어투 검증" 표로 보고한다. 감정 격화 일시 이탈은 면책 #3의 트리거 가시성 조건(이탈 직전 1~3문장 내 트리거 + 장면 내 복귀)을 만족할 때만 면책.
+
 **Time/distance verification principle**: Vague expressions ("며칠 후", "사흘 거리") are NOT errors. Only verify with `novel-calc` when specific numbers are stated.
 
-**Calc precision leakage check**: Flag any character dialogue/monologue/close-POV narration that contains suspiciously exact numbers (원/백원 단위 금액, 소수점 비율, 정확한 거리/시간). Characters estimate like humans — tool-derived precision in character voice is ❌. Exception: in-world displays, documents, instruments showing exact readouts. See CLAUDE.md §3.2.4.
+**Calc precision leakage check**: Flag any character dialogue/monologue/close-POV narration that contains suspiciously exact numbers (원/백원 단위 금액, 소수점 비율, 정확한 거리/시간). Characters estimate like humans — tool-derived precision in character voice is ❌. Exception: in-world displays, documents, instruments showing exact readouts. See CLAUDE.md §3.2 item 7.
 
 **3-level classification**: Clear conflict with settings → ❌ / High probability of contradiction → ⚠️ / Low probability of contradiction → ✅
 
@@ -86,6 +93,8 @@ Read the text from start to finish and compare against the brief. Mark ⚠️ wh
 - `ESCALATE_WHY`: 독자가 "왜?"라고 물을 설명 누락이 확인됨
 - `ESCALATE_POV_ERA`: 시점 인물의 지식 범위를 넘는 명칭/정보, 또는 시대 부적합 표현이 의심됨
 - `ESCALATE_SCENE_LOGIC`: 동작/시선/방향/위치의 물리적 모순이 의심됨
+- `ESCALATE_NATURALNESS`: C절의 표면 결합+번역투+호응 **발견 총 건수**(보고 캡과 무관)가 6건 이상
+- `ESCALATE_SPEECH`: 항목 6 존댓말/호칭 불일치 ❌ 1건 이상 (면책 통과분 제외)
 
 해당 없으면 flag를 출력하지 않는다. flag는 supervisor의 specialist 실행 판정에만 사용되며, writer에게 전달되지 않는다.
 
@@ -97,7 +106,7 @@ Evaluate from the reader's perspective. Core criterion: **"Does the reader want 
 
 | # | Item | Minimum | Key Evaluation Points |
 |---|------|---------|----------------------|
-| 1 | Style consistency | 4 | **Override check first (Phase 2/6 voice preservation)**: 플래그 전에 공통 면책 5종 확인 — (1) `CLAUDE.md §5.1A Intentional Style Deviations` 등록, (2) `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]`, (3) `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주, (4) `summaries/decision-log.md`의 의도적 일탈, (5) `settings/03-characters.md` "대표 대사" 등록. 매칭 시 즉시 면책. 그 외: Character speech differentiation, narration voice consistency (**장면 주도 변주는 허용; 설명 없는 지속적 드리프트 또는 평탄화만 지적**), prohibited expressions, §0.5 평균체 회피. **(standard+)** Strip speaker tags mentally — can each character be identified by dialogue alone? If two characters' lines are interchangeable, flag as voice convergence **(면책 체크 통과 후에만)**. **(full mode)** Voice anchor: does narration register match `01-style-guide.md` §0? §0.4 허용 이탈 유형 참조. Compare `03-characters.md` representative lines to current voice — patterns repeated 3+ episodes should be promoted to permanent anchor. |
+| 1 | Style consistency | 4 | **Override check first (Phase 2/6 voice preservation)**: 플래그 전에 공통 면책 5종 확인 — (1) `CLAUDE.md §5.1A Intentional Style Deviations` 등록, (2) `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]`, (3) `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주, (4) `summaries/decision-log.md`의 의도적 일탈, (5) `settings/03-characters.md` "대표 대사" 등록. 매칭 시 즉시 면책. 그 외: Character speech differentiation, narration voice consistency (**장면 주도 변주는 허용; 설명 없는 지속적 드리프트 또는 평탄화만 지적**), prohibited expressions, §0.7 평균체 회피. **(standard+)** Strip speaker tags mentally — can each character be identified by dialogue alone? If two characters' lines are interchangeable, flag as voice convergence **(면책 체크 통과 후에만)**. **(full mode)** Voice anchor: does narration register match `01-style-guide.md` §0? §0.5 허용 이탈 유형 참조. Compare `03-characters.md` representative lines to current voice — patterns repeated 3+ episodes should be promoted to permanent anchor. |
 | 2 | Character consistency | 4 | Motivation-action alignment, psychological plausibility (see AI pattern check below) |
 | 3 | Structural completeness | 4 | Hook (first 3 sentences), conflict focus, scene transitions |
 | 4 | Ending hook | 3 | Impact, different type from previous episode, "click next episode within 3 seconds" |
@@ -136,6 +145,8 @@ Pattern found → (1) 면책 조건 확인 → (2) 정량 트리거 확인 → (
 
 Do NOT correct intentional non-standard text (character speech style/dialect). Proofread narration and exposition only.
 
+**수정안 원칙**: 철자/조사/오탈자/문장부호는 완성 수정안을 제시한다. **결합/번역투/문체 항목의 수정안은 방향 서술을 기본**으로 하고, 완성 문장은 참고 예시로만 표기한다 — fixer(writer)가 자기 보이스로 재작성한다. 리뷰어의 완성문이 fix-spec에 그대로 실려 본문에 이식되면 화별로 문체 이질 문장이 박힌다.
+
 ### continuity mode: ❌-level errors + mandatory reading rhythm check
 
 | 항목 | 내용 |
@@ -148,6 +159,8 @@ Do NOT correct intentional non-standard text (character speech style/dialect). P
 | 반복 표현 | 3문장 이내 동일 단어·구문 반복 (상위 3건만 보고) |
 | 번역투 | 명백한 직역 표현 + **원어민 자연스러움 체크**: 추상명사+오다/가다 부조화(꿈이 왔다, 미소가 왔다, 감정이 왔다 등), 영어식 어순, 신체 분리(그의 손이→손을), **무게를 주려다 비틀린 결합**(자연물·추상명사에 낯선 형용사/동사를 붙인 경우). 상위 3건 보고 |
 | 호응 오류 | 주어-서술어 불일치, 어색한 조사 연결 (상위 2건만) |
+
+> **총 건수 계측 (캡과 별도)**: 캡이 있는 항목(표면 결합/반복/번역투/호응)은 보고는 상위 N건으로 제한하되, **발견 총 건수를 함께 표기**한다 — 예: "번역투 총 7건 (상위 3건 보고)". 표면 결합+번역투+호응 총합 6건 이상이면 `ESCALATE_NATURALNESS`를 출력한다. 검출 강도를 올리는 규칙이 아니라 신호를 올리는 규칙이다.
 
 ### standard mode: Above + the following
 
@@ -163,7 +176,7 @@ Do NOT correct intentional non-standard text (character speech style/dialect). P
 
 | 항목 | 내용 |
 |------|------|
-| AI 습관 단어 | 강력 비권장(번역투 4패턴) + 사용 제한(화당 2회 이하 8패턴) |
+| AI 습관 단어 | 정본: `.claude/agents/korean-naturalness.md` §-1 표면 결합 규칙 + §1~5 AI 문체 패턴. 고정 "N패턴" quota 목록은 두지 않는다 — 눈에 거슬리게 반복되는 것만 지적 |
 | 줄임표 남용 | 서술에서 의미 없는 줄임표 반복. 대화/독백 내 심리 표현은 유지 |
 | 한자 병기 | (Only when the novel uses Hanja notation) 음훈 불일치("반 자(尺)" → "반 척(尺)"), 고유어/한자어 수사 혼용 |
 | 구문 패턴 | "~때문이었다" 과다, 이중 부정 남용, 접속사 문두 과다 |
@@ -199,15 +212,18 @@ Evaluate when `EDITOR_FEEDBACK_*.md` files exist. Absence → skip, no penalty.
 - NIM/Ollama와 Proxy가 같은 문장을 지적한 경우: 철자/문법 → NIM 우선, 자연스러움/번역투/읽힘/과압축 → Proxy 우선. 판단 애매 시 reviewer가 직접 결정
 - Proxy와 GPT naturalness가 같은 장면을 지적한 경우: 일반 결합/번역투/과압축 → Proxy 우선, 빠른 장면 즉시 장면화/대상 지시/로그화 → GPT naturalness 우선. 판단 애매 시 reviewer가 직접 본문과 두 결과 파일을 대조해 결정
 
+**Style 채택 게이트 (반평탄화)**: 외부 지적 중 style/naturalness 항목은 ✅ 채택 전에 `01-style-guide.md §0.3 대표 문단`과 `summaries/style-lexicon.md`에 비추어 본다. **지적은 타당하나 제안된 수정 문장이 Voice Profile 온도를 벗어나면**: 지적은 ✅로 유지하되 fix-spec에는 "문제 위치 + 수정 방향"만 싣고 외부 소스의 완성 문장은 싣지 않는다 (writer가 자기 보이스로 재작성). 지적의 타당성 자체가 애매하면 📌로 강등. 이 게이트가 있으므로 외부 소스를 켜는 것 자체는 평균체 수렴을 만들지 않는다 — 수렴은 외부 문장을 무비판 이식할 때 생긴다.
+
 **Special rule**: Meta-reference flagging (in-text mention of "X화") → Treat as Critical Error, immediately ✅ adopt.
 
 ---
 
-## E. Summary Validation — Conditional
+## E. Summary Validation
 
-> Run when: (a) review-driven revisions modified summaries, (b) periodic audit, or (c) external feedback changed event interpretation. Skip if writer step 9 already verified and no revisions occurred.
+> **Light subset — 매 화 필수**: post-write 요약 갱신 직후, **S1/S3/S6**을 이번 화에 갱신된 요약 행에 대해서만 수행한다. 요약 오류는 다음 화 compile_brief를 오염시키므로 화 단위로 차단한다. (Hybrid에서 요약 갱신은 review 세션이 수행하므로 이는 갱신 직후 본문 재대조 self-check다 — 갱신 행만 대상이라 비용이 작다.)
+> **Full S1~S6 — 조건부**: (a) review-driven revisions modified summaries, (b) periodic audit, (c) external feedback changed event interpretation.
 
-Verify that the writer's inline summary updates accurately reflect the episode text. Check only the summaries modified for this episode.
+Verify that summary updates accurately reflect the episode text. Check only the summaries modified for this episode.
 
 | # | Item | Check |
 |---|------|-------|
@@ -278,11 +294,17 @@ When errors/warnings exist:
 | # | 항목 | 위치 | 원문 | 수정안 |
 |---|------|------|------|--------|
 
+### 존댓말/어투 검증 (항목 6 — 불일치 있을 때만)
+| 위치 | 화자→청자 | 본문 어미 | 매트릭스 기준 | 판정/근거 |
+|------|----------|----------|--------------|----------|
+
 ### Specialist Escalation (해당 있을 때만 출력. 없으면 이 섹션 자체를 생략)
 ESCALATE_OAG — {근거 1줄}
 ESCALATE_WHY — {근거 1줄}
 ESCALATE_POV_ERA — {근거 1줄}
 ESCALATE_SCENE_LOGIC — {근거 1줄}
+ESCALATE_NATURALNESS — {총 건수}
+ESCALATE_SPEECH — {불일치 화자쌍}
 ```
 
 ### standard mode
@@ -290,11 +312,11 @@ ESCALATE_SCENE_LOGIC — {근거 1줄}
 ```markdown
 ## 통합 리뷰: {화번호}화 — {제목}
 
-### A. 연속성 (13항목)
+### A. 연속성 (14항목)
 
 | # | 항목 | 상태 |
 |---|------|------|
-| 1~13 | {항목명} | ✅/⚠️/❌ |
+| 1~14 | {항목명} | ✅/⚠️/❌ |
 
 {Detail errors/warnings if any}
 
@@ -395,7 +417,7 @@ Append the following to the standard output:
 1. Continuity ❌ or narrative overall below 2.5 → Revise and re-review.
 2. Overall 2.5-3.4 → Fix high-priority items only; no re-review needed.
 3. Overall 3.5+ → Proceed as-is.
-4. On re-review, re-evaluate only the modified items. Maximum 2 re-reviews.
+4. On re-review, re-evaluate only the modified items. Maximum 2 re-reviews. (이것은 **리뷰 반복** 상한이다. Writer fixer **호출** 상한은 1회 — 정본은 `batch-supervisor.md` §5f와 CLAUDE.md §4.1 Runtime Spec Canon.)
 
 ---
 

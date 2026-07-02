@@ -1,3 +1,4 @@
+<!-- compile_brief v2.1.0 -->
 # Writing Brief — 2화
 
 > 브리프 크기: 11.3KB | 원본 합계: ~10KB

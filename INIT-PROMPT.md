@@ -86,11 +86,11 @@ claude-codex-novel-templates-hybrid/의 구조를 참조하여 아래 체크리�
 1. 소설 폴더 생성 (no-title-XXX, 다음 번호 자동 결정)
 2. 템플릿 파일 복사 (CLAUDE.md, settings/, .claude/agents/, .claude/commands/, summaries/ 등)
 3. 권한 설정: `.claude/settings.local.example.json`을 `.claude/settings.local.json`으로 복사 (`claude -p` 배치 실행에 필수)
-4. **CLAUDE.md의 {{PLACEHOLDER}} 전부 채우기 + `profile:` 필드를 0단계에서 결정한 값으로 설정**. §5.1A 표에 해당 profile의 seed 3~5행을 `settings/profiles/{profile}.md`에서 복사 (없으면 placeholder 유지).
+4. **CLAUDE.md의 {{PLACEHOLDER}} 전부 채우기 + `profile:` 필드를 0단계에서 결정한 값으로 설정**. §5.1A 표에 해당 profile의 seed 3~5행을 `settings/profiles/{profile}.md`에서 복사 (없으면 placeholder 유지). **§8.1 호칭/어투 매트릭스는 게이트다**: "필수 명시 조합"(부모/가족, 연장자/사부/상급자, 동년배, 아랫사람, 적대자)을 실제 캐릭터로 채우고 미등록 조합 기본값을 명시한다 — placeholder가 남으면 존댓말 검증(unified-reviewer 항목 6)이 기준 없이 공회전한다. `scripts/validate-settings.py`가 §8.1 실기재 여부를 WARN으로 검사한다.
 5. settings/ 파일 전부 실제 내용으로 작성 (01-style-guide.md ~ 05-continuity.md, 07-periodic.md, 08-illustration.md, 선택: 06-humor-guide.md). **Profile 기반 override 필수**: 0단계에서 결정한 profile에 맞게 `settings/04-worldbuilding.md`의 era/units/currency, `settings/03-characters.md`의 생활 조연 슬롯(wuxia 기본 = 객잔/제자 → modern = 직장/학교 → romance = 친구/라이벌 등)을 실제 값으로 교체. 무협이 아니면 hanja 관련 섹션 삭제 또는 축소.
 6. plot/master-outline.md 작성 (전체 아크 구성)
 7. plot/foreshadowing.md 초기 복선 설계
-8. plot/arc-01.md 작성 (1아크 상세 플롯). 모든 plot 파일(prologue, arc-XX, epilogue, interlude 등)의 에피소드 항목에 optional `risk:` 필드 사용 가능 — 허용 값: `oag`, `why`, `pov-era`, `scene-logic` (쉼표 구분). 고위험 장면에만 태깅. 없으면 생략.
+8. plot/arc-01.md 작성 (1아크 상세 플롯). 모든 plot 파일(prologue, arc-XX, epilogue, interlude 등)의 에피소드 항목에 `risk:` 필드를 태깅한다 — 허용 값: `oag`, `why`, `pov-era`, `scene-logic` (쉼표 구분). **고위험 화수(전투/추격/군중, 시스템·시대 용어 밀집, 관계 위계 전환, 강한 행동 기대)에는 태깅을 권장**한다. 태그가 아크 전체에 하나도 없으면 specialist trigger의 절반(tag 경로)이 사문화된다 (batch-supervisor §2.5). 저위험 화는 생략.
 9. summaries/ 초기 파일 생성 (빈 템플릿: running-context.md, episode-log.md, character-tracker.md, promise-tracker.md, knowledge-map.md, relationship-log.md, explained-concepts.md, hanja-glossary.md, illustration-log.md, decision-log.md, editor-feedback-log.md)
 10. batch-supervisor.md 생성 (아크 매핑, 화수 범위 설정)
 11. config.json에 새 소설 등록 (totalEpisodes: 0, parts 구조)

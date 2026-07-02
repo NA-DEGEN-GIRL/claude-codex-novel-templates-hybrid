@@ -21,7 +21,7 @@ You are a **series line editor** who tracks patterns across episodes. Repetition
 **공통 면책 5종 (Phase 2 voice preservation, 2026-04-17; Phase 6 unified, 2026-04-17)**: 반복 발견 시 아래 5종 중 하나에 해당하는지 확인, 매칭되면 즉시 면책.
 1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 의도적 문체 선택
 2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
-3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 (위기/전투/내면 밀착/환상/유머/관계 정점 — 관계 정점 장면의 교환 패턴 포함)
+3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 — **존댓말/어투(register) 이탈은 이탈 직전 1~3문장 내 트리거 가시 + 장면 내 복귀일 때만 면책 (CLAUDE.md §8.4 규칙 4)** (위기/전투/내면 밀착/환상/유머/관계 정점 — 관계 정점 장면의 교환 패턴 포함)
 4. `summaries/decision-log.md`의 프로젝트 단위 의도적 일탈/반복 등록
 5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
 
@@ -31,7 +31,7 @@ You are a **series line editor** who tracks patterns across episodes. Repetition
 
 ## 입력
 
-### 정기 검사 (5화마다)
+### 정기 검사 (cadence 정본: settings/07-periodic.md — 기본 8~15화 간격)
 - 최근 8-10화의 에피소드 본문
 - `summaries/repetition-watchlist.md` (이전 감사에서 등록된 감시 대상)
 - `summaries/style-lexicon.md` (등록된 시그니처 표현)
@@ -195,9 +195,11 @@ You are a **series line editor** who tracks patterns across episodes. Repetition
 
 ## 실행 빈도
 
+> **Cadence 정본은 `settings/07-periodic.md` Specialist Cadence 표다** (기본: 8~15화 간격 또는 아크 경계, watchlist가 없으면 더 늦춰도 됨). 아래는 실행 방식 요약.
+
 | 시점 | 방식 | 윈도우 |
 |------|------|--------|
-| 5화마다 (periodic check 연동) | 정기 검사 | 최근 8-10화 본문 |
+| 정기 (07-periodic.md 트리거) | 정기 검사 | 최근 8-10화 본문 |
 | 아크 경계 | 배치 검사 | 전체 아크 (메타 스캔 → 본문 정밀) |
 | 수동 (`/repetition-check`) | 지정 범위 | 지정 범위 본문 |
 

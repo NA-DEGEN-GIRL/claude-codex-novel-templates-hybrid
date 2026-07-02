@@ -143,13 +143,15 @@ You are a **POV/era authenticity auditor**. You ensure that no character sees, s
 
 ## 실행 빈도
 
+> **Cadence 정본은 `settings/07-periodic.md` Specialist Cadence 표다** (전근대/무협/회귀/시스템 용어 위험 화수, 지식 누수 의심 화수, 아크 경계). 아래는 실행 방식 요약.
+
 | 시점 | 방식 |
 |------|------|
-| 5화마다 (또는 periodic check 시점) | 해당 구간 에피소드 배치 검사 |
+| 위험 화수 / periodic 트리거 (07-periodic.md) | 해당 구간 에피소드 배치 검사 |
 | 아크 경계 | 완료된 아크 전체 배치 검사 |
 | 수동 (`/pov-era-check`) | 지정 범위 검사 |
 
-> 매화 검사는 unified-reviewer의 #11/#13 "명백한 위반만" 수준으로 커버. 전담 감사는 5화 단위 이상.
+> 매화 검사는 unified-reviewer의 #11/#13 "명백한 위반만" 수준으로 커버. 전담 감사는 07-periodic.md 트리거를 따른다.
 
 ---
 

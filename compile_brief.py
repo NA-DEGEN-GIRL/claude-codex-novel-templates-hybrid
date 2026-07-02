@@ -20,6 +20,29 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+# 브리프 포맷/파서 버전. 브리프 최상단에 greppable 스탬프로 삽입되어
+# 어떤 compile_brief가 해당 브리프를 만들었는지 런타임에서 식별 가능하게 한다.
+# 서버가 구버전을 서빙하는 배포 이원화(감사 P0-1)를 감지하기 위한 앵커.
+COMPILE_BRIEF_VERSION = "2.1.0"
+
+
+# ─── Table helpers ─────────────────────────────────────────
+
+
+def _split_table_cells(line: str) -> list[str]:
+    """마크다운 표 행에서 셀 값을 추출한다 (앞뒤 파이프 제거, strip)."""
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return []
+    return [c.strip() for c in stripped.split("|")[1:-1]]
+
+
+def _is_separator_row(line: str) -> bool:
+    """표 구분선(`|---|:--:|` 등)인지 판별한다."""
+    stripped = line.strip()
+    return bool(stripped) and set(stripped) <= {"|", "-", ":", " "}
+
+
 # ─── File I/O ──────────────────────────────────────────────
 
 
@@ -569,7 +592,7 @@ def _build_live_drafting_cues(
     immediate_lines = _extract_live_cue_lines(
         running_context,
         heading_pattern=r"## (?:직전 화 직결 상태|Immediate Carry-Forward|Carry-Forward)\s*\n(.*?)(?=\n## |$)",
-        limit=5,
+        limit=7,
     )
     if immediate_lines:
         blocks.append("### 오프닝에서 놓치면 안 되는 상태\n\n" + "\n".join(immediate_lines))
@@ -770,17 +793,24 @@ def _extract_characters_from_episode_log(
     tracker_names = _extract_all_tracked_characters(
         Path(novel_dir) / "summaries" / "character-tracker.md"
     )
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|"):
+    col_idx, rows = _parse_episode_log_table(content)
+    char_col = col_idx.get("characters", -1)
+    for ep_num, cells in rows:
+        if ep_num != prev_ep:
             continue
-        cells = [c.strip() for c in stripped.split("|")[1:-1]]
-        if len(cells) < 3 or not cells[0].isdigit():
-            continue
-        if int(cells[0]) != prev_ep:
-            continue
-
-        haystack = " ".join(cells[1:3])
+        # 등장인물 컬럼 우선 사용 (header-aware)
+        if 0 <= char_col < len(cells) and cells[char_col].strip():
+            raw = re.sub(r"\([^)]*\)", "", cells[char_col])
+            names = [
+                _clean_character_name(n.strip().strip("*"))
+                for n in re.split(r"[,、/·]", raw)
+                if n.strip()
+            ]
+            names = [n for n in names if n]
+            if names:
+                return names[:6]
+        # 폴백: 표 셀 전체를 tracked 이름과 대조
+        haystack = " ".join(cells)
         matched = [name for name in tracker_names if name and name in haystack]
         return matched[:6]
 
@@ -826,6 +856,7 @@ def _filter_character_tracker(
                     for k in [
                         "현재 위치", "위치", "상태", "정신 상태",
                         "경지", "부상", "핵심 동기", "미해결",
+                        "대화 모드",
                         "Current Location", "Current Status", "Status",
                         "Injury", "Injuries", "Notes", "비고",
                         "Knowledge", "Current Goal",
@@ -841,24 +872,150 @@ def _filter_character_tracker(
     return "\n\n".join(blocks) if blocks else "(해당 캐릭터 없음)"
 
 
-def _filter_knowledge_map(
-    content: str, characters: list[str]
+def _is_character_keyed_knowledge_map(content: str) -> bool:
+    """knowledge-map이 캐릭터별 표 형식인지 판별한다.
+
+    캐릭터별 표는 `| 정보 | 알고 있음? | 습득 화수 | 출처 | 비고 |` 헤더를 쓴다.
+    단일 매트릭스(`| 정보 | 캐릭터A | 캐릭터B | 비고 |`)에는 '알고 있음' 열이 없다.
+    HTML 주석(헤딩 계약 설명)에 예시 헤더가 있어도 오탐하지 않도록 주석을 제거하고 검사한다.
+    """
+    without_comments = re.sub(r"<!--.*?-->", "", content, flags=re.DOTALL)
+    return bool(re.search(r"\|\s*정보\s*\|\s*알고\s*있음", without_comments))
+
+
+def _select_recent_and_pinned(
+    data_rows: list[str], max_rows: int, ellipsis_cols: int
+) -> list[str]:
+    """데이터 행에서 최근 max_rows행 + [PIN] 행을 창 무관하게 유지한다.
+
+    창 밖 PIN 행은 앞쪽에, 생략 표시 후 최근 행을 붙인다.
+    """
+    if len(data_rows) <= max_rows:
+        return data_rows
+
+    recent = data_rows[-max_rows:]
+    older = data_rows[:-max_rows]
+    pinned = [r for r in older if "[PIN]" in r]
+    omitted = len(older) - len(pinned)
+    result: list[str] = []
+    result.extend(pinned)
+    if omitted > 0:
+        result.append(f"| ... ({omitted}행 생략) |" + "|" * max(0, ellipsis_cols - 1))
+    result.extend(recent)
+    return result
+
+
+def _filter_knowledge_map_by_character(
+    content: str,
+    characters: list[str],
+    max_rows_per_char: int,
+    before_episode: int,
 ) -> str:
-    """knowledge-map.md에서 지정된 캐릭터의 열만 추출한다.
+    """캐릭터별 표 형식 knowledge-map에서 등장인물 블록만 추출한다.
 
-    원본 형식:
-      | 정보 | 윤서하 | 리라 | 비고 |
-      |------|--------|------|------|
-      | 강하윤 사망 사실 | O(1화) | O(1화) | 설명 |
+    각 `### 이름` 블록의 표에서 (before_episode 이전 행 필터 +) 최근 N행 + [PIN] 행을 남긴다.
+    소유자 정보(어느 캐릭터가 아는가)가 블록 헤딩으로 보존된다.
+    """
+    blocks = re.split(r"(?=^### )", content, flags=re.MULTILINE)
+    out_parts: list[str] = []
 
-    캐릭터 컬럼 인덱스를 찾아 해당 열만 남긴다.
-    1000줄 이상이므로 최근 에피소드(episode_number 기준)와 관련 있는 행만 남긴다.
+    for block in blocks:
+        header_match = re.match(r"### (.+)", block)
+        if not header_match:
+            continue
+        name = _clean_character_name(header_match.group(1))
+        if not any(char in name for char in characters):
+            continue
+
+        block_lines = block.splitlines()
+        # 표 헤더/구분선/데이터 행 식별.
+        # 블록이 마지막 `### 이름`이면 뒤따르는 `## 정보 전파 로그` 등으로 새어 나갈 수 있으므로
+        # 상위 `## ` 헤딩을 만나면 블록 스캔을 종료한다.
+        header_row = ""
+        separator_row = ""
+        data_rows: list[str] = []
+        for line in block_lines:
+            stripped = line.strip()
+            if stripped.startswith("## "):
+                break
+            if not stripped.startswith("|"):
+                continue
+            if _is_separator_row(stripped):
+                if header_row and not separator_row:
+                    separator_row = stripped
+                continue
+            if "알고 있음" in stripped and "정보" in stripped:
+                if header_row:
+                    # 다른 표의 헤더 → 이 블록의 표는 끝났다
+                    break
+                header_row = stripped
+                continue
+            if not header_row:
+                continue
+            # placeholder 예시 행 / 빈 행(— 만 있는) 제외
+            cells = _split_table_cells(stripped)
+            if not cells or "{{" in stripped:
+                continue
+            if all(c in {"—", "-", ""} for c in cells):
+                continue
+            # before_episode 이전 습득만 (습득 화수 열에서 숫자 추출)
+            if before_episode > 0:
+                acquired = _first_episode_number(cells)
+                if acquired is not None and acquired >= before_episode:
+                    if "[PIN]" not in stripped:
+                        continue
+            data_rows.append(stripped)
+
+        if not header_row or not data_rows:
+            continue
+
+        col_count = header_row.count("|") - 1
+        selected = _select_recent_and_pinned(
+            data_rows, max_rows_per_char, col_count
+        )
+        block_out = [f"### {name}", "", header_row]
+        if separator_row:
+            block_out.append(separator_row)
+        block_out.extend(selected)
+        out_parts.append("\n".join(block_out))
+
+    if not out_parts:
+        return "(해당 캐릭터 열 없음)"
+    return "\n\n".join(out_parts)
+
+
+def _first_episode_number(cells: list[str]) -> Optional[int]:
+    """표 셀에서 첫 번째 '\\d+화' 형태의 화수를 정수로 반환한다."""
+    for cell in cells:
+        match = re.search(r"(\d+)\s*화", cell)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _filter_knowledge_map(
+    content: str, characters: list[str], before_episode: int = 0
+) -> str:
+    """knowledge-map.md에서 지정된 캐릭터의 정보 보유 현황을 추출한다.
+
+    두 형식을 모두 지원한다:
+    - 단일 매트릭스: `| 정보 | 윤서하 | 리라 | 비고 |` — 캐릭터 열만 남긴다.
+    - 캐릭터별 표: `### 이름` + `| 정보 | 알고 있음? | 습득 화수 | 출처 | 비고 |`
+      — 등장인물 블록의 표를 추출한다.
+
+    두 형식 모두 최근 N행 + `[PIN]` 표시 행(창 무관 상시 포함) 규칙을 따른다.
     """
     if not content or not characters:
         return "(파일 없음)"
 
     if "(초기화)" in content:
         return "(정보 보유 기록 없음)"
+
+    # 캐릭터별 표 형식 우선 판별
+    if _is_character_keyed_knowledge_map(content):
+        return _filter_knowledge_map_by_character(
+            content, characters, max_rows_per_char=12, before_episode=before_episode
+        )
 
     lines = content.splitlines()
 
@@ -909,17 +1066,15 @@ def _filter_knowledge_map(
         ]
         result_lines.append("|" + "|".join(filtered) + "|")
 
-    # 결과가 너무 길면 최근 정보만 (마지막 25행)
+    # 결과가 너무 길면 최근 정보만 (마지막 25행) + [PIN] 행은 창 무관 상시 포함.
     # 장편(60화+)에서 15행은 핵심 지식을 놓칠 수 있으므로 25행으로 확대.
     # 전역 핵심 정보(비밀/오해 등)는 _extract_global_knowledge로 별도 보장됨.
     max_data_rows = 25
     if len(result_lines) > max_data_rows + 2:  # 헤더+구분선+N행
         header_rows = result_lines[:2]
         data_rows = result_lines[2:]
-        result_lines = (
-            header_rows
-            + [f"| ... ({len(data_rows) - max_data_rows}행 생략) |" + "|" * (len(keep_indices) - 1)]
-            + data_rows[-max_data_rows:]
+        result_lines = header_rows + _select_recent_and_pinned(
+            data_rows, max_data_rows, len(keep_indices)
         )
 
     return "\n".join(result_lines)
@@ -939,9 +1094,10 @@ def _filter_relationship_log(
 
     parts: list[str] = []
 
-    # 1. 관계 매트릭스
+    # 1. 관계 매트릭스 (헤딩과 표 사이에 blockquote/빈 줄 허용)
     matrix_match = re.search(
-        r"## (?:관계 매트릭스|관계 상태 매트릭스)\s*\n((?:\|.+\n)+)", content
+        r"## (?:관계 매트릭스|관계 상태 매트릭스)\s*\n(?:>.*\n|[ \t]*\n)*((?:\|.+\n)+)",
+        content,
     )
     if matrix_match:
         matrix_text = matrix_match.group(1)
@@ -1000,24 +1156,39 @@ def _filter_relationship_log(
             if truncated_rows:
                 parts.append("### 관계 매트릭스\n\n" + "\n".join(truncated_rows))
 
-    # 2. 만남 로그 — 최근 항목 중 캐릭터가 포함된 것만
-    log_match = re.search(r"## 만남 로그\s*\n((?:\|.+\n)+)", content)
+    # 2. 만남 로그 — 최근 5건 + 첫 만남 보존 (헤딩과 표 사이 blockquote/빈 줄 허용)
+    log_match = re.search(
+        r"## 만남 로그\s*\n(?:>.*\n|[ \t]*\n)*((?:\|.+\n)+)", content
+    )
     if log_match:
-        log_text = log_match.group(1)
-        log_lines = log_text.strip().splitlines()
+        log_lines = log_match.group(1).strip().splitlines()
         if len(log_lines) >= 2:
             header = log_lines[0]
             separator = log_lines[1]
-            filtered = [header, separator]
-            for line in log_lines[2:]:
-                if any(char in line for char in characters):
-                    filtered.append(line)
+            matching = [
+                line for line in log_lines[2:]
+                if any(char in line for char in characters)
+            ]
 
-            # 최근 5건만, 셀 내용 150자 제한
-            if len(filtered) > 7:
-                filtered = filtered[:2] + filtered[-5:]
+            if len(matching) > 5:
+                recent = matching[-5:]
+                older = matching[:-5]
+                # 등장인물별 가장 오래된 행(첫 만남) 1개씩, 총 5행 이내로 캡
+                first_meetings: list[str] = []
+                for char in characters:
+                    for line in older:
+                        if char in line and line not in recent and line not in first_meetings:
+                            first_meetings.append(line)
+                            break
+                first_meetings = first_meetings[:5]
+                filtered = [header, separator] + first_meetings
+                if first_meetings:
+                    filtered.append("| … (중략) |")
+                filtered += recent
+            else:
+                filtered = [header, separator] + matching
 
-            # 각 데이터 행의 셀을 150자로 제한
+            # 각 데이터 행의 셀을 80자로 제한
             truncated = []
             for line in filtered:
                 if line.startswith("|") and not all(c in "-| " for c in line):
@@ -1031,6 +1202,31 @@ def _filter_relationship_log(
                     truncated.append(line)
 
             parts.append("### 최근 만남 로그\n\n" + "\n".join(truncated))
+
+    # 3. 관계 변화 이력 — 등장인물이 관여된 최근 변화(어투/호칭/감정 전환)만
+    change_match = re.search(
+        r"## (?:관계 변화 이력|어투 변화 이력)\s*\n(?:>.*\n|[ \t]*\n)*((?:\|.+\n)+)",
+        content,
+    )
+    if change_match:
+        change_lines = change_match.group(1).strip().splitlines()
+        if len(change_lines) >= 2:
+            header = change_lines[0]
+            separator = change_lines[1]
+            matching = [
+                line for line in change_lines[2:]
+                if "{{" not in line and any(char in line for char in characters)
+            ]
+            if matching:
+                truncated = [header, separator]
+                for line in matching[-5:]:
+                    cols = line.split("|")
+                    cols = [
+                        c[:60] + "..." if len(c.strip()) > 60 else c
+                        for c in cols
+                    ]
+                    truncated.append("|".join(cols))
+                parts.append("### 관계 변화 이력\n\n" + "\n".join(truncated))
 
     return "\n\n".join(parts) if parts else "(해당 캐릭터 관계 없음)"
 
@@ -1170,9 +1366,24 @@ def _filter_foreshadowing(content: str) -> str:
 
     parts: list[str] = []
 
+    # '## 회수 완료' 표를 먼저 파싱해 {F###: 회수화수} 매핑을 만든다.
+    # 블록에 인라인 회수 화수가 없을 때 폴백으로 사용.
+    completed_ep: dict[str, str] = {}
+    completed_match = re.search(
+        r"## 회수 완료\s*\n((?:\|.+\n?)+)", content
+    )
+    if completed_match:
+        for line in completed_match.group(1).splitlines():
+            cells = _split_table_cells(line)
+            fid = next((c for c in cells if re.fullmatch(r"F\d+", c)), None)
+            ep = next((c for c in cells if re.fullmatch(r"\d+화", c)), None)
+            if fid and ep:
+                completed_ep[fid] = ep
+
     # 활성 복선 섹션의 각 F### 항목에서 핵심만 추출
+    # 정본 헤딩(`## 활성 복선 (미회수)`) 외에 실프로젝트 형식(`## 복선 현황`)도 허용.
     active_match = re.search(
-        r"## 활성 복선 \(미회수\)\s*\n(.*?)(?=\n## 회수 완료|$)",
+        r"## (?:활성 복선 \(미회수\)|복선 현황)\s*\n(.*?)(?=\n## 회수 완료|$)",
         content,
         re.DOTALL,
     )
@@ -1198,7 +1409,11 @@ def _filter_foreshadowing(content: str) -> str:
                 recovery_match = re.search(
                     r"- \*\*회수 완료\*\*: (\d+화)", block
                 )
-                ep = recovery_match.group(1) if recovery_match else "?"
+                ep = (
+                    recovery_match.group(1)
+                    if recovery_match
+                    else completed_ep.get(fid, "?")
+                )
                 parts.append(f"- **{fid}. {fname}** — 회수 완료 ({ep})")
                 continue
 
@@ -1243,36 +1458,105 @@ def _filter_foreshadowing(content: str) -> str:
     return "\n".join(parts) if parts else "(복선 없음)"
 
 
+def _map_episode_columns(header_cells: list[str]) -> dict[str, int]:
+    """episode-log 헤더 행에서 컬럼명→인덱스 매핑을 만든다 (header-aware).
+
+    지원 컬럼: 제목/요약/장소/등장인물/핵심 사건/엔딩 훅.
+    """
+    idx: dict[str, int] = {}
+    for i, name in enumerate(header_cells):
+        n = name.strip()
+        if "제목" in n and "title" not in idx:
+            idx["title"] = i
+        elif "요약" in n and "summary" not in idx:
+            idx["summary"] = i
+        elif "장소" in n and "place" not in idx:
+            idx["place"] = i
+        elif "등장인물" in n and "characters" not in idx:
+            idx["characters"] = i
+        elif ("핵심 사건" in n or n == "사건") and "event" not in idx:
+            idx["event"] = i
+        elif ("엔딩 훅" in n or n == "훅") and "hook" not in idx:
+            idx["hook"] = i
+    return idx
+
+
+def _parse_episode_log_table(
+    content: str,
+) -> tuple[dict[str, int], list[tuple[int, list[str]]]]:
+    """episode-log 표를 파싱해 (컬럼 매핑, [(화수, 셀들)]) 을 반환한다."""
+    col_idx: dict[str, int] = {}
+    rows: list[tuple[int, list[str]]] = []
+    header_seen = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or _is_separator_row(stripped):
+            continue
+        cells = _split_table_cells(stripped)
+        if not cells:
+            continue
+        if not header_seen and not cells[0].isdigit():
+            col_idx = _map_episode_columns(cells)
+            header_seen = True
+            continue
+        if not cells[0].isdigit():
+            continue
+        rows.append((int(cells[0]), cells))
+    return col_idx, rows
+
+
+def _format_episode_row(
+    ep_num: int, cells: list[str], col_idx: dict[str, int]
+) -> str:
+    """헤더 매핑을 사용해 에피소드 한 개를 압축 렌더링한다."""
+
+    def _get(key: str, limit: int) -> str:
+        i = col_idx.get(key, -1)
+        if 0 <= i < len(cells):
+            return cells[i].strip()[:limit]
+        return ""
+
+    title = _get("title", 120)
+    header = f"### {ep_num}화 — {title}" if title else f"### {ep_num}화"
+    lines = [header]
+    fields = [
+        ("요약", _get("summary", 240)),
+        ("장소", _get("place", 80)),
+        ("등장인물", _get("characters", 120)),
+        ("핵심 사건", _get("event", 200)),
+        ("엔딩 훅", _get("hook", 200)),
+    ]
+    for label, value in fields:
+        if value:
+            lines.append(f"- {label}: {value}")
+    return "\n".join(lines)
+
+
 def _extract_last_n_episodes(
     content: str, n: int = 3, before_episode: int = 0
 ) -> str:
     """episode-log.md에서 마지막 N개 에피소드 요약을 추출한다.
 
     before_episode가 지정되면 그 에피소드 이전의 N개를 가져온다.
+    헤더 행에서 컬럼 인덱스를 찾아(요약/장소/등장인물/핵심 사건/엔딩 훅) 추출한다.
     """
     if not content:
         return "(파일 없음)"
 
-    # 표 형식 episode-log 우선 지원
-    table_rows: list[tuple[int, str, str]] = []
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        cells = [c.strip() for c in stripped.split("|")[1:-1]]
-        if len(cells) < 3 or not cells[0].isdigit():
-            continue
-        ep_num = int(cells[0])
-        if before_episode > 0 and ep_num >= before_episode:
-            continue
-        table_rows.append((ep_num, cells[1], cells[2]))
+    # 표 형식 episode-log 우선 지원 (header-aware)
+    col_idx, all_rows = _parse_episode_log_table(content)
+    table_rows = [
+        (ep, cells)
+        for ep, cells in all_rows
+        if not (before_episode > 0 and ep >= before_episode)
+    ]
 
     if table_rows:
         table_rows.sort(key=lambda x: x[0])
         selected = table_rows[-n:]
         return "\n\n".join(
-            f"### {ep_num}화 — {title}\n- 요약: {summary[:240]}"
-            for ep_num, title, summary in selected
+            _format_episode_row(ep_num, cells, col_idx)
+            for ep_num, cells in selected
         )
 
     # --- 구분선으로 섹션 분리
@@ -1557,21 +1841,80 @@ def _extract_claude_md_rules(content: str) -> str:
                 + "\n".join(mystery_lines)
             )
 
-    # 호칭/어투 매트릭스 — 테이블만 추출
-    speech_match = re.search(
-        r"### 8\.1 호칭/어투 매트릭스\s*\n(.*?)(?=\n### 8\.2|$)",
-        content,
-        re.DOTALL,
-    )
-    if speech_match:
-        # 테이블 행만 추출
-        table_lines = [
-            l for l in speech_match.group(1).strip().splitlines()
-            if l.startswith("|")
-        ]
-        parts.append("### 호칭/어투\n\n" + "\n".join(table_lines))
+    # 호칭/어투 — §8.1 매트릭스(+ blockquote 기본값) / §8.2 상황별 어투 전환 / §8.3 어투 변화 이력
+    # 헤딩 접미사 허용 (### 8.1 호칭/어투 매트릭스 (갱신) 등).
+    speech_block = _extract_speech_rules(content)
+    if speech_block:
+        parts.append(speech_block)
 
     return "\n\n".join(parts) if parts else "(규칙 없음)"
+
+
+def _extract_speech_rules(content: str) -> str:
+    """CLAUDE.md §8.1~§8.3 호칭/어투 규칙을 추출한다.
+
+    §8.1: 호칭/어투 매트릭스 표 + `> 미등록 조합 기본값:` 등 blockquote 기본값
+    §8.2: 상황별 어투 전환 표
+    §8.3: 어투 변화 이력 표 (§8.4 직전까지)
+    헤딩 뒤 접미사를 허용한다 (`### 8.1 호칭/어투 매트릭스 (갱신)`).
+    """
+
+    def _section_lines(num: str) -> list[str]:
+        # 다음 §8.x 헤딩 또는 상위 헤딩(## N.) 직전까지
+        match = re.search(
+            rf"### {re.escape(num)}[^\n]*\n(.*?)(?=\n### 8\.\d|\n## \d|\Z)",
+            content,
+            re.DOTALL,
+        )
+        if not match:
+            return []
+        return [
+            l.rstrip()
+            for l in match.group(1).strip().splitlines()
+            if l.strip().startswith("|") or l.strip().startswith(">")
+        ]
+
+    segments: list[str] = []
+
+    lines_81 = _section_lines("8.1")
+    if lines_81:
+        segments.append("\n".join(lines_81))
+
+    lines_82 = _section_lines("8.2")
+    if lines_82:
+        segments.append("**상황별 어투 전환 (§8.2)**\n\n" + "\n".join(lines_82))
+
+    lines_83 = _section_lines("8.3")
+    if lines_83:
+        segments.append("**어투 변화 이력 (§8.3)**\n\n" + "\n".join(lines_83))
+
+    if not segments:
+        return ""
+    return "### 호칭/어투\n\n" + "\n\n".join(segments)
+
+
+def _filter_voice_subsections(voice_text: str) -> tuple[str, list[str]]:
+    """Voice Profile(§0) 본문을 subsection(### 0.x) 단위로 검사한다.
+
+    placeholder(`{{`)가 남은 subsection은 제외하고 그 번호를 dropped에 기록한다.
+    채워진 subsection만 원문 순서/간격을 유지해 이어 붙여 반환한다.
+
+    반환: (kept_text, dropped_numbers)
+    """
+    chunks = re.split(r"(?=^### 0\.\d)", voice_text, flags=re.MULTILINE)
+    kept_parts: list[str] = []
+    dropped: list[str] = []
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        if "{{" in chunk:
+            num_match = re.match(r"### (0\.\d+)", chunk.strip())
+            if num_match:
+                dropped.append(num_match.group(1))
+            continue
+        kept_parts.append(chunk)
+    kept = "".join(kept_parts).rstrip()
+    return kept, dropped
 
 
 def _extract_style_rules(content: str) -> str:
@@ -1594,10 +1937,18 @@ def _extract_style_rules(content: str) -> str:
     if voice_match:
         voice_text = voice_match.group(1).strip()
         # HTML 주석 제거 (예시 블록)
-        voice_text = re.sub(r"<!--.*?-->", "", voice_text, flags=re.DOTALL)
-        # placeholder 미채워진 경우 건너뜀 ({{가 본문에 남아있으면 skip)
-        if voice_text and "{{" not in voice_text:
-            parts.append("### Voice Profile\n\n" + voice_text)
+        voice_text = re.sub(r"<!--.*?-->", "", voice_text, flags=re.DOTALL).strip()
+        # subsection(### 0.x) 단위로 placeholder 검사 → 채워진 것만 포함.
+        # placeholder 잔존 subsection이 있으면 경고 1줄 명시 (감사 F3).
+        kept, dropped = _filter_voice_subsections(voice_text)
+        if kept:
+            block = "### Voice Profile\n\n" + kept
+            if dropped:
+                block += (
+                    "\n\n⚠️ Voice Profile 일부 미추출 "
+                    f"(placeholder 잔존: {', '.join(dropped)})"
+                )
+            parts.append(block)
 
     # 시점 섹션
     pov_match = re.search(
@@ -1731,11 +2082,18 @@ def _extract_global_knowledge(content: str) -> str:
 
     '비밀', '오해', '금지', '폭로', '미공개' 등의 키워드가 포함된 행은
     등장인물 필터와 무관하게 항상 포함한다.
+
+    캐릭터별 표 형식에서는 여러 표의 행을 병합하되 **소유자 캐릭터명**을
+    첫 열로 합성해 "누가 아는가"를 잃지 않는다. (감사 F2 버그 수정)
     """
     if not content:
         return ""
 
     global_keywords = ["비밀", "오해", "금지", "폭로", "미공개", "함정", "거짓"]
+
+    if _is_character_keyed_knowledge_map(content):
+        return _extract_global_knowledge_by_character(content, global_keywords)
+
     lines = content.splitlines()
 
     # 헤더 행 찾기
@@ -1763,6 +2121,44 @@ def _extract_global_knowledge(content: str) -> str:
     if len(result) <= 2:
         return ""
     return "### 전역 핵심 정보 (캐릭터 무관)\n\n" + "\n".join(result)
+
+
+def _extract_global_knowledge_by_character(
+    content: str, global_keywords: list[str], limit: int = 15
+) -> str:
+    """캐릭터별 표 형식에서 전역 핵심 정보를 소유자 정보와 함께 추출한다."""
+    blocks = re.split(r"(?=^### )", content, flags=re.MULTILINE)
+    result_rows: list[str] = []
+
+    for block in blocks:
+        header_match = re.match(r"### (.+)", block)
+        if not header_match:
+            continue
+        owner = _clean_character_name(header_match.group(1))
+        for line in block.splitlines():
+            stripped = line.strip()
+            # 마지막 블록이 `## 정보 전파 로그` 등으로 새어 나가지 않도록 상위 헤딩에서 종료
+            if stripped.startswith("## "):
+                break
+            if not stripped.startswith("|") or _is_separator_row(stripped):
+                continue
+            cells = _split_table_cells(stripped)
+            if not cells or "{{" in stripped or "알고 있음" in stripped:
+                continue
+            info = cells[0]
+            if any(kw in info for kw in global_keywords):
+                result_rows.append(f"| {owner} | " + " | ".join(cells) + " |")
+
+    if not result_rows:
+        return ""
+
+    header = "| 소유자 | 정보 | 알고 있음? | 습득 화수 | 출처 | 비고 |"
+    separator = "|--------|------|-----------|----------|------|------|"
+    return (
+        "### 전역 핵심 정보 (캐릭터 무관)\n\n"
+        + header + "\n" + separator + "\n"
+        + "\n".join(result_rows[-limit:])
+    )
 
 
 def _extract_relationship_turning_points(content: str) -> str:
@@ -2142,7 +2538,9 @@ def _compile_brief(
     sections.append(f"## 등장인물 상태\n\n{filtered_chars}")
 
     # 5. 정보 보유 현황
-    filtered_knowledge = _filter_knowledge_map(knowledge_map, characters)
+    filtered_knowledge = _filter_knowledge_map(
+        knowledge_map, characters, before_episode=episode_number
+    )
     sections.append(f"## 정보 보유 현황\n\n{filtered_knowledge}")
 
     # 5. 관계 현황
@@ -2318,6 +2716,34 @@ def _compile_brief(
                 + "\n".join(overdue_lines[:10])
             )
 
+    # ── PARSE-MISS 감지 ──
+    # 소스 파일이 존재하는데 해당 섹션 추출 결과가 빈 값/placeholder면 결손으로 본다.
+    carry_forward_lines = _extract_live_cue_lines(
+        running_context,
+        heading_pattern=(
+            r"## (?:직전 화 직결 상태|Immediate Carry-Forward|Carry-Forward)"
+            r"\s*\n(.*?)(?=\n## |$)"
+        ),
+        limit=1,
+    )
+    parse_miss: list[str] = []
+    miss_checks = [
+        ("활성 약속", promise_tracker,
+         filtered_promises in ("(활성 약속 없음)", "(파일 없음)")),
+        ("정보 보유 현황", knowledge_map,
+         filtered_knowledge in ("(해당 캐릭터 열 없음)", "(파일 없음)")),
+        ("최근 에피소드", episode_log,
+         recent_episodes in ("(에피소드 없음)", "(파일 없음)")),
+        ("활성 복선", foreshadowing,
+         filtered_foreshadow in ("(복선 없음)", "(파일 없음)")),
+        ("금지사항", claude_md, "### 금지사항" not in rules),
+        ("호칭/어투", claude_md, "### 호칭/어투" not in rules),
+        ("running-context 직결 상태", running_context, not carry_forward_lines),
+    ]
+    for label, source, is_missing in miss_checks:
+        if source and is_missing:
+            parse_miss.append(label)
+
     # 최종 크기 체크 (정보성).
     # 헤더 라인을 sections에 삽입한 뒤 크기를 계산해야 보고가 정확하다.
     # 이전 구현은 삽입 전 크기를 계산해 약간 낮은 값을 보고하는 버그가 있었음.
@@ -2328,13 +2754,25 @@ def _compile_brief(
     )
     sections.insert(1, header_line)
 
-    final_brief = "\n\n".join(sections)
+    # 버전 스탬프(greppable) + PARSE-MISS 리포트를 브리프 최상단에 삽입.
+    prefix = f"<!-- compile_brief v{COMPILE_BRIEF_VERSION} -->\n"
+    if parse_miss:
+        prefix += f"> ⚠️ PARSE-MISS: {', '.join(parse_miss)}\n"
+
+    final_brief = prefix + "\n\n".join(sections)
     # 실제 크기 (placeholder 포함)로 계산 → placeholder 치환.
     actual_size_kb = len(final_brief.encode("utf-8")) / 1024
     final_brief = final_brief.replace(
         size_placeholder, f"{actual_size_kb:.1f}"
     )
     _write_brief_snapshot(novel_dir, episode_number, final_brief)
+    if parse_miss:
+        _append_runtime_event(
+            novel_dir,
+            "parse_miss",
+            episode=episode_number,
+            sections=parse_miss,
+        )
     _append_runtime_event(
         novel_dir,
         "compile_brief_complete",

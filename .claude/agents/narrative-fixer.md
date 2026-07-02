@@ -99,7 +99,7 @@ For each fix item, load in this order:
 - **Override check (Phase 2 voice preservation, Phase 6 unified 5종, 2026-04-17)**: 진단 항목이 style/voice/naturalness/repetition 성격이면 **공통 면책 5종**을 먼저 확인:
   1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 표현
   2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
-  3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주 (위기/전투/내면/환상/유머/관계 정점)
+  3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면 변주 (위기/전투/내면/환상/유머/관계 정점). **단, 존댓말/어투(register) 이탈은 이탈 직전 1~3문장 내 트리거 가시 + 장면 내 복귀일 때만 면책 (CLAUDE.md §8.4 규칙 4)**
   4. `summaries/decision-log.md`의 프로젝트 단위 의도적 일탈 등록
   5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
   - 하나라도 매칭되면 fix-spec에 `[SKIP: override matched — {근거: 5종 중 번호/링크}]`로 표시하고 수정하지 않는다. 다음 item으로.

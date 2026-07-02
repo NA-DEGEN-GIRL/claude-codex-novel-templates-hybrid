@@ -38,7 +38,8 @@
 - **약한 안전장치를 자주, 강한 진단기는 드물게.**
 - `review_floor`와 specialist checker cadence를 분리한다.
 - `standard` review를 실행한다고 해서 `why-check`, `oag-check`, `pov-era-check`, `scene-logic-check`, `repetition-check`를 자동 실행하지 않는다.
-- specialist checker는 화수 고정 주기보다 **위험 신호(risk signal)**를 우선 트리거로 삼는다. 트리거 소스: (1) `plot/arc-XX.md`의 `risk:` 태그, (2) unified-reviewer continuity의 `ESCALATE_*` flag.
+- specialist checker는 화수 고정 주기보다 **위험 신호(risk signal)**를 우선 트리거로 삼는다. 트리거 소스: (1) `plot/arc-XX.md`의 `risk:` 태그 (plot 생성 시 고위험 화수에 태깅 — batch-supervisor §3c), (2) unified-reviewer continuity의 `ESCALATE_*` flag.
+- `ESCALATE_NATURALNESS`(당화 `/naturalness` 즉시 실행)와 `ESCALATE_SPEECH`(당화 fix + 다음 화 standard 승격)는 specialist cadence가 아니라 **즉시 대응 경로**다 — batch-supervisor §2.5 판정 4번.
 - periodic의 목적은 초안을 다시 쓰게 만드는 것이 아니라, **누적 drift를 조기에 잡고 다음 구간에서 더 크게 망가지지 않게 하는 것**이다.
 - 검사 규칙은 초안 생성 규칙을 오염시키지 않는다. patch-feasible한 사실 오류와 장면 로컬 문제는 즉시 수정하되, 설명/동기/반복/주제 문제는 기본적으로 `watch`, `forward-fix`, `HOLD`를 우선 검토한다.
 
@@ -98,6 +99,8 @@
 
 ### Specialist Cadence
 
+> **이 표가 specialist cadence의 정본(canon)이다.** 개별 checker 문서의 실행 빈도 서술과 불일치하면 이 표가 우선한다 (CLAUDE.md §4.1).
+
 | Agent / Check | Cadence |
 |---|---|
 | `unified-reviewer continuity` | 매 화 |
@@ -108,6 +111,8 @@
 | `pov-era-check` | 전근대/무협/회귀/시스템 용어 위험 화수, 지식 누수 의심 화수, 아크 경계 |
 | `scene-logic-check` | 전투/추격/블로킹 복잡 장면, 아크 경계 |
 | `repetition-check` | 8~15화 간격 또는 아크 경계. watchlist가 없으면 더 늦춰도 된다 |
+| `gpt_naturalness` (`review_episode(sources="gpt_naturalness")`) | **매 5화 중 1화(5의 배수 화 권장)** + 전투/군중/추격 화 + proxy 실패·판정 애매 화. 주관 트리거("애매할 때")만으로는 실행이 무산되기 쉬우므로 주기 샘플링을 기본으로 한다 — proxy 단일 판정자의 관대/엄격 드리프트를 교정하는 앵커 |
+| `scripts/speech-level-scan.py` | unified-reviewer 항목 6 절차의 보조 도구 — 매 화 continuity 리뷰에서 활용 가능 (판정은 리뷰어) |
 | `narrative-review` | 아크 경계 또는 품질 저하 의심 시 |
 | `full-audit` | 장기 구간 종료 또는 출판 전 |
 | `book-review` | 아크 완결/완결 후 독자 관점 점검 |

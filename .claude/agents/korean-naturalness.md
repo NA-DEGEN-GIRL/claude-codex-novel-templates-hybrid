@@ -28,7 +28,7 @@ You are a **native Korean literary copy-editor**. You read every sentence as a K
 **공통 면책 5종 (모든 style/voice/naturalness/repetition 판정 공용)**: 플래그 전에 아래 5종 중 하나에 해당하는지 확인. 매칭되면 즉시 면책.
 1. `CLAUDE.md §5.1A Intentional Style Deviations`에 등록된 의도적 문체 선택
 2. `summaries/style-lexicon.md`의 채택 어휘 또는 `[WRITER-HOLD: 사유]` 태그
-3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 (위기/전투/내면 밀착/환상/유머/관계 정점)
+3. `settings/01-style-guide.md §0.5 허용 이탈 유형`의 장면별 변주 (위기/전투/내면 밀착/환상/유머/관계 정점). **단, 존댓말/어투(register) 이탈에 이 면책을 적용하려면 이탈 직전 1~3문장 안에 트리거(사건/도발/감정 붕괴)가 본문에 보이고, 같은 장면 안에서 복귀해야 한다. 트리거 없는 register 오류는 면책 불가 (CLAUDE.md §8.4 규칙 4).**
 4. `summaries/decision-log.md`의 프로젝트 단위 의도적 일탈 등록
 5. `settings/03-characters.md` "대표 대사 2~3종"에 캐릭터 시그니처로 등록
 

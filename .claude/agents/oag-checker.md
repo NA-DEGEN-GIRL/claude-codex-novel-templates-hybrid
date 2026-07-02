@@ -8,7 +8,7 @@
 
 **When to run**:
 - 아크 전환 시 (arc transition package의 **첫 단계** — why-check보다 먼저)
-- 5화마다 rolling mini-check (선택)
+- rolling mini-check (선택 — cadence 정본은 settings/07-periodic.md: 기본 상시 아님, risk tag/ESCALATE 트리거 우선)
 - 고위험 장면 직후 (rescue/증거확보/비밀인지/배신목격/부모책임/도주/신고)
 
 **Output**: `summaries/oag-report.md`
